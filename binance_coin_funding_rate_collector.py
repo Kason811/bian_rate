@@ -1,0 +1,637 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Download Binance coin-margined perpetual funding rates, aggregate by day and month,
+and export symbol-level daily Excel files plus summary workbooks.
+"""
+
+from __future__ import annotations
+
+from copy import copy
+import shutil
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Dict, List, Set, Tuple
+
+from binance.client import Client
+from binance.exceptions import BinanceAPIException, BinanceRequestException
+import pandas as pd
+from requests.exceptions import RequestException
+from openpyxl.chart import LineChart, Reference
+from openpyxl.formatting.rule import ColorScaleRule
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+LOOKBACK_YEARS = 3
+API_BATCH_LIMIT = 1000
+REQUEST_SLEEP_SECONDS = 0.2
+MAX_RETRIES = 5
+
+OUTPUT_ROOT = Path(__file__).resolve().parent / "coin_funding_rate_outputs"
+DAILY_DIR = OUTPUT_ROOT / "daily"
+
+SUMMARY_BASENAME = "\u8d39\u7387\u7edf\u8ba1\u8868"
+SUMMARY_TIME_FORMAT = "%Y%m%d%H%M"
+
+GROUP_TIMEZONE = "Asia/Shanghai"
+AVG_VOLUME_WINDOW_DAYS = 30
+LOW_VOLUME_THRESHOLD = 10_000_000
+DAILY_CHART_DAYS = 30
+
+MONTHLY_SHEET_NAME = "MonthlySummary"
+RANKING_SHEET_NAME = "TopRanking"
+OVERVIEW_SHEET_NAME = "Overview"
+VOLUME_SHEET_NAME = "30\u5929\u65e5\u5e73\u5747\u6210\u4ea4\u91cf"
+LOW_VOLUME_MARK = "*"
+
+HIGHLIGHT_FILL = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+LOW_VOLUME_FILL = PatternFill(start_color="FFEBEE", end_color="FFEBEE", fill_type="solid")
+POSITIVE_FONT = Font(color="FF1B5E20")
+NEGATIVE_FONT = Font(color="FFB71C1C")
+
+
+def clear_daily_outputs() -> None:
+    if DAILY_DIR.exists():
+        shutil.rmtree(DAILY_DIR)
+    DAILY_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def simplify_symbol(symbol: str) -> str:
+    base = symbol.replace("_PERP", "")
+    if base.endswith("USD"):
+        base = base[:-3]
+    return base
+
+
+def make_safe_sheet_name(base: str, used_names: Set[str]) -> str:
+    invalid_chars = set(r'[]:*?/\\')
+    cleaned = "".join(ch for ch in base if ch not in invalid_chars).strip()
+    if not cleaned:
+        cleaned = "Sheet"
+    cleaned = cleaned[:31]
+    candidate = cleaned
+    idx = 1
+    while candidate in used_names:
+        suffix = f"_{idx}"
+        candidate = f"{cleaned[:31 - len(suffix)]}{suffix}"
+        idx += 1
+    used_names.add(candidate)
+    return candidate
+
+
+def get_coin_perpetual_symbols(client: Client) -> Tuple[List[str], Dict[str, float]]:
+    try:
+        info = client.futures_coin_exchange_info()
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"\u65e0\u6cd5\u83b7\u53d6\u4ea4\u6613\u5bf9\u5217\u8868: {exc}") from exc
+
+    symbols: List[str] = []
+    contract_sizes: Dict[str, float] = {}
+    for symbol_info in info.get("symbols", []):
+        if symbol_info.get("contractType") == "PERPETUAL" and symbol_info.get("contractStatus") == "TRADING":
+            symbol = symbol_info["symbol"]
+            symbols.append(symbol)
+            try:
+                contract_sizes[symbol] = float(symbol_info.get("contractSize", 1.0))
+            except (TypeError, ValueError):
+                contract_sizes[symbol] = 1.0
+
+    unique_symbols = sorted(set(symbols))
+    for sym in unique_symbols:
+        contract_sizes.setdefault(sym, 1.0)
+    return unique_symbols, contract_sizes
+
+
+def fetch_symbol_funding_history(client: Client, symbol: str, start_ts: int) -> pd.DataFrame:
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    cursor = start_ts
+    rows: List[dict] = []
+
+    while cursor < now_ms:
+        retries = 0
+        while retries < MAX_RETRIES:
+            try:
+                batch = client.futures_coin_funding_rate(symbol=symbol, startTime=cursor, limit=API_BATCH_LIMIT)
+                break
+            except (BinanceAPIException, BinanceRequestException, RequestException) as exc:
+                retries += 1
+                wait = REQUEST_SLEEP_SECONDS * (2**retries)
+                print(f"[{symbol}] API\u9519\u8bef\uff0c{wait:.1f}s\u540e\u91cd\u8bd5 ({retries}/{MAX_RETRIES}): {exc}")
+                time.sleep(wait)
+        else:
+            print(f"[{symbol}] \u591a\u6b21\u91cd\u8bd5\u5931\u8d25\uff0c\u505c\u6b62\u8be5\u4ea4\u6613\u5bf9\u7684\u6570\u636e\u6293\u53d6\u3002")
+            break
+
+        if not batch:
+            break
+
+        rows.extend(batch)
+        cursor = int(batch[-1]["fundingTime"]) + 1
+        if len(batch) < API_BATCH_LIMIT and cursor >= now_ms:
+            break
+        time.sleep(REQUEST_SLEEP_SECONDS)
+
+    if not rows:
+        return pd.DataFrame(columns=["fundingTime", "fundingRate"])
+
+    df = pd.DataFrame(rows)
+    df["fundingTime"] = pd.to_datetime(df["fundingTime"], unit="ms", utc=True)
+    df["fundingRate"] = pd.to_numeric(df["fundingRate"], errors="coerce").fillna(0.0)
+    df.drop_duplicates(subset="fundingTime", inplace=True)
+    return df
+
+
+def compute_daily_funding(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return pd.DataFrame(columns=["date", "daily_funding_rate"])
+
+    daily = (
+        df.set_index("fundingTime")["fundingRate"]
+        .tz_convert(GROUP_TIMEZONE)
+        .resample("D")
+        .sum()
+        .reset_index()
+    )
+    daily["date"] = daily["fundingTime"].dt.tz_localize(None)
+    daily.rename(columns={"fundingRate": "daily_funding_rate"}, inplace=True)
+    return daily[["date", "daily_funding_rate"]]
+
+
+def compute_monthly_summary(symbol_daily: Dict[str, pd.DataFrame], periods: int = 24) -> pd.DataFrame:
+    monthly_frames = []
+    for symbol, daily in symbol_daily.items():
+        if daily.empty:
+            continue
+        temp = daily.copy()
+        temp["date"] = pd.to_datetime(temp["date"]).dt.tz_localize(None)
+        monthly = temp.set_index("date")["daily_funding_rate"].resample("ME").sum().rename(symbol)
+        monthly.index = monthly.index.to_period("M")
+        monthly_frames.append(monthly)
+
+    if not monthly_frames:
+        return pd.DataFrame()
+
+    monthly_summary = pd.concat(monthly_frames, axis=1).fillna(0.0)
+    monthly_summary = monthly_summary.groupby(level=0).sum()
+    current_period = pd.Timestamp.now(tz=GROUP_TIMEZONE).tz_localize(None).to_period("M")
+    period_index = pd.period_range(end=current_period, periods=periods, freq="M")
+    monthly_summary = monthly_summary.reindex(period_index, fill_value=0.0)
+    monthly_summary = monthly_summary.rename(columns={col: simplify_symbol(col) for col in monthly_summary.columns})
+    monthly_summary = monthly_summary.T.groupby(level=0).sum().T
+    monthly_summary = monthly_summary[monthly_summary.sum().sort_values(ascending=False).index]
+    monthly_summary.index.name = "Month"
+    return monthly_summary
+
+
+def get_window_totals(ordered_monthly: pd.DataFrame, end_offset: int, months: int) -> pd.Series:
+    if ordered_monthly.empty or months <= 0:
+        return pd.Series(dtype=float)
+    period_index = ordered_monthly.index
+    if len(period_index) == 0:
+        return pd.Series(dtype=float)
+
+    current_period = period_index[-1]
+    end_period = current_period - end_offset
+    start_period = end_period - (months - 1)
+    window = ordered_monthly.loc[(period_index >= start_period) & (period_index <= end_period)]
+    if window.empty:
+        return pd.Series(dtype=float)
+
+    totals = window.sum()
+    totals.index = [simplify_symbol(symbol) for symbol in totals.index]
+    return totals.groupby(level=0).sum().sort_values(ascending=False)
+
+
+def format_top_symbols(totals: pd.Series, top_n: int = 3) -> str:
+    if totals.empty:
+        return "-"
+    return ", ".join([f"{symbol} ({value * 100:.2f}%)" for symbol, value in totals.head(top_n).items()])
+
+
+def build_recent_top_table(monthly_summary: pd.DataFrame) -> pd.DataFrame:
+    if monthly_summary.empty:
+        return pd.DataFrame()
+
+    ordered_monthly = monthly_summary.sort_index()
+    top_n = 8
+    windows = [
+        ("\u672c\u6708", 0, 1),
+        ("\u4e0a\u4e2a\u6708", 1, 1),
+        ("\u4e0a\u4e09\u4e2a\u6708", 1, 3),
+        ("\u4e0a6\u4e2a\u6708", 1, 6),
+        ("\u4e0a12\u4e2a\u6708", 1, 12),
+    ]
+
+    records = []
+    for label, end_offset, months in windows:
+        totals = get_window_totals(ordered_monthly, end_offset=end_offset, months=months)
+        top_entries = [f"{symbol} ({value * 100:.2f}%)" for symbol, value in totals.head(top_n).items()]
+        while len(top_entries) < top_n:
+            top_entries.append("-")
+        records.append((label, top_entries))
+
+    return pd.DataFrame({f"Rank{i + 1}": [record[1][i] for record in records] for i in range(top_n)}, index=[r[0] for r in records])
+
+
+def build_overview_table(monthly_summary: pd.DataFrame, low_volume_symbols: Set[str]) -> pd.DataFrame:
+    if monthly_summary.empty:
+        return pd.DataFrame(columns=["\u6307\u6807", "\u503c"])
+
+    ordered_monthly = monthly_summary.sort_index()
+    first_month = ordered_monthly.index[0].strftime("%Y-%m")
+    last_month = ordered_monthly.index[-1].strftime("%Y-%m")
+
+    this_month_totals = get_window_totals(ordered_monthly, end_offset=0, months=1)
+    prev_month_totals = get_window_totals(ordered_monthly, end_offset=1, months=1)
+
+    rows = [
+        {"\u6307\u6807": "\u7edf\u8ba1\u8303\u56f4", "\u503c": f"{first_month} \u81f3 {last_month}"},
+        {"\u6307\u6807": "\u5e01\u79cd\u6570\u91cf", "\u503c": str(monthly_summary.shape[1])},
+        {"\u6307\u6807": "\u672c\u6708Top3", "\u503c": format_top_symbols(get_window_totals(ordered_monthly, 0, 1), top_n=3)},
+        {"\u6307\u6807": "\u4e0a\u4e2a\u6708Top3", "\u503c": format_top_symbols(get_window_totals(ordered_monthly, 1, 1), top_n=3)},
+        {"\u6307\u6807": "\u4e0a\u4e09\u4e2a\u6708Top3", "\u503c": format_top_symbols(get_window_totals(ordered_monthly, 1, 3), top_n=3)},
+        {"\u6307\u6807": "\u4e0a6\u4e2a\u6708Top3", "\u503c": format_top_symbols(get_window_totals(ordered_monthly, 1, 6), top_n=3)},
+        {"\u6307\u6807": "\u4e0a12\u4e2a\u6708Top3", "\u503c": format_top_symbols(get_window_totals(ordered_monthly, 1, 12), top_n=3)},
+        {"\u6307\u6807": "\u672c\u6708\u6b63\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((this_month_totals > 0).sum()))},
+        {"\u6307\u6807": "\u672c\u6708\u8d1f\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((this_month_totals < 0).sum()))},
+        {"\u6307\u6807": "\u672c\u6708\u96f6\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((this_month_totals == 0).sum()))},
+        {"\u6307\u6807": "\u4e0a\u6708\u6b63\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((prev_month_totals > 0).sum()))},
+        {"\u6307\u6807": "\u4e0a\u6708\u8d1f\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((prev_month_totals < 0).sum()))},
+        {"\u6307\u6807": "\u4e0a\u6708\u96f6\u8d39\u7387\u5e01\u79cd\u6570", "\u503c": str(int((prev_month_totals == 0).sum()))},
+        {"\u6307\u6807": "\u4f4e\u6210\u4ea4\u91cf\u9608\u503c", "\u503c": f"{LOW_VOLUME_THRESHOLD:,.0f} USD"},
+        {"\u6307\u6807": "\u4f4e\u6210\u4ea4\u91cf\u5e01\u79cd\u6570", "\u503c": str(len(low_volume_symbols))},
+        {"\u6307\u6807": "\u4f4e\u6210\u4ea4\u91cf\u6807\u8bb0", "\u503c": f"\u5217\u540d\u5e26 {LOW_VOLUME_MARK}"},
+    ]
+    return pd.DataFrame(rows)
+
+
+def build_avg_volume_table(client: Client, symbols: List[str], contract_sizes: Dict[str, float]) -> pd.DataFrame:
+    records: List[dict] = []
+    for symbol in symbols:
+        retries = 0
+        klines = []
+        while retries < MAX_RETRIES:
+            try:
+                klines = client.futures_coin_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_1DAY, limit=AVG_VOLUME_WINDOW_DAYS)
+                break
+            except (BinanceAPIException, BinanceRequestException, RequestException) as exc:
+                retries += 1
+                wait = REQUEST_SLEEP_SECONDS * (2**retries)
+                print(f"[{symbol}] \u83b7\u53d6\u6210\u4ea4\u91cfK\u7ebf API\u9519\u8bef\uff0c{wait:.1f}s\u540e\u91cd\u8bd5 ({retries}/{MAX_RETRIES}): {exc}")
+                time.sleep(wait)
+        else:
+            print(f"[{symbol}] \u591a\u6b21\u5c1d\u8bd5\u83b7\u53d6\u6210\u4ea4\u91cf\u5931\u8d25\uff0c\u8df3\u8fc7\u8be5\u4ea4\u6613\u5bf9\u7684\u6210\u4ea4\u91cf\u8ba1\u7b97\u3002")
+
+        contract_size = contract_sizes.get(symbol, 1.0)
+        total_contracts = sum(float(entry[5]) for entry in klines) if klines else 0.0
+        usd_volume_sum = total_contracts * contract_size
+        divisor = AVG_VOLUME_WINDOW_DAYS if len(klines) >= AVG_VOLUME_WINDOW_DAYS else max(len(klines), 1)
+        records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": usd_volume_sum / divisor})
+
+    if not records:
+        return pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume"])
+
+    df = pd.DataFrame(records)
+    df = df.groupby("Symbol", as_index=False)["AvgDailyUSDVolume"].sum()
+    df.sort_values("AvgDailyUSDVolume", ascending=False, inplace=True)
+    return df
+
+
+def auto_fit_columns(sheet, min_width: int = 9, max_width: int = 40, padding: int = 2) -> None:
+    for col_idx in range(1, sheet.max_column + 1):
+        max_len = 0
+        for row_idx in range(1, sheet.max_row + 1):
+            value = sheet.cell(row=row_idx, column=col_idx).value
+            if value is None:
+                continue
+            text = value.strftime("%Y-%m-%d") if isinstance(value, datetime) else str(value)
+            max_len = max(max_len, len(text))
+        sheet.column_dimensions[get_column_letter(col_idx)].width = min(max(max_len + padding, min_width), max_width)
+
+
+def apply_standard_layout(sheet, horizontal: str = "center") -> None:
+    alignment = Alignment(horizontal=horizontal, vertical="center")
+    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=sheet.max_column):
+        for cell in row:
+            cell.alignment = alignment
+    for col_idx in range(1, sheet.max_column + 1):
+        header = sheet.cell(row=1, column=col_idx)
+        font = copy(header.font)
+        font.bold = True
+        header.font = font
+
+
+def apply_freeze_and_filter(sheet, freeze_cell: str, filter_last_row: int | None = None) -> None:
+    sheet.freeze_panes = freeze_cell
+    filter_last_row = sheet.max_row if filter_last_row is None else filter_last_row
+    if sheet.max_column >= 1 and filter_last_row >= 1:
+        sheet.auto_filter.ref = f"A1:{get_column_letter(sheet.max_column)}{filter_last_row}"
+
+
+def add_monthly_heatmap(sheet, start_row: int, end_row: int, start_col: int, end_col: int) -> None:
+    if end_row < start_row or end_col < start_col:
+        return
+    data_range = f"{get_column_letter(start_col)}{start_row}:{get_column_letter(end_col)}{end_row}"
+    sheet.conditional_formatting.add(data_range, ColorScaleRule(start_type="min", start_color="FFF8D7DA", mid_type="percentile", mid_value=50, mid_color="FFFFFFFF", end_type="max", end_color="FFD4EDDA"))
+
+
+def colorize_positive_negative(sheet, start_row: int, end_row: int, start_col: int, end_col: int) -> None:
+    for row in sheet.iter_rows(min_row=start_row, max_row=end_row, min_col=start_col, max_col=end_col):
+        for cell in row:
+            if not isinstance(cell.value, (int, float)):
+                continue
+            font = copy(cell.font)
+            if cell.value > 0:
+                font.color = POSITIVE_FONT.color
+            elif cell.value < 0:
+                font.color = NEGATIVE_FONT.color
+            cell.font = font
+
+
+def emphasize_monthly_top5(sheet, start_row: int, num_rows: int, num_cols: int) -> None:
+    for row_idx in range(start_row, start_row + num_rows):
+        values = []
+        for col_idx in range(2, 2 + num_cols):
+            cell = sheet.cell(row=row_idx, column=col_idx)
+            if isinstance(cell.value, (int, float)):
+                values.append((float(cell.value), col_idx))
+        for _, col_idx in sorted(values, key=lambda item: item[0], reverse=True)[:5]:
+            font = copy(sheet.cell(row=row_idx, column=col_idx).font)
+            font.bold = True
+            sheet.cell(row=row_idx, column=col_idx).font = font
+
+
+def save_daily_excels(symbol_daily: Dict[str, pd.DataFrame]) -> None:
+    DAILY_DIR.mkdir(parents=True, exist_ok=True)
+    for symbol, daily in symbol_daily.items():
+        if daily.empty:
+            continue
+
+        output_path = DAILY_DIR / f"{symbol}_daily_funding.xlsx"
+        daily_out = daily.copy()
+        daily_out["date"] = pd.to_datetime(daily_out["date"]).dt.tz_localize(None)
+        daily_out["funding_rate_7d_ma"] = daily_out["daily_funding_rate"].rolling(7, min_periods=1).mean()
+
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+            daily_out.to_excel(writer, index=False, sheet_name="DailyData")
+            sheet = writer.sheets["DailyData"]
+            max_row = sheet.max_row
+
+            for row_idx in range(2, max_row + 1):
+                sheet.cell(row=row_idx, column=1).number_format = "yyyy-mm-dd"
+                sheet.cell(row=row_idx, column=2).number_format = "0.00%"
+                sheet.cell(row=row_idx, column=3).number_format = "0.00%"
+
+            apply_freeze_and_filter(sheet, freeze_cell="A2")
+            apply_standard_layout(sheet)
+            auto_fit_columns(sheet, min_width=12, max_width=24)
+
+            if max_row >= 2:
+                chart_start_row = max(max_row - DAILY_CHART_DAYS + 1, 2)
+                helper_start_col = 6
+                sheet.cell(row=1, column=helper_start_col, value="chart_date")
+                sheet.cell(row=1, column=helper_start_col + 1, value=sheet.cell(row=1, column=2).value)
+                sheet.cell(row=1, column=helper_start_col + 2, value=sheet.cell(row=1, column=3).value)
+                sheet.cell(row=1, column=helper_start_col + 3, value="zero_line")
+
+                helper_row = 2
+                recent_values: List[float] = []
+                for src_row in range(chart_start_row, max_row + 1):
+                    date_value = sheet.cell(row=src_row, column=1).value
+                    daily_value = sheet.cell(row=src_row, column=2).value
+                    ma_value = sheet.cell(row=src_row, column=3).value
+                    sheet.cell(row=helper_row, column=helper_start_col, value=date_value)
+                    sheet.cell(row=helper_row, column=helper_start_col + 1, value=daily_value)
+                    sheet.cell(row=helper_row, column=helper_start_col + 2, value=ma_value)
+                    sheet.cell(row=helper_row, column=helper_start_col + 3, value=0.0)
+                    for c in (helper_start_col + 1, helper_start_col + 2, helper_start_col + 3):
+                        sheet.cell(row=helper_row, column=c).number_format = "0.00%"
+                    if isinstance(daily_value, (int, float)):
+                        recent_values.append(float(daily_value))
+                    if isinstance(ma_value, (int, float)):
+                        recent_values.append(float(ma_value))
+                    helper_row += 1
+                helper_end_row = helper_row - 1
+
+                chart = LineChart()
+                chart.title = f"{simplify_symbol(symbol)} \u8fd130\u5929\u8d44\u91d1\u8d39\u7387\u4e0e7\u65e5\u5747\u7ebf"
+                chart.y_axis.title = "Funding Rate"
+                chart.x_axis.title = "Date"
+                chart.height = 8
+                chart.width = 18
+                chart.legend.position = "r"
+
+                data = Reference(sheet, min_col=helper_start_col + 1, max_col=helper_start_col + 3, min_row=1, max_row=helper_end_row)
+                categories = Reference(sheet, min_col=helper_start_col, min_row=2, max_row=helper_end_row)
+                chart.add_data(data, titles_from_data=True)
+                chart.set_categories(categories)
+                chart.x_axis.number_format = "yyyy-mm-dd"
+                chart.y_axis.number_format = "0.00%"
+                chart.x_axis.majorGridlines = None
+                chart.y_axis.majorGridlines = None
+                chart.plotVisOnly = False
+                if len(chart.series) >= 3:
+                    zero_series = chart.series[2]
+                    zero_series.graphicalProperties.line.solidFill = "000000"
+                    zero_series.graphicalProperties.line.width = 25000
+
+                if recent_values:
+                    min_v, max_v = min(recent_values), max(recent_values)
+                    lower, upper = min(min_v, 0.0), max(max_v, 0.0)
+                    span = upper - lower if upper - lower != 0 else 0.0005
+                    pad = span * 0.1
+                    chart.y_axis.scaling.min = lower - pad
+                    chart.y_axis.scaling.max = upper + pad
+
+                sheet.add_chart(chart, "E2")
+                for col_idx in range(helper_start_col, helper_start_col + 4):
+                    sheet.column_dimensions[get_column_letter(col_idx)].width = 12
+
+        print(f"[{symbol}] \u65e5\u8d44\u91d1\u8d39\u7387\u5199\u5165: {output_path}")
+
+
+def add_symbol_trend_sheets(writer, monthly_summary: pd.DataFrame) -> Dict[str, str]:
+    symbol_sheet_map: Dict[str, str] = {}
+    used_names = set(writer.book.sheetnames)
+    month_labels = [idx.strftime("%Y-%m") for idx in monthly_summary.index]
+
+    for symbol in monthly_summary.columns:
+        sheet_name = make_safe_sheet_name(f"Trend_{symbol}", used_names)
+        symbol_sheet_map[symbol] = sheet_name
+        ws = writer.book.create_sheet(title=sheet_name)
+        ws.append(["Month", "FundingRatePct", "ZeroLine"])
+        for m, value in zip(month_labels, monthly_summary[symbol].tolist()):
+            ws.append([m, float(value) * 100.0, 0.0])
+
+        for row_idx in range(2, ws.max_row + 1):
+            ws.cell(row=row_idx, column=2).number_format = "0.0"
+            ws.cell(row=row_idx, column=3).number_format = "0.0"
+
+        chart = LineChart()
+        chart.title = f"{symbol} \u6708\u5ea6\u8d44\u91d1\u8d39\u7387\u8d70\u52bf"
+        chart.x_axis.title = "时间"
+        chart.y_axis.title = "费率(%)"
+        chart.height = 8
+        chart.width = 16
+
+        data = Reference(ws, min_col=2, max_col=3, min_row=1, max_row=ws.max_row)
+        categories = Reference(ws, min_col=1, min_row=2, max_row=ws.max_row)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(categories)
+        chart.y_axis.number_format = "0.0"
+        chart.y_axis.scaling.min = -3
+        chart.y_axis.scaling.max = 3
+        chart.y_axis.majorUnit = 0.5
+        chart.x_axis.majorGridlines = None
+        chart.y_axis.majorGridlines = None
+        if len(chart.series) >= 1:
+            chart.series[0].graphicalProperties.line.solidFill = "1F4E79"
+            chart.series[0].graphicalProperties.line.width = 25000
+        if len(chart.series) >= 2:
+            chart.series[1].graphicalProperties.line.solidFill = "000000"
+            chart.series[1].graphicalProperties.line.width = 20000
+        ws.add_chart(chart, "D2")
+
+        apply_freeze_and_filter(ws, freeze_cell="A2")
+        apply_standard_layout(ws)
+        auto_fit_columns(ws, min_width=10, max_width=20)
+
+    return symbol_sheet_map
+
+
+def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFrame, label: str = "", avg_volume_table: pd.DataFrame | None = None) -> Path:
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    timestamp_str = datetime.now().strftime(SUMMARY_TIME_FORMAT)
+    label_part = f"{label}_" if label else ""
+    path = OUTPUT_ROOT / f"{SUMMARY_BASENAME}_{label_part}{timestamp_str}.xlsx"
+
+    low_volume_symbols: Set[str] = set()
+    if avg_volume_table is not None and not avg_volume_table.empty:
+        low_volume_symbols = set(avg_volume_table.loc[avg_volume_table["AvgDailyUSDVolume"] < LOW_VOLUME_THRESHOLD, "Symbol"].astype(str))
+
+    summary_with_total = monthly_summary.copy()
+    summary_with_total.loc["\u603b\u8ba1"] = summary_with_total.sum()
+    display_df = summary_with_total.copy()
+    display_df.index = [idx if isinstance(idx, str) else idx.strftime("%Y-%m") for idx in display_df.index]
+    display_df.columns = [f"{col}{LOW_VOLUME_MARK}" if col in low_volume_symbols else col for col in display_df.columns]
+
+    ranking_df = stats_table.copy()
+    ranking_df.index.name = "\u533a\u95f4"
+    overview_df = build_overview_table(monthly_summary, low_volume_symbols)
+
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        overview_df.to_excel(writer, sheet_name=OVERVIEW_SHEET_NAME, index=False)
+        display_df.to_excel(writer, sheet_name=MONTHLY_SHEET_NAME)
+        ranking_df.to_excel(writer, sheet_name=RANKING_SHEET_NAME)
+
+        if avg_volume_table is not None:
+            volume_df = avg_volume_table.copy() if not avg_volume_table.empty else pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume"])
+            volume_df["LowVolume"] = volume_df["AvgDailyUSDVolume"].apply(lambda value: "Yes" if float(value) < LOW_VOLUME_THRESHOLD else "")
+            volume_df.to_excel(writer, sheet_name=VOLUME_SHEET_NAME, index=False)
+
+        monthly_sheet = writer.sheets[MONTHLY_SHEET_NAME]
+        max_row = monthly_sheet.max_row
+        max_col = monthly_sheet.max_column
+        month_rows = len(monthly_summary)
+
+        for row in monthly_sheet.iter_rows(min_row=2, max_row=max_row, min_col=2, max_col=max_col):
+            for cell in row:
+                if isinstance(cell.value, (int, float)):
+                    cell.number_format = "0.00%"
+
+        for col_idx in range(2, max_col + 1):
+            header_cell = monthly_sheet.cell(row=1, column=col_idx)
+            if isinstance(header_cell.value, str) and header_cell.value.endswith(LOW_VOLUME_MARK):
+                header_cell.fill = LOW_VOLUME_FILL
+
+        add_monthly_heatmap(monthly_sheet, start_row=2, end_row=month_rows + 1, start_col=2, end_col=max_col)
+        colorize_positive_negative(monthly_sheet, start_row=2, end_row=max_row, start_col=2, end_col=max_col)
+        emphasize_monthly_top5(monthly_sheet, start_row=2, num_rows=month_rows, num_cols=monthly_summary.shape[1])
+        apply_freeze_and_filter(monthly_sheet, freeze_cell="B2")
+        apply_standard_layout(monthly_sheet)
+        auto_fit_columns(monthly_sheet, min_width=10, max_width=24)
+
+        symbol_sheet_map = add_symbol_trend_sheets(writer, monthly_summary)
+        for col_idx, symbol in enumerate(monthly_summary.columns, start=2):
+            header_cell = monthly_sheet.cell(row=1, column=col_idx)
+            target_sheet = symbol_sheet_map.get(symbol)
+            if target_sheet:
+                header_cell.hyperlink = f"#{target_sheet}!A1"
+                header_cell.style = "Hyperlink"
+
+        overview_sheet = writer.sheets[OVERVIEW_SHEET_NAME]
+        apply_freeze_and_filter(overview_sheet, freeze_cell="A2")
+        apply_standard_layout(overview_sheet, horizontal="left")
+        for row_idx in range(2, overview_sheet.max_row + 1):
+            overview_sheet.cell(row=row_idx, column=1).alignment = Alignment(horizontal="center", vertical="center")
+        auto_fit_columns(overview_sheet, min_width=12, max_width=80)
+
+        ranking_sheet = writer.sheets[RANKING_SHEET_NAME]
+        apply_freeze_and_filter(ranking_sheet, freeze_cell="B2")
+        apply_standard_layout(ranking_sheet)
+        auto_fit_columns(ranking_sheet, min_width=10, max_width=40)
+
+        if avg_volume_table is not None:
+            volume_sheet = writer.sheets[VOLUME_SHEET_NAME]
+            for row_idx in range(2, volume_sheet.max_row + 1):
+                volume_value = volume_sheet.cell(row=row_idx, column=2).value
+                volume_sheet.cell(row=row_idx, column=2).number_format = "#,##0"
+                try:
+                    numeric_value = float(volume_value)
+                except (TypeError, ValueError):
+                    continue
+                if numeric_value < LOW_VOLUME_THRESHOLD:
+                    for col_idx in range(1, volume_sheet.max_column + 1):
+                        volume_sheet.cell(row=row_idx, column=col_idx).fill = LOW_VOLUME_FILL
+            apply_freeze_and_filter(volume_sheet, freeze_cell="A2")
+            apply_standard_layout(volume_sheet)
+            auto_fit_columns(volume_sheet, min_width=12, max_width=28)
+
+    print(f"\u6708\u5ea6\u7edf\u8ba1\u5199\u5165: {path}")
+    return path
+
+
+def main() -> None:
+    client = Client()
+    utc_now = datetime.now(timezone.utc)
+    start_time = utc_now - timedelta(days=365 * LOOKBACK_YEARS)
+    start_ts = int(start_time.timestamp() * 1000)
+    print(f"\u5f00\u59cb\u6293\u53d6\u5e01\u672c\u4f4d\u5408\u7ea6\u8d44\u91d1\u8d39\u7387\uff0c\u65f6\u95f4\u8303\u56f4: {start_time.date()} - {utc_now.date()}")
+
+    clear_daily_outputs()
+    symbols, contract_sizes = get_coin_perpetual_symbols(client)
+    if not symbols:
+        print("\u672a\u83b7\u53d6\u5230\u4efb\u4f55\u5e01\u672c\u4f4d\u6c38\u7eed\u5408\u7ea6\u4ea4\u6613\u5bf9\u3002")
+        return
+    print(f"\u5171 {len(symbols)} \u4e2a\u4ea4\u6613\u5bf9\u3002")
+
+    symbol_daily: Dict[str, pd.DataFrame] = {}
+    for idx, symbol in enumerate(symbols, start=1):
+        print(f"[{idx}/{len(symbols)}] \u6293\u53d6 {symbol} ...")
+        df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
+        symbol_daily[symbol] = compute_daily_funding(df)
+
+    save_daily_excels(symbol_daily)
+    avg_volume_table = build_avg_volume_table(client, symbols, contract_sizes)
+
+    monthly_37 = compute_monthly_summary(symbol_daily, periods=37)
+    if monthly_37.empty:
+        print("\u672a\u751f\u6210\u6708\u5ea6\u7edf\u8ba1\u6570\u636e\u3002")
+        return
+
+    save_monthly_summary(monthly_37, build_recent_top_table(monthly_37), label="\u8fd137\u4e2a\u6708", avg_volume_table=avg_volume_table)
+
+    monthly_24 = monthly_37.tail(24)
+    if not monthly_24.empty:
+        monthly_24 = monthly_24[monthly_24.sum().sort_values(ascending=False).index]
+    save_monthly_summary(monthly_24, build_recent_top_table(monthly_24), label="\u8fd124\u4e2a\u6708", avg_volume_table=avg_volume_table)
+
+    recent_12 = monthly_37.tail(13)
+    if not recent_12.empty:
+        recent_12 = recent_12[recent_12.sum().sort_values(ascending=False).index]
+    save_monthly_summary(recent_12, build_recent_top_table(recent_12), label="\u8fd112\u6708", avg_volume_table=avg_volume_table)
+
+
+if __name__ == "__main__":
+    main()

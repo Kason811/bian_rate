@@ -1,0 +1,11 @@
+﻿__pycache__/
+*.py[cod]
+*.pyo
+
+coin_funding_rate_outputs/
+
+.venv/
+venv/
+
+.DS_Store
+Thumbs.db
