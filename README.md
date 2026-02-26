@@ -67,6 +67,34 @@ powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -Message "feat: 
 powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -SkipPull
 ```
 
+如果你使用 v2rayN（SOCKS5 `127.0.0.1:10808`），可直接带代理一键同步：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -ProxyUrl "socks5h://127.0.0.1:10808"
+```
+
+## GitHub 连接异常排查（HTTPS）
+
+当出现 `Recv failure: Connection was reset`，优先用代理验证：
+
+```powershell
+git -c http.proxy=socks5h://127.0.0.1:10808 -c https.proxy=socks5h://127.0.0.1:10808 ls-remote https://github.com/Kason811/bian_rate.git
+```
+
+可选：配置仓库级持久代理（仅当前仓库）：
+
+```powershell
+git config http.proxy socks5h://127.0.0.1:10808
+git config https.proxy socks5h://127.0.0.1:10808
+```
+
+取消：
+
+```powershell
+git config --unset http.proxy
+git config --unset https.proxy
+```
+
 ## 主要输出说明
 
 - `Trend_XXX` 图表：
