@@ -40,6 +40,33 @@ python binance_coin_funding_rate_collector.py
 
 脚本会自动清理并重建 `coin_funding_rate_outputs/daily`，然后重新生成全部输出。
 
+## 一键同步到 GitHub
+
+提供了一个 PowerShell 脚本用于一键执行：
+
+- `git pull --rebase`
+- `git add -A`
+- `git commit`
+- `git push`
+
+命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1
+```
+
+自定义提交信息：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -Message "feat: update funding report layout"
+```
+
+如果只想跳过 `pull`（例如你已经手动同步过）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -SkipPull
+```
+
 ## 主要输出说明
 
 - `Trend_XXX` 图表：
