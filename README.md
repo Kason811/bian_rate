@@ -49,7 +49,9 @@ python binance_coin_funding_rate_collector.py
 - `git commit`
 - `git push`
 
-命令：
+本项目约定：**GitHub 拉取/推送默认必须走 v2rayN 代理 `socks5h://127.0.0.1:10808`**。
+
+默认命令（已内置 10808 代理）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1
@@ -67,7 +69,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -Message "feat: 
 powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -SkipPull
 ```
 
-如果你使用 v2rayN（SOCKS5 `127.0.0.1:10808`），可直接带代理一键同步：
+显式指定代理（与默认一致）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -ProxyUrl "socks5h://127.0.0.1:10808"
@@ -75,13 +77,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -ProxyUrl "socks
 
 ## GitHub 连接异常排查（HTTPS）
 
-当出现 `Recv failure: Connection was reset`，优先用代理验证：
+当出现 `Recv failure: Connection was reset`，先确认代理链路：
 
 ```powershell
 git -c http.proxy=socks5h://127.0.0.1:10808 -c https.proxy=socks5h://127.0.0.1:10808 ls-remote https://github.com/Kason811/bian_rate.git
 ```
 
-可选：配置仓库级持久代理（仅当前仓库）：
+推荐：配置仓库级持久代理（仅当前仓库）：
 
 ```powershell
 git config http.proxy socks5h://127.0.0.1:10808

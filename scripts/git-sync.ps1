@@ -1,7 +1,7 @@
 param(
     [string]$Message = "",
     [switch]$SkipPull,
-    [string]$ProxyUrl = ""
+    [string]$ProxyUrl = "socks5h://127.0.0.1:10808"
 )
 
 Set-StrictMode -Version Latest
