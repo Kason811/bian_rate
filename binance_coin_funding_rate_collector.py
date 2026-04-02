@@ -8,6 +8,7 @@ and export symbol-level daily Excel files plus summary workbooks.
 from __future__ import annotations
 
 from copy import copy
+import tempfile
 import shutil
 import time
 from datetime import datetime, timedelta, timezone
@@ -51,10 +52,8 @@ POSITIVE_FONT = Font(color="FF1B5E20")
 NEGATIVE_FONT = Font(color="FFB71C1C")
 
 
-def clear_daily_outputs() -> None:
-    if DAILY_DIR.exists():
-        shutil.rmtree(DAILY_DIR)
-    DAILY_DIR.mkdir(parents=True, exist_ok=True)
+class DataFetchIncompleteError(RuntimeError):
+    pass
 
 
 def simplify_symbol(symbol: str) -> str:
@@ -120,8 +119,7 @@ def fetch_symbol_funding_history(client: Client, symbol: str, start_ts: int) -> 
                 print(f"[{symbol}] API\u9519\u8bef\uff0c{wait:.1f}s\u540e\u91cd\u8bd5 ({retries}/{MAX_RETRIES}): {exc}")
                 time.sleep(wait)
         else:
-            print(f"[{symbol}] \u591a\u6b21\u91cd\u8bd5\u5931\u8d25\uff0c\u505c\u6b62\u8be5\u4ea4\u6613\u5bf9\u7684\u6570\u636e\u6293\u53d6\u3002")
-            break
+            raise DataFetchIncompleteError(f"[{symbol}] \u591a\u6b21\u91cd\u8bd5\u5931\u8d25\uff0c\u8be5\u4ea4\u6613\u5bf9\u7684\u8d44\u91d1\u8d39\u7387\u6570\u636e\u4e0d\u5b8c\u6574\u3002")
 
         if not batch:
             break
@@ -271,9 +269,11 @@ def build_avg_volume_table(client: Client, symbols: List[str], contract_sizes: D
     for symbol in symbols:
         retries = 0
         klines = []
+        fetch_ok = False
         while retries < MAX_RETRIES:
             try:
                 klines = client.futures_coin_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_1DAY, limit=AVG_VOLUME_WINDOW_DAYS)
+                fetch_ok = True
                 break
             except (BinanceAPIException, BinanceRequestException, RequestException) as exc:
                 retries += 1
@@ -283,18 +283,31 @@ def build_avg_volume_table(client: Client, symbols: List[str], contract_sizes: D
         else:
             print(f"[{symbol}] \u591a\u6b21\u5c1d\u8bd5\u83b7\u53d6\u6210\u4ea4\u91cf\u5931\u8d25\uff0c\u8df3\u8fc7\u8be5\u4ea4\u6613\u5bf9\u7684\u6210\u4ea4\u91cf\u8ba1\u7b97\u3002")
 
+        if not fetch_ok:
+            records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": pd.NA, "FetchStatus": "Failed"})
+            continue
+
         contract_size = contract_sizes.get(symbol, 1.0)
         total_contracts = sum(float(entry[5]) for entry in klines) if klines else 0.0
         usd_volume_sum = total_contracts * contract_size
         divisor = AVG_VOLUME_WINDOW_DAYS if len(klines) >= AVG_VOLUME_WINDOW_DAYS else max(len(klines), 1)
-        records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": usd_volume_sum / divisor})
+        records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": usd_volume_sum / divisor, "FetchStatus": "OK"})
 
     if not records:
-        return pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume"])
+        return pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume", "FetchStatus"])
 
     df = pd.DataFrame(records)
-    df = df.groupby("Symbol", as_index=False)["AvgDailyUSDVolume"].sum()
-    df.sort_values("AvgDailyUSDVolume", ascending=False, inplace=True)
+    df["AvgDailyUSDVolume"] = pd.to_numeric(df["AvgDailyUSDVolume"], errors="coerce")
+    df = (
+        df.groupby("Symbol", as_index=False)
+        .agg(
+            AvgDailyUSDVolume=("AvgDailyUSDVolume", lambda s: s.sum(min_count=1)),
+            FetchStatus=("FetchStatus", lambda s: "Failed" if "Failed" in set(s) else "OK"),
+        )
+    )
+    df["StatusOrder"] = df["FetchStatus"].map({"OK": 0, "Failed": 1}).fillna(2)
+    df.sort_values(["StatusOrder", "AvgDailyUSDVolume"], ascending=[True, False], na_position="last", inplace=True)
+    df.drop(columns=["StatusOrder"], inplace=True)
     return df
 
 
@@ -363,92 +376,103 @@ def emphasize_monthly_top5(sheet, start_row: int, num_rows: int, num_cols: int) 
 
 
 def save_daily_excels(symbol_daily: Dict[str, pd.DataFrame]) -> None:
-    DAILY_DIR.mkdir(parents=True, exist_ok=True)
-    for symbol, daily in symbol_daily.items():
-        if daily.empty:
-            continue
+    OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    temp_root = Path(tempfile.mkdtemp(prefix="daily_", dir=str(OUTPUT_ROOT)))
+    try:
+        for symbol, daily in symbol_daily.items():
+            if daily.empty:
+                continue
 
-        output_path = DAILY_DIR / f"{symbol}_daily_funding.xlsx"
-        daily_out = daily.copy()
-        daily_out["date"] = pd.to_datetime(daily_out["date"]).dt.tz_localize(None)
-        daily_out["funding_rate_7d_ma"] = daily_out["daily_funding_rate"].rolling(7, min_periods=1).mean()
+            output_path = temp_root / f"{symbol}_daily_funding.xlsx"
+            final_output_path = DAILY_DIR / output_path.name
+            daily_out = daily.copy()
+            daily_out["date"] = pd.to_datetime(daily_out["date"]).dt.tz_localize(None)
+            daily_out["funding_rate_7d_ma"] = daily_out["daily_funding_rate"].rolling(7, min_periods=1).mean()
 
-        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
-            daily_out.to_excel(writer, index=False, sheet_name="DailyData")
-            sheet = writer.sheets["DailyData"]
-            max_row = sheet.max_row
+            with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+                daily_out.to_excel(writer, index=False, sheet_name="DailyData")
+                sheet = writer.sheets["DailyData"]
+                max_row = sheet.max_row
 
-            for row_idx in range(2, max_row + 1):
-                sheet.cell(row=row_idx, column=1).number_format = "yyyy-mm-dd"
-                sheet.cell(row=row_idx, column=2).number_format = "0.00%"
-                sheet.cell(row=row_idx, column=3).number_format = "0.00%"
+                for row_idx in range(2, max_row + 1):
+                    sheet.cell(row=row_idx, column=1).number_format = "yyyy-mm-dd"
+                    sheet.cell(row=row_idx, column=2).number_format = "0.00%"
+                    sheet.cell(row=row_idx, column=3).number_format = "0.00%"
 
-            apply_freeze_and_filter(sheet, freeze_cell="A2")
-            apply_standard_layout(sheet)
-            auto_fit_columns(sheet, min_width=12, max_width=24)
+                apply_freeze_and_filter(sheet, freeze_cell="A2")
+                apply_standard_layout(sheet)
+                auto_fit_columns(sheet, min_width=12, max_width=24)
 
-            if max_row >= 2:
-                chart_start_row = max(max_row - DAILY_CHART_DAYS + 1, 2)
-                helper_start_col = 6
-                sheet.cell(row=1, column=helper_start_col, value="chart_date")
-                sheet.cell(row=1, column=helper_start_col + 1, value=sheet.cell(row=1, column=2).value)
-                sheet.cell(row=1, column=helper_start_col + 2, value=sheet.cell(row=1, column=3).value)
-                sheet.cell(row=1, column=helper_start_col + 3, value="zero_line")
+                if max_row >= 2:
+                    chart_start_row = max(max_row - DAILY_CHART_DAYS + 1, 2)
+                    helper_start_col = 6
+                    sheet.cell(row=1, column=helper_start_col, value="chart_date")
+                    sheet.cell(row=1, column=helper_start_col + 1, value=sheet.cell(row=1, column=2).value)
+                    sheet.cell(row=1, column=helper_start_col + 2, value=sheet.cell(row=1, column=3).value)
+                    sheet.cell(row=1, column=helper_start_col + 3, value="zero_line")
 
-                helper_row = 2
-                recent_values: List[float] = []
-                for src_row in range(chart_start_row, max_row + 1):
-                    date_value = sheet.cell(row=src_row, column=1).value
-                    daily_value = sheet.cell(row=src_row, column=2).value
-                    ma_value = sheet.cell(row=src_row, column=3).value
-                    sheet.cell(row=helper_row, column=helper_start_col, value=date_value)
-                    sheet.cell(row=helper_row, column=helper_start_col + 1, value=daily_value)
-                    sheet.cell(row=helper_row, column=helper_start_col + 2, value=ma_value)
-                    sheet.cell(row=helper_row, column=helper_start_col + 3, value=0.0)
-                    for c in (helper_start_col + 1, helper_start_col + 2, helper_start_col + 3):
-                        sheet.cell(row=helper_row, column=c).number_format = "0.00%"
-                    if isinstance(daily_value, (int, float)):
-                        recent_values.append(float(daily_value))
-                    if isinstance(ma_value, (int, float)):
-                        recent_values.append(float(ma_value))
-                    helper_row += 1
-                helper_end_row = helper_row - 1
+                    helper_row = 2
+                    recent_values: List[float] = []
+                    for src_row in range(chart_start_row, max_row + 1):
+                        date_value = sheet.cell(row=src_row, column=1).value
+                        daily_value = sheet.cell(row=src_row, column=2).value
+                        ma_value = sheet.cell(row=src_row, column=3).value
+                        sheet.cell(row=helper_row, column=helper_start_col, value=date_value)
+                        sheet.cell(row=helper_row, column=helper_start_col + 1, value=daily_value)
+                        sheet.cell(row=helper_row, column=helper_start_col + 2, value=ma_value)
+                        sheet.cell(row=helper_row, column=helper_start_col + 3, value=0.0)
+                        for c in (helper_start_col + 1, helper_start_col + 2, helper_start_col + 3):
+                            sheet.cell(row=helper_row, column=c).number_format = "0.00%"
+                        if isinstance(daily_value, (int, float)):
+                            recent_values.append(float(daily_value))
+                        if isinstance(ma_value, (int, float)):
+                            recent_values.append(float(ma_value))
+                        helper_row += 1
+                    helper_end_row = helper_row - 1
 
-                chart = LineChart()
-                chart.title = f"{simplify_symbol(symbol)} \u8fd130\u5929\u8d44\u91d1\u8d39\u7387\u4e0e7\u65e5\u5747\u7ebf"
-                chart.y_axis.title = "Funding Rate"
-                chart.x_axis.title = "Date"
-                chart.height = 8
-                chart.width = 18
-                chart.legend.position = "r"
+                    chart = LineChart()
+                    chart.title = f"{simplify_symbol(symbol)} \u8fd130\u5929\u8d44\u91d1\u8d39\u7387\u4e0e7\u65e5\u5747\u7ebf"
+                    chart.y_axis.title = "Funding Rate"
+                    chart.x_axis.title = "Date"
+                    chart.height = 8
+                    chart.width = 18
+                    chart.legend.position = "r"
 
-                data = Reference(sheet, min_col=helper_start_col + 1, max_col=helper_start_col + 3, min_row=1, max_row=helper_end_row)
-                categories = Reference(sheet, min_col=helper_start_col, min_row=2, max_row=helper_end_row)
-                chart.add_data(data, titles_from_data=True)
-                chart.set_categories(categories)
-                chart.x_axis.number_format = "yyyy-mm-dd"
-                chart.y_axis.number_format = "0.00%"
-                chart.x_axis.majorGridlines = None
-                chart.y_axis.majorGridlines = None
-                chart.plotVisOnly = False
-                if len(chart.series) >= 3:
-                    zero_series = chart.series[2]
-                    zero_series.graphicalProperties.line.solidFill = "000000"
-                    zero_series.graphicalProperties.line.width = 25000
+                    data = Reference(sheet, min_col=helper_start_col + 1, max_col=helper_start_col + 3, min_row=1, max_row=helper_end_row)
+                    categories = Reference(sheet, min_col=helper_start_col, min_row=2, max_row=helper_end_row)
+                    chart.add_data(data, titles_from_data=True)
+                    chart.set_categories(categories)
+                    chart.x_axis.number_format = "yyyy-mm-dd"
+                    chart.y_axis.number_format = "0.00%"
+                    chart.x_axis.majorGridlines = None
+                    chart.y_axis.majorGridlines = None
+                    chart.plotVisOnly = False
+                    if len(chart.series) >= 3:
+                        zero_series = chart.series[2]
+                        zero_series.graphicalProperties.line.solidFill = "000000"
+                        zero_series.graphicalProperties.line.width = 25000
 
-                if recent_values:
-                    min_v, max_v = min(recent_values), max(recent_values)
-                    lower, upper = min(min_v, 0.0), max(max_v, 0.0)
-                    span = upper - lower if upper - lower != 0 else 0.0005
-                    pad = span * 0.1
-                    chart.y_axis.scaling.min = lower - pad
-                    chart.y_axis.scaling.max = upper + pad
+                    if recent_values:
+                        min_v, max_v = min(recent_values), max(recent_values)
+                        lower, upper = min(min_v, 0.0), max(max_v, 0.0)
+                        span = upper - lower if upper - lower != 0 else 0.0005
+                        pad = span * 0.1
+                        chart.y_axis.scaling.min = lower - pad
+                        chart.y_axis.scaling.max = upper + pad
 
-                sheet.add_chart(chart, "E2")
-                for col_idx in range(helper_start_col, helper_start_col + 4):
-                    sheet.column_dimensions[get_column_letter(col_idx)].width = 12
+                    sheet.add_chart(chart, "E2")
+                    for col_idx in range(helper_start_col, helper_start_col + 4):
+                        sheet.column_dimensions[get_column_letter(col_idx)].width = 12
 
-        print(f"[{symbol}] \u65e5\u8d44\u91d1\u8d39\u7387\u5199\u5165: {output_path}")
+            print(f"[{symbol}] \u65e5\u8d44\u91d1\u8d39\u7387\u5199\u5165: {final_output_path}")
+
+        if DAILY_DIR.exists():
+            shutil.rmtree(DAILY_DIR)
+        temp_root.replace(DAILY_DIR)
+        temp_root = DAILY_DIR
+    finally:
+        if temp_root.exists() and temp_root != DAILY_DIR:
+            shutil.rmtree(temp_root, ignore_errors=True)
 
 
 def add_symbol_trend_sheets(writer, monthly_summary: pd.DataFrame) -> Dict[str, str]:
@@ -508,7 +532,12 @@ def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFram
 
     low_volume_symbols: Set[str] = set()
     if avg_volume_table is not None and not avg_volume_table.empty:
-        low_volume_symbols = set(avg_volume_table.loc[avg_volume_table["AvgDailyUSDVolume"] < LOW_VOLUME_THRESHOLD, "Symbol"].astype(str))
+        low_volume_symbols = set(
+            avg_volume_table.loc[
+                (avg_volume_table["FetchStatus"] == "OK") & (avg_volume_table["AvgDailyUSDVolume"] < LOW_VOLUME_THRESHOLD),
+                "Symbol",
+            ].astype(str)
+        )
 
     summary_with_total = monthly_summary.copy()
     summary_with_total.loc["\u603b\u8ba1"] = summary_with_total.sum()
@@ -526,8 +555,13 @@ def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFram
         ranking_df.to_excel(writer, sheet_name=RANKING_SHEET_NAME)
 
         if avg_volume_table is not None:
-            volume_df = avg_volume_table.copy() if not avg_volume_table.empty else pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume"])
-            volume_df["LowVolume"] = volume_df["AvgDailyUSDVolume"].apply(lambda value: "Yes" if float(value) < LOW_VOLUME_THRESHOLD else "")
+            volume_df = avg_volume_table.copy() if not avg_volume_table.empty else pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume", "FetchStatus"])
+            volume_df["LowVolume"] = volume_df.apply(
+                lambda row: "Yes"
+                if row.get("FetchStatus") == "OK" and pd.notna(row.get("AvgDailyUSDVolume")) and float(row["AvgDailyUSDVolume"]) < LOW_VOLUME_THRESHOLD
+                else "",
+                axis=1,
+            )
             volume_df.to_excel(writer, sheet_name=VOLUME_SHEET_NAME, index=False)
 
         monthly_sheet = writer.sheets[MONTHLY_SHEET_NAME]
@@ -581,7 +615,8 @@ def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFram
                     numeric_value = float(volume_value)
                 except (TypeError, ValueError):
                     continue
-                if numeric_value < LOW_VOLUME_THRESHOLD:
+                status_value = volume_sheet.cell(row=row_idx, column=3).value
+                if status_value == "OK" and numeric_value < LOW_VOLUME_THRESHOLD:
                     for col_idx in range(1, volume_sheet.max_column + 1):
                         volume_sheet.cell(row=row_idx, column=col_idx).fill = LOW_VOLUME_FILL
             apply_freeze_and_filter(volume_sheet, freeze_cell="A2")
@@ -599,7 +634,6 @@ def main() -> None:
     start_ts = int(start_time.timestamp() * 1000)
     print(f"\u5f00\u59cb\u6293\u53d6\u5e01\u672c\u4f4d\u5408\u7ea6\u8d44\u91d1\u8d39\u7387\uff0c\u65f6\u95f4\u8303\u56f4: {start_time.date()} - {utc_now.date()}")
 
-    clear_daily_outputs()
     symbols, contract_sizes = get_coin_perpetual_symbols(client)
     if not symbols:
         print("\u672a\u83b7\u53d6\u5230\u4efb\u4f55\u5e01\u672c\u4f4d\u6c38\u7eed\u5408\u7ea6\u4ea4\u6613\u5bf9\u3002")
@@ -607,13 +641,26 @@ def main() -> None:
     print(f"\u5171 {len(symbols)} \u4e2a\u4ea4\u6613\u5bf9\u3002")
 
     symbol_daily: Dict[str, pd.DataFrame] = {}
+    skipped_symbols: List[str] = []
     for idx, symbol in enumerate(symbols, start=1):
         print(f"[{idx}/{len(symbols)}] \u6293\u53d6 {symbol} ...")
-        df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
+        try:
+            df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
+        except DataFetchIncompleteError as exc:
+            print(str(exc))
+            skipped_symbols.append(symbol)
+            continue
         symbol_daily[symbol] = compute_daily_funding(df)
 
+    if not symbol_daily:
+        print("\u6240\u6709\u4ea4\u6613\u5bf9\u7684\u8d44\u91d1\u8d39\u7387\u6293\u53d6\u5747\u5931\u8d25\uff0c\u672a\u751f\u6210\u4efb\u4f55\u8f93\u51fa\u3002")
+        return
+
+    if skipped_symbols:
+        print(f"\u5df2\u8df3\u8fc7 {len(skipped_symbols)} \u4e2a\u6570\u636e\u4e0d\u5b8c\u6574\u7684\u4ea4\u6613\u5bf9: {', '.join(skipped_symbols)}")
+
     save_daily_excels(symbol_daily)
-    avg_volume_table = build_avg_volume_table(client, symbols, contract_sizes)
+    avg_volume_table = build_avg_volume_table(client, list(symbol_daily.keys()), contract_sizes)
 
     monthly_37 = compute_monthly_summary(symbol_daily, periods=37)
     if monthly_37.empty:

@@ -19,6 +19,23 @@ function Run-Git {
     }
 }
 
+function Get-CurrentBranch {
+    $branch = git branch --show-current
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($branch)) {
+        throw "Unable to determine current branch."
+    }
+    return $branch.Trim()
+}
+
+function Test-HasUpstream {
+    if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
+        & git rev-parse --abbrev-ref --symbolic-full-name '@{u}' *> $null
+    } else {
+        & git -c "http.proxy=$ProxyUrl" -c "https.proxy=$ProxyUrl" rev-parse --abbrev-ref --symbolic-full-name '@{u}' *> $null
+    }
+    return $LASTEXITCODE -eq 0
+}
+
 Run-Git @("rev-parse", "--is-inside-work-tree")
 
 if (-not $SkipPull) {
@@ -32,7 +49,12 @@ $status = if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
 }
 if (-not $status) {
     Write-Host "No local changes. Pushing current branch..."
-    Run-Git @("push")
+    if (Test-HasUpstream) {
+        Run-Git @("push")
+    } else {
+        $branch = Get-CurrentBranch
+        Run-Git @("push", "-u", "origin", $branch)
+    }
     exit 0
 }
 
@@ -65,6 +87,11 @@ if ([string]::IsNullOrWhiteSpace($Message)) {
 }
 
 Run-Git @("commit", "-m", $Message)
-Run-Git @("push")
+if (Test-HasUpstream) {
+    Run-Git @("push")
+} else {
+    $branch = Get-CurrentBranch
+    Run-Git @("push", "-u", "origin", $branch)
+}
 
 Write-Host "Done. Commit + push completed."

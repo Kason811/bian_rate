@@ -40,6 +40,12 @@ python binance_coin_funding_rate_collector.py
 
 脚本会自动清理并重建 `coin_funding_rate_outputs/daily`，然后重新生成全部输出。
 
+为避免运行中断时先删除旧结果，`daily` 目录现在采用“先写入临时目录，成功后再替换”的方式更新。
+
+如果某个交易对的资金费率历史连续重试后仍抓取失败，该交易对会被跳过，不会用半截数据参与汇总。
+
+如果 30 天成交量抓取失败，会在成交量 sheet 中标记为 `FetchStatus = Failed`，不会被误判为低成交量。
+
 ## 一键同步到 GitHub
 
 提供了一个 PowerShell 脚本用于一键执行：
