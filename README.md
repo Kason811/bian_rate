@@ -40,6 +40,7 @@ bian_rate/
 当前网页有 4 个页面：
 
 - `/` 费率总览
+- `/monthly` 月费率明细表
 - `/volume` 成交量观察
 - `/combined` 联合筛选
 - `/heatmap` 热力图
@@ -140,6 +141,7 @@ data/bian_rate.sqlite3
 - `symbols`
 - `funding_rates_raw`
 - `daily_funding_metrics`
+- `weekly_funding_metrics`（计划新增）
 - `monthly_funding_metrics`
 - `daily_volume_metrics`
 - `market_snapshots`
@@ -169,6 +171,20 @@ coin_funding_rate_outputs/
 - 成交量用于过滤和确认
 - 超低成交量直接排除
 - 高成交量但长期负费率不会自然进入优先池
+
+## 下一阶段
+
+下一阶段重点不是继续快速堆页面，而是先增强数据层：
+
+- 增加 `weekly_funding_metrics`
+- 增强 funding 完整性校验
+- 核验 COIN-M 成交量口径
+- 将时区聚合配置化，支持后续从 `Asia/Shanghai` 切到 `UTC`
+- 为每日定时拉取、补数和质量报告做准备
+
+详细计划见：
+
+- `docs/2026-04-03-next-phase-plan.md`
 
 ## Git 同步
 

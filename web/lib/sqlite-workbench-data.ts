@@ -2,7 +2,7 @@ import "server-only";
 
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { type MarketSymbol, type Point, type WorkbenchData } from "@/lib/workbench-data";
+import { type MarketSymbol, type MonthlyRateRow, type Point, type WorkbenchData } from "@/lib/workbench-data";
 
 type DailyFundingRow = { symbol: string; metric_date: string; daily_funding_rate: number };
 type MonthlyFundingRow = { symbol: string; metric_month: string; monthly_funding_rate: number };
@@ -60,6 +60,37 @@ function stdDev(values: number[]) {
   const avg = avgValues(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
+}
+
+function buildMonthlyRateRow(symbol: string, monthlyRates: MonthlyFundingRow[], allMonths: string[]): MonthlyRateRow {
+  const valuesByMonth: Record<string, number> = {};
+  for (const row of monthlyRates) {
+    valuesByMonth[row.metric_month] = toPct(row.monthly_funding_rate);
+  }
+
+  const orderedValues = allMonths
+    .map((month) => valuesByMonth[month])
+    .filter((value): value is number => typeof value === "number");
+
+  const last1 = orderedValues.slice(-1);
+  const last3 = orderedValues.slice(-3);
+  const last12 = orderedValues.slice(-12);
+
+  return {
+    symbol: symbol.replace("USD_PERP", ""),
+    months: valuesByMonth,
+    totalRatePct: sumValues(orderedValues),
+    avgRatePct: avgValues(orderedValues),
+    lastMonthRatePct: sumValues(last1),
+    last3MonthsRatePct: sumValues(last3),
+    last12MonthsRatePct: sumValues(last12),
+    bestMonthRatePct: orderedValues.length ? Math.max(...orderedValues) : 0,
+    worstMonthRatePct: orderedValues.length ? Math.min(...orderedValues) : 0,
+    volatilityPct: stdDev(orderedValues),
+    positiveMonths: orderedValues.filter((value) => value > 0).length,
+    negativeMonths: orderedValues.filter((value) => value < 0).length,
+    availableMonths: orderedValues.length,
+  };
 }
 
 function buildSymbol(symbol: string, dailyRates: DailyFundingRow[], monthlyRates: MonthlyFundingRow[], dailyVolumes: VolumeRow[]): MarketSymbol {
@@ -179,6 +210,8 @@ export function getWorkbenchData(): WorkbenchData {
     if (!rowCount.count) {
       return {
         symbols: [],
+        monthlyRateMonths: [],
+        monthlyRateRows: [],
         sourceLabel: "SQLite 无数据",
         updatedAtLabel: "未采集",
         loadError: "daily_funding_metrics 为空，请先运行 collector。",
@@ -213,10 +246,16 @@ export function getWorkbenchData(): WorkbenchData {
     const symbols = [...ratesBySymbol.keys()]
       .map((symbol) => buildSymbol(symbol, ratesBySymbol.get(symbol) ?? [], monthlyBySymbol.get(symbol) ?? [], volumeBySymbol.get(symbol) ?? []))
       .sort((a, b) => b.volumeMonthM - a.volumeMonthM);
+    const monthlyRateMonths = [...new Set(monthlyFunding.map((row) => row.metric_month))].sort();
+    const monthlyRateRows = [...monthlyBySymbol.keys()]
+      .map((symbol) => buildMonthlyRateRow(symbol, monthlyBySymbol.get(symbol) ?? [], monthlyRateMonths))
+      .sort((a, b) => a.symbol.localeCompare(b.symbol));
 
     if (!symbols.length) {
       return {
         symbols: [],
+        monthlyRateMonths,
+        monthlyRateRows,
         sourceLabel: "SQLite 无可用数据",
         updatedAtLabel: latestDate.latest_date ?? "未知",
         loadError: "SQLite 中没有可供页面展示的聚合结果。",
@@ -225,6 +264,8 @@ export function getWorkbenchData(): WorkbenchData {
 
     return {
       symbols,
+      monthlyRateMonths,
+      monthlyRateRows,
       sourceLabel: "SQLite 实盘历史数据",
       updatedAtLabel: latestDate.latest_date ?? "未知",
     };
@@ -232,6 +273,8 @@ export function getWorkbenchData(): WorkbenchData {
     const message = error instanceof Error ? error.message : "unknown error";
     return {
       symbols: [],
+      monthlyRateMonths: [],
+      monthlyRateRows: [],
       sourceLabel: "SQLite 读取失败",
       updatedAtLabel: "-",
       loadError: message,

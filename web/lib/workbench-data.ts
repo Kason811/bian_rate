@@ -45,9 +45,27 @@ export type MarketSymbol = {
 
 export type WorkbenchData = {
   symbols: MarketSymbol[];
+  monthlyRateMonths: string[];
+  monthlyRateRows: MonthlyRateRow[];
   sourceLabel: string;
   updatedAtLabel: string;
   loadError?: string;
+};
+
+export type MonthlyRateRow = {
+  symbol: string;
+  months: Record<string, number>;
+  totalRatePct: number;
+  avgRatePct: number;
+  lastMonthRatePct: number;
+  last3MonthsRatePct: number;
+  last12MonthsRatePct: number;
+  bestMonthRatePct: number;
+  worstMonthRatePct: number;
+  volatilityPct: number;
+  positiveMonths: number;
+  negativeMonths: number;
+  availableMonths: number;
 };
 
 export function getRateValue(symbol: MarketSymbol, timeframe: Timeframe) {

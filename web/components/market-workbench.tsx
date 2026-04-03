@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -23,13 +24,15 @@ import {
   getVolumeTrend,
   getVolumeValue,
   type MarketSymbol,
+  type MonthlyRateRow,
   type Timeframe,
   type WorkbenchData,
 } from "@/lib/workbench-data";
 
-type ViewKey = "rates" | "volume" | "combined" | "heatmap";
+type ViewKey = "rates" | "monthly" | "volume" | "combined" | "heatmap";
 type CandidateTier = "priority" | "watch" | "exclude";
 type RateWindowKey = "currentMonth" | "previousMonth" | "previous3Months" | "previous6Months" | "previous12Months";
+type MonthlySortKey = "symbol" | "lastMonth" | "last3Months" | "total" | "average" | "bestMonth" | "worstMonth" | "volatility" | "positiveMonths";
 type RateTableSortKey =
   | "symbol"
   | "prevMonthYearly"
@@ -64,6 +67,13 @@ const timeframeItems: { key: Timeframe; label: string }[] = [
 ];
 
 const chartPalette = ["#2563eb", "#0f766e", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
+const viewItems: { key: ViewKey; label: string; href: string }[] = [
+  { key: "rates", label: "费率总览", href: "/" },
+  { key: "monthly", label: "月费率明细", href: "/monthly" },
+  { key: "volume", label: "成交量观察", href: "/volume" },
+  { key: "combined", label: "联合筛选", href: "/combined" },
+  { key: "heatmap", label: "热力图", href: "/heatmap" },
+];
 const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "currentMonth", label: "本月维度", hint: "本月累计费率" },
   { key: "previousMonth", label: "上月维度", hint: "上月总费率" },
@@ -103,7 +113,11 @@ function diffDaysInclusive(start: Date, end: Date) {
 }
 
 function viewTitle(view: ViewKey) {
-  return view === "rates" ? "费率总览" : view === "volume" ? "成交量观察" : view === "combined" ? "联合筛选" : "热力图";
+  if (view === "rates") return "费率总览";
+  if (view === "monthly") return "月费率明细表";
+  if (view === "volume") return "成交量观察";
+  if (view === "combined") return "联合筛选";
+  return "热力图";
 }
 
 function tierLabel(tier: CandidateTier) {
@@ -222,6 +236,13 @@ function percentile(values: number[], p: number) {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
+function stdDev(values: number[]) {
+  if (!values.length) return 0;
+  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
 function clamp01(value: number) {
   if (value <= 0) return 0;
   if (value >= 1) return 1;
@@ -256,6 +277,64 @@ function rateTableValue(entry: RateTableRow, key: RateTableSortKey) {
   if (key === "avg90dVolumeM") return entry.row.avg90dVolumeM;
   if (key === "avg365dVolumeM") return entry.row.avg365dVolumeM;
   return entry.compositeScore;
+}
+
+function summarizeMonthlyRow(row: MonthlyRateRow, months: string[]) {
+  const values = months
+    .map((month) => row.months[month])
+    .filter((value): value is number => typeof value === "number");
+
+  return {
+    total: values.reduce((sum, value) => sum + value, 0),
+    average: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0,
+    lastMonth: values.at(-1) ?? 0,
+    last3Months: values.slice(-3).reduce((sum, value) => sum + value, 0),
+    bestMonth: values.length ? Math.max(...values) : 0,
+    worstMonth: values.length ? Math.min(...values) : 0,
+    volatility: values.length ? stdDev(values) : 0,
+    positiveMonths: values.filter((value) => value > 0).length,
+    availableMonths: values.length,
+  };
+}
+
+function monthlySortValue(row: MonthlyRateRow, months: string[], key: MonthlySortKey) {
+  const summary = summarizeMonthlyRow(row, months);
+  if (key === "symbol") return row.symbol;
+  if (key === "lastMonth") return summary.lastMonth;
+  if (key === "last3Months") return summary.last3Months;
+  if (key === "average") return summary.average;
+  if (key === "bestMonth") return summary.bestMonth;
+  if (key === "worstMonth") return summary.worstMonth;
+  if (key === "volatility") return summary.volatility;
+  if (key === "positiveMonths") return summary.positiveMonths;
+  return summary.total;
+}
+
+function monthlyHeatStyle(value: number | undefined, scale: number) {
+  if (typeof value !== "number") {
+    return {
+      backgroundColor: "#f8fafc",
+      color: "#cbd5e1",
+    };
+  }
+
+  const intensity = 0.12 + clamp01(Math.abs(value) / Math.max(scale, 0.001)) * 0.48;
+  if (value > 0) {
+    return {
+      backgroundColor: `rgba(16, 185, 129, ${intensity.toFixed(3)})`,
+      color: "#065f46",
+    };
+  }
+  if (value < 0) {
+    return {
+      backgroundColor: `rgba(244, 63, 94, ${intensity.toFixed(3)})`,
+      color: "#881337",
+    };
+  }
+  return {
+    backgroundColor: "#e2e8f0",
+    color: "#475569",
+  };
 }
 
 function getAnnualizedMetrics(symbol: MarketSymbol) {
@@ -516,67 +595,48 @@ function FocusList({ title, rows, emptyText }: { title: string; rows: ScoredSymb
 function WorkbenchShell({
   data,
   initialView,
-  timeframe,
-  setTimeframe,
   children,
 }: {
   data: WorkbenchData;
   initialView: ViewKey;
-  timeframe: Timeframe;
-  setTimeframe: (timeframe: Timeframe) => void;
   children: React.ReactNode;
 }) {
-  const overviewWindows = rateWindowItems.map((window) => {
-    const ranked = buildWindowRateTable(data.symbols, window.key);
-    return {
-      window,
-      leader: ranked[0],
-      positiveCount: data.symbols.filter((item) => getWindowRateValue(item, window.key) > 0).length,
-      lowLiquidityCount: data.symbols.filter((item) => getWindowVolumeValue(item, window.key) < 5).length,
-    };
-  });
-
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e0f2fe,_#f8fafc_42%,_#f8fafc)] text-slate-900">
       <div className="mx-auto max-w-[1480px] px-4 py-5 md:px-6">
-        <main className="min-w-0">
-            <header className="mb-6 rounded-[30px] border border-slate-200 bg-white/92 p-6 shadow-sm backdrop-blur">
-              <div className="flex flex-col gap-6">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-                  <div>
-                    <div className="text-sm text-slate-500">Analysis Mode</div>
-                    <h1 className="mt-1 text-3xl font-semibold tracking-tight">{viewTitle(initialView)}</h1>
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Data: {data.sourceLabel}
-                    <br />
-                    Updated: {data.updatedAtLabel}
-                  </div>
-                </div>
+        <div className="grid gap-5 xl:grid-cols-[150px_minmax(0,1fr)]">
+          <aside className="xl:sticky xl:top-5 xl:self-start">
+            <div className="rounded-[26px] border border-slate-200 bg-white/92 p-3 shadow-sm backdrop-blur">
+              <div className="px-2 pb-2 text-xs font-medium tracking-[0.18em] text-slate-400">PAGES</div>
+              <nav className="flex flex-wrap gap-2 xl:flex-col">
+                {viewItems.map((item) => {
+                  const active = item.key === initialView;
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className={`rounded-2xl px-3 py-2 text-sm transition-colors ${
+                        active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
 
-                {data.loadError ? (
-                  <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    SQLite 数据暂不可用：{data.loadError}
-                  </div>
-                ) : null}
-
-                <div className="grid gap-4 xl:grid-cols-5">
-                  {overviewWindows.map((entry) => (
-                    <WindowMetricCard
-                      key={entry.window.key}
-                      window={entry.window}
-                      leader={entry.leader}
-                      positiveCount={entry.positiveCount}
-                      totalCount={data.symbols.length}
-                      lowLiquidityCount={entry.lowLiquidityCount}
-                    />
-                  ))}
-                </div>
+          <main className="min-w-0">
+            {data.loadError ? (
+              <div className="mb-6 rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                SQLite 数据暂不可用：{data.loadError}
               </div>
-            </header>
+            ) : null}
 
             {children}
-        </main>
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -774,7 +834,7 @@ function RateOverview({
                       current.includes(item.symbol) ? current.filter((entry) => entry !== item.symbol) : [...current, item.symbol],
                     )
                   }
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${active ? "border-slate-500 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-600"}`}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm ${active ? "border-slate-300 bg-slate-500 text-white" : "border-slate-200 bg-white text-slate-600"}`}
                 >
                 <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
                 {item.symbol}
@@ -786,11 +846,11 @@ function RateOverview({
 
       <div>
         <Card>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center gap-6">
             <h3 className="text-base font-semibold text-slate-900">费率排名 Top 10</h3>
             <label className="text-sm text-slate-600">
               最低日均成交量
-              <select value={String(rankingMinVolume)} onChange={(event) => setRankingMinVolume(Number(event.target.value))} className="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <select value={String(rankingMinVolume)} onChange={(event) => setRankingMinVolume(Number(event.target.value))} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
                 <option value="0">不限</option>
                 <option value="1">1M+</option>
                 <option value="2">2M+</option>
@@ -811,11 +871,11 @@ function RateOverview({
 
       <div>
         <Card>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-center gap-6">
             <h3 className="text-base font-semibold text-slate-900">负费率排名 Top 10</h3>
             <label className="text-sm text-slate-600">
               最低日均成交量
-              <select value={String(negativeRankingMinVolume)} onChange={(event) => setNegativeRankingMinVolume(Number(event.target.value))} className="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <select value={String(negativeRankingMinVolume)} onChange={(event) => setNegativeRankingMinVolume(Number(event.target.value))} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
                 <option value="0">不限</option>
                 <option value="1">1M+</option>
                 <option value="2">2M+</option>
@@ -973,6 +1033,199 @@ function RateOverview({
                 </tr>
               ))}
             </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: string[] }) {
+  const [rangeKey, setRangeKey] = useState<"12" | "24" | "all">("24");
+  const [sortKey, setSortKey] = useState<MonthlySortKey>("total");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [filterMode, setFilterMode] = useState<"all" | "positive" | "negative" | "volatile">("all");
+  const [coverageMonths, setCoverageMonths] = useState<0 | 12 | 24>(12);
+  const [searchText, setSearchText] = useState("");
+
+  const visibleMonths = rangeKey === "12" ? months.slice(-12) : rangeKey === "24" ? months.slice(-24) : months;
+  const rowSummaries = useMemo(
+    () =>
+      rows.map((row) => ({
+        row,
+        summary: summarizeMonthlyRow(row, visibleMonths),
+      })),
+    [rows, visibleMonths],
+  );
+  const volatilityThreshold = percentile(
+    rowSummaries.map((entry) => entry.summary.volatility).filter((value) => value > 0),
+    0.7,
+  );
+
+  const visibleSymbols = useMemo(() => {
+    const keyword = searchText.trim().toUpperCase();
+    return rowSummaries
+      .filter(({ row, summary }) => {
+        if (keyword && !row.symbol.includes(keyword)) return false;
+        if (coverageMonths && summary.availableMonths < coverageMonths) return false;
+        if (filterMode === "positive" && summary.total <= 0) return false;
+        if (filterMode === "negative" && summary.total >= 0) return false;
+        if (filterMode === "volatile" && summary.volatility < volatilityThreshold) return false;
+        return true;
+      })
+      .sort((left, right) => {
+        const leftValue = monthlySortValue(left.row, visibleMonths, sortKey);
+        const rightValue = monthlySortValue(right.row, visibleMonths, sortKey);
+        const factor = sortDirection === "desc" ? -1 : 1;
+        if (typeof leftValue === "string" && typeof rightValue === "string") {
+          return leftValue.localeCompare(rightValue) * factor;
+        }
+        return (((leftValue as number) ?? 0) - ((rightValue as number) ?? 0)) * factor;
+      });
+  }, [coverageMonths, filterMode, rowSummaries, searchText, sortDirection, sortKey, visibleMonths, volatilityThreshold]);
+
+  const cellScale = percentile(
+    visibleMonths.flatMap((month) => visibleSymbols.map(({ row }) => Math.abs(row.months[month] ?? 0))).filter((value) => value > 0),
+    0.9,
+  );
+  const topPositive = [...visibleSymbols].sort((a, b) => b.summary.total - a.summary.total)[0];
+  const topNegative = [...visibleSymbols].sort((a, b) => a.summary.total - b.summary.total)[0];
+
+  const toggleSort = (key: MonthlySortKey) => {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === "desc" ? "asc" : "desc"));
+      return;
+    }
+    setSortKey(key);
+    setSortDirection(key === "symbol" ? "asc" : "desc");
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card title="月费率明细表" hint="横向看币种，纵向看月份。热力图直接展示每个月的费率强弱。">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm text-slate-600">
+            月份范围
+            <select value={rangeKey} onChange={(event) => setRangeKey(event.target.value as "12" | "24" | "all")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="12">近12个月</option>
+              <option value="24">近24个月</option>
+              <option value="all">全部月份</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-600">
+            列排序
+            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as MonthlySortKey)} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="total">区间累计</option>
+              <option value="lastMonth">最近1月</option>
+              <option value="last3Months">最近3月</option>
+              <option value="average">月均费率</option>
+              <option value="volatility">月费率波动</option>
+              <option value="bestMonth">最强单月</option>
+              <option value="worstMonth">最弱单月</option>
+              <option value="positiveMonths">正费月数</option>
+              <option value="symbol">币种名称</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-600">
+            方向
+            <select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as "asc" | "desc")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="desc">降序</option>
+              <option value="asc">升序</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-600">
+            筛选
+            <select value={filterMode} onChange={(event) => setFilterMode(event.target.value as "all" | "positive" | "negative" | "volatile")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="all">全部币种</option>
+              <option value="positive">区间累计为正</option>
+              <option value="negative">区间累计为负</option>
+              <option value="volatile">高波动币种</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-600">
+            最少月数
+            <select value={String(coverageMonths)} onChange={(event) => setCoverageMonths(Number(event.target.value) as 0 | 12 | 24)} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="0">不限</option>
+              <option value="12">至少12月</option>
+              <option value="24">至少24月</option>
+            </select>
+          </label>
+          <label className="text-sm text-slate-600">
+            搜索币种
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value.toUpperCase())}
+              placeholder="如 UNI"
+              className="ml-3 w-28 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none"
+            />
+          </label>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 xl:grid-cols-4">
+        <Kpi label="展示月份" value={`${visibleMonths.length}`} hint="当前矩阵纵向月份数。" />
+        <Kpi label="展示币种" value={`${visibleSymbols.length}`} hint="当前筛选和排序后的横向币种数。" />
+        <Kpi
+          label="最强累计"
+          value={topPositive ? `${topPositive.row.symbol} ${fmtPct(topPositive.summary.total)}` : "-"}
+          hint="当前区间累计费率最高的币种。"
+        />
+        <Kpi
+          label="最弱累计"
+          value={topNegative ? `${topNegative.row.symbol} ${fmtPct(topNegative.summary.total)}` : "-"}
+          hint={`热力标尺约为 ±${cellScale.toFixed(3)}%`}
+        />
+      </div>
+
+      <Card title="月度热力矩阵" hint="点击上方筛选后，矩阵会按你选择的区间和排序方式重排币种列。">
+        <div className="overflow-auto">
+          <table className="min-w-max border-separate border-spacing-0 text-center text-[12px]">
+            <thead>
+              <tr>
+                <th className="sticky left-0 top-0 z-30 w-[92px] border-b border-r border-slate-200 bg-slate-100 px-3 py-3 text-left font-semibold text-slate-700">
+                  月份
+                </th>
+                {visibleSymbols.map(({ row }) => (
+                  <th key={row.symbol} className="sticky top-0 z-20 min-w-[82px] border-b border-slate-200 bg-white px-2 py-3 font-semibold text-slate-700">
+                    {row.symbol}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visibleMonths.map((month) => (
+                <tr key={month}>
+                  <td className="sticky left-0 z-10 border-r border-slate-200 bg-white px-3 py-2 text-left font-medium text-slate-600">
+                    {month}
+                  </td>
+                  {visibleSymbols.map(({ row }) => {
+                    const value = row.months[month];
+                    return (
+                      <td
+                        key={`${month}-${row.symbol}`}
+                        className="border-b border-slate-100 px-2 py-2 font-medium"
+                        style={monthlyHeatStyle(value, cellScale)}
+                        title={typeof value === "number" ? `${month} ${row.symbol} ${fmtPct(value)}` : `${month} ${row.symbol} 无数据`}
+                      >
+                        {typeof value === "number" ? value.toFixed(3) : "-"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="sticky left-0 z-10 border-r border-t border-slate-200 bg-slate-100 px-3 py-3 text-left font-semibold text-slate-700">
+                  区间累计
+                </td>
+                {visibleSymbols.map(({ row, summary }) => (
+                  <td key={`total-${row.symbol}`} className="border-t border-slate-200 px-2 py-3 font-semibold" style={monthlyHeatStyle(summary.total, Math.max(cellScale * 3, 0.001))}>
+                    {summary.total.toFixed(3)}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
           </table>
         </div>
       </Card>
@@ -1249,8 +1502,9 @@ export default function MarketWorkbench({ data, initialView }: { data: Workbench
   const [timeframe, setTimeframe] = useState<Timeframe>("month");
 
   return (
-    <WorkbenchShell data={data} initialView={initialView} timeframe={timeframe} setTimeframe={setTimeframe}>
+    <WorkbenchShell data={data} initialView={initialView}>
       {initialView === "rates" ? <RateOverview symbols={data.symbols} timeframe={timeframe} setTimeframe={setTimeframe} latestDateText={data.updatedAtLabel} /> : null}
+      {initialView === "monthly" ? <MonthlyMatrixView rows={data.monthlyRateRows} months={data.monthlyRateMonths} /> : null}
       {initialView === "volume" ? <VolumeView symbols={data.symbols} timeframe={timeframe} /> : null}
       {initialView === "combined" ? <CombinedView symbols={data.symbols} timeframe={timeframe} /> : null}
       {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} timeframe={timeframe} /> : null}
