@@ -8,14 +8,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 function Run-Git {
-    param([string[]]$Args)
+    param([string[]]$CommandArgs)
     if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
-        & git @Args
+        & git @CommandArgs
     } else {
-        & git -c "http.proxy=$ProxyUrl" -c "https.proxy=$ProxyUrl" @Args
+        & git -c "http.proxy=$ProxyUrl" -c "https.proxy=$ProxyUrl" @CommandArgs
     }
     if ($LASTEXITCODE -ne 0) {
-        throw "git $($Args -join ' ') failed with exit code $LASTEXITCODE"
+        throw "git $($CommandArgs -join ' ') failed with exit code $LASTEXITCODE"
     }
 }
 
@@ -36,10 +36,10 @@ function Test-HasUpstream {
     return $LASTEXITCODE -eq 0
 }
 
-Run-Git @("rev-parse", "--is-inside-work-tree")
+Run-Git -CommandArgs @("rev-parse", "--is-inside-work-tree")
 
 if (-not $SkipPull) {
-    Run-Git @("pull", "--rebase")
+    Run-Git -CommandArgs @("pull", "--rebase")
 }
 
 $status = if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
@@ -50,15 +50,15 @@ $status = if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
 if (-not $status) {
     Write-Host "No local changes. Pushing current branch..."
     if (Test-HasUpstream) {
-        Run-Git @("push")
+        Run-Git -CommandArgs @("push")
     } else {
         $branch = Get-CurrentBranch
-        Run-Git @("push", "-u", "origin", $branch)
+        Run-Git -CommandArgs @("push", "-u", "origin", $branch)
     }
     exit 0
 }
 
-Run-Git @("add", "-A")
+Run-Git -CommandArgs @("add", "-A")
 
 $oversize = @()
 $stagedFiles = if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
@@ -86,12 +86,12 @@ if ([string]::IsNullOrWhiteSpace($Message)) {
     $Message = "chore: $Message"
 }
 
-Run-Git @("commit", "-m", $Message)
+Run-Git -CommandArgs @("commit", "-m", $Message)
 if (Test-HasUpstream) {
-    Run-Git @("push")
+    Run-Git -CommandArgs @("push")
 } else {
     $branch = Get-CurrentBranch
-    Run-Git @("push", "-u", "origin", $branch)
+    Run-Git -CommandArgs @("push", "-u", "origin", $branch)
 }
 
 Write-Host "Done. Commit + push completed."
