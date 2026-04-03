@@ -1,229 +1,303 @@
-# 2026-04-03 下一阶段工作计划
+# 2026-04-04 交接与下一步计划
 
-这份文档用于明天继续工作时直接接续，不再重新梳理上下文。
+这份文档的目标不是记录聊天过程，而是让人在没有上下文历史的情况下，打开仓库就能知道：
 
-## 1. 当前项目状态
+- 这个程序是什么
+- 现在已经做到哪一步
+- 当前哪些结论已经确认
+- 明天继续时应该先做什么
+- 哪些事情暂时不要做
 
-当前主线已经明确：
+## 1. 程序是什么
 
-1. Python 采集 Binance COIN-M 永续资金费率与成交量
-2. 数据写入本地 SQLite
-3. Next.js 页面直接读取 SQLite 展示
+这是一个围绕 Binance 币本位永续合约建立的本地分析系统，主线非常明确：
 
-当前前端页面：
+1. Python 采集 Binance COIN-M 永续合约的资金费率和成交量
+2. 原始数据和聚合数据写入本地 SQLite
+3. Next.js 网页直接读取 SQLite 展示分析结果
+
+当前仓库已经不是早期原型，不再以静态样例页为主，也不再以 Excel 为唯一数据源。
+
+现在的真实数据链路是：
+
+`Binance API -> funding_rates_raw / daily_volume_metrics -> daily / weekly / monthly 聚合 -> SQLite -> Web 页面`
+
+## 2. 现在这套系统的核心原则
+
+### 2.1 数据原则
+
+- 数据准确性是第一优先级
+- 不允许伪造历史数据
+- 新币历史不够时可以缺失，不能补幻想值
+- funding 的唯一真相层是 `funding_rates_raw`
+- 日 / 周 / 月费率都应该是从 raw 或 daily 正规聚合出来
+- 当前统计口径默认使用中国时区 `Asia/Shanghai`
+- 如果以后改为 UTC，不应该直接硬改现有聚合结果，而是重建聚合层
+
+### 2.2 页面原则
+
+- `/` 是主页，也是费率总览
+- 当前阶段先把费率页打磨清楚，其它页面都是辅助页
+- 页面可以慢慢改，但数据层必须先可靠
+
+### 2.3 运行原则
+
+- 目前仍以手动运行脚本为主
+- 定时任务和服务器部署放到后面
+- 在页面结构和数据口径没有彻底确认前，不急着做自动调度
+
+## 3. 当前页面结构
+
+当前网页有 6 个页面：
 
 - `/` 费率总览
 - `/monthly` 月费率明细表
+- `/audit` 数据审计
 - `/volume` 成交量观察
 - `/combined` 联合筛选
 - `/heatmap` 热力图
 
-当前数据库实际范围：
+当前共识：
 
-- 日费率：`2023-04-03` 到 `2026-04-02`
-- 月费率：`2023-04` 到 `2026-04`
-- 日成交量：`2023-04-05` 到 `2026-04-02`
-- 覆盖币种：`22`
+- `/` 是当前最重要页面
+- 其它页面暂时保留，但很多仍处于辅助阶段
+- 左侧小导航保留，用于页面切换
 
-当前资金费率数据层：
+## 4. 当前数据结构
 
+SQLite 默认路径：
+
+- `data/bian_rate.sqlite3`
+
+当前核心表：
+
+- `symbols`
+- `collector_runs`
 - `funding_rates_raw`
 - `daily_funding_metrics`
+- `weekly_funding_metrics`
 - `monthly_funding_metrics`
+- `daily_volume_metrics`
+- `funding_quality_audits`
+- `volume_quality_audits`
 - `market_snapshots`
 
-当前成交量数据层：
+这些表现在的角色要这样理解：
 
+- `funding_rates_raw`
+  - 原始 funding 事件
+  - 最重要
+  - 以后改时区或重建聚合，都依赖它
+- `daily_funding_metrics`
+  - 按时区聚合后的日费率
+- `weekly_funding_metrics`
+  - 周费率备用层
+  - 已经落库，不再只是计划
+- `monthly_funding_metrics`
+  - 月费率
 - `daily_volume_metrics`
+  - 日成交量
+- `funding_quality_audits`
+  - funding 完整性审计
+- `volume_quality_audits`
+  - volume 覆盖和口径审计
+- `market_snapshots`
+  - 供页面快速读取的摘要快照
 
-## 2. 当前确认过的设计原则
+## 5. 当前已确认的数据范围
 
-### 2.1 页面侧
+基于当前本地库，已确认的覆盖范围是：
 
-- `/` 费率总览作为主页
-- 左侧保留小导航，用于跳转不同页面
-- 费率页面优先，其他页面暂时是辅助页
+- 日费率：`2023-04-03` 到 `2026-04-02`
+- 周费率：`2023-04-03/2023-04-09` 到 `2026-03-30/2026-04-05`
+- 月费率：`2023-04` 到 `2026-04`
+- 日成交量：`2023-04-05` 到 `2026-04-03`
+- 覆盖币种：`22`
 
-### 2.2 数据侧
+当前 22 个币在 `symbols` 表中仍是活跃状态。
 
-- 数据准确性优先于页面扩展
-- 不允许伪造数据
-- 新币数据不足时允许空值，不能补幻想值
-- 当前统计口径默认使用中国时区 `Asia/Shanghai`
-- 原始 funding 事件必须保留，便于后续按其他时区重建
+## 6. 当前已经完成的关键工作
 
-## 3. 下一阶段目标
+### 6.1 funding 侧
 
-下一阶段不是继续快速堆页面，而是先把数据层做成“可校验、可重建、可定时运行”。
+已经完成：
 
-核心目标：
+- funding 原始事件写入 `funding_rates_raw`
+- 日费率写入 `daily_funding_metrics`
+- 周费率写入 `weekly_funding_metrics`
+- 月费率写入 `monthly_funding_metrics`
+- funding 审计写入 `funding_quality_audits`
+- `rebuild_funding_from_raw.py` 已可从 raw 重建日 / 周 / 月聚合
+- 主采集脚本已支持 `--timezone`
+- 重建脚本已支持 `--timezone`
 
-1. 新增周费率层，作为日/月之间的备用聚合口径
-2. 增强 funding 数据完整性校验
-3. 增强 volume 数据口径校验
-4. 让时区聚合可配置并可重建
-5. 为后续每日定时拉取和补数做好结构准备
+当前已验证结论：
 
-## 4. 明确要做的事情
+- 最新 funding 审计结果中，22 个币全部是 `ok`
+- 说明当前 funding 数据没有被审计层发现明显 gap 或 0 事件天异常
 
-### 第一组：周费率层
+### 6.2 volume 侧
 
-目标：
+已经完成：
 
-- 在现有 `raw -> daily -> monthly` 之间，增加 `weekly_funding_metrics`
+- `daily_volume_metrics` 落库
+- `volume_quality_audits` 落库
+- COIN-M 1d kline 历史分页逻辑已修正
+- volume 审计页已接到前端
 
-建议实现：
+之前明确发现并修掉的问题：
 
-1. SQLite 新增 `weekly_funding_metrics`
-2. 由 raw 或 daily 重建周费率
-3. 周聚合口径与当前时区配置一致
-4. 周表至少保存：
-   - `symbol`
-   - `metric_week`
-   - `weekly_funding_rate`
-   - `positive_days`
-   - `negative_days`
-   - `zero_days`
-   - `run_id`
-   - `updated_at`
+- 旧逻辑只抓到约 230 天 volume
+- 根因是分页窗口逻辑不对
+- 修正后已恢复长历史抓取
 
-说明：
+关于新币 `SUI / WIF / WLD`：
 
-- 周表不是页面立即必须，但后续分析会用到
-- 周层最好和月层一样是正式持久化，不要只在前端临时现算
+- 它们之前被误显示为 `failed`
+- 真正原因不是抓取失败，而是上线较晚、历史较短
+- 现在审计结果已改为正常，只在备注中标记 `short_history_or_new_listing`
 
-### 第二组：funding 完整性校验
+当前已验证结论：
 
-目标：
+- 22 个币当前都有 volume 数据
+- `SUI / WIF / WLD` 属于正常短历史，不应视为异常失败
 
-- 证明 funding 抓取是完整的，不只是“代码看起来对”
+### 6.3 Web 侧
 
-建议实现：
+已经完成：
 
-1. 针对每个 symbol 检查：
-   - 原始事件时间是否去重成功
-   - 是否存在逆序、重复、异常间隔
-2. 增加按天的事件数统计：
-   - 每天实际 funding event 数量
-   - 是否明显异常
-3. 在 collector run 完成后输出质量摘要：
-   - 哪些 symbol 正常
-   - 哪些 symbol 存在缺口
-   - 哪些 symbol 被跳过
-4. 质量结果写入数据库或单独报告文件
+- 页面改为直接读 SQLite
+- 页面不再依赖样例数据回退
+- `/audit` 已能展示 funding / volume 审计状态
+- `/monthly` 已有月费率热力表
+- 首页 `/` 已按当前需求进行了大量定制
 
-优先原因：
+## 7. 当前最重要的代码文件
 
-- 现在日/月聚合逻辑本身是合理的
-- 更大的风险在“事件是否漏抓”
-
-### 第三组：volume 口径校验
-
-目标：
-
-- 确认当前 COIN-M 成交量统计没有错位
-
-建议实现：
-
-1. 明确 Binance COIN-M K 线各字段含义
-2. 复核当前 `contract_volume` / `usd_volume` 计算方式
-3. 抽样验证 BTC / ETH / 小币种
-4. 对新币不足历史的数据保持空值，不做补造
-5. 质量结果写入 run 摘要
-
-优先原因：
-
-- 成交量口径错，比缺几天数据更危险
-- 现在这块需要工程化核验，而不是继续凭经验默认
-
-### 第四组：时区配置化与可重建
-
-目标：
-
-- 将当前固定中国时区的聚合方式，升级成可配置聚合
-
-建议实现：
-
-1. 将 `GROUP_TIMEZONE = "Asia/Shanghai"` 抽成配置
-2. 保持 `funding_rates_raw` 为唯一原始真相层
-3. 提供聚合重建流程：
-   - raw -> daily
-   - daily/raw -> weekly
-   - daily -> monthly
-   - monthly -> snapshot
-4. 后续如果切 UTC，不直接改表，而是重建聚合表
-
-说明：
-
-- 这不是简单前端切换
-- 正确方式是保留 raw，重新生成聚合层
-
-### 第五组：定时任务和补数
-
-目标：
-
-- 为后续稳定运行做准备
-
-建议实现：
-
-1. 日更主采集
-2. 周期性补数扫描
-3. run 失败重试
-4. run 质量报告
-5. 异常 symbol 清单
-
-说明：
-
-- 这部分现在先设计，不急着立刻全做完
-- 但结构最好尽快留出来
-
-## 5. 建议的执行顺序
-
-按这个顺序做最稳：
-
-1. 先完成当前页面框架确认
-2. 新增 `weekly_funding_metrics`
-3. 增加 funding 完整性校验
-4. 增加 volume 口径校验
-5. 抽出时区配置并支持重建聚合层
-6. 设计并落地每日定时采集方案
-7. 最后再考虑是否扩展到 Binance 更长历史
-
-## 6. 关于是否现在就抓全历史
-
-当前建议：
-
-- 暂时不要立刻做“币安全部历史回补”
-
-原因：
-
-1. 当前 3 年数据对现阶段分析已经足够
-2. 现在最重要的是先把口径和校验做好
-3. 如果基础口径没完全校验，先拉更长历史只会放大潜在问题
-
-更合理的做法：
-
-- 先把 3 年数据做成可信数据层
-- 再规划一次独立的全历史 backfill
-
-## 7. 明天开始时优先看的文件
+明天继续工作时，优先看这些文件：
 
 - `binance_coin_funding_rate_collector.py`
 - `sqlite_store.py`
+- `rebuild_funding_from_raw.py`
+- `import_outputs_to_sqlite.py`
+- `backfill_volume_history.py`
 - `web/lib/sqlite-workbench-data.ts`
 - `web/lib/workbench-data.ts`
 - `web/components/market-workbench.tsx`
 - `README.md`
-- 本文件：`docs/2026-04-03-next-phase-plan.md`
+- 本文件
 
-## 8. 明天建议的第一步
+## 8. 常用命令
 
-不要先继续改页面细节。
+### 主采集
 
-明天第一步建议直接做：
+```bash
+python binance_coin_funding_rate_collector.py
+```
 
-1. 设计 `weekly_funding_metrics` 表结构
-2. 在 collector 中补齐周聚合写入
-3. 顺手加入 funding 质量校验的第一版骨架
+切到 UTC 聚合示例：
 
-如果当天还有余量，再继续做 volume 口径核验。
+```bash
+python binance_coin_funding_rate_collector.py --timezone UTC
+```
+
+### 从 raw 重建 funding 聚合
+
+```bash
+python rebuild_funding_from_raw.py
+```
+
+切到 UTC 重建示例：
+
+```bash
+python rebuild_funding_from_raw.py --timezone UTC
+```
+
+### 回填 volume
+
+```bash
+python backfill_volume_history.py
+```
+
+### 启动网页
+
+```bash
+cd web
+npm run build
+npm run start -- --hostname 127.0.0.1 --port 3026
+```
+
+访问：
+
+- `http://127.0.0.1:3026/`
+
+## 9. 当前不要误判的几件事
+
+### 9.1 Funding 审计不是“没数据”
+
+如果以后看到审计为空，要区分两件事：
+
+- 没有 funding 数据
+- 有 funding 数据，但还没跑审计
+
+这两者不是一回事。
+
+### 9.2 新币短历史不是异常
+
+如果新上币上线较晚：
+
+- 它的 volume 或 funding 历史可能不足 3 年
+- 这种情况应显示为短历史
+- 不能误标成失败
+- 更不能补造历史
+
+### 9.3 时区切换不是前端改一下就完了
+
+如果后面从 `Asia/Shanghai` 改到 `UTC`：
+
+- 不能只改页面显示
+- 应该基于 `funding_rates_raw` 重新生成 daily / weekly / monthly
+
+## 10. 明天应继续做什么
+
+明天不建议先做定时任务。
+
+定时任务放后面，等页面和数据口径都更稳定、并且程序准备上服务器时再做。
+
+明天建议继续的方向是：
+
+1. 继续完善主要页面，尤其是 `/`
+2. 评估 `weekly_funding_metrics` 在页面里如何消费
+3. 继续收紧审计页表达，让异常、短历史、正常三类更好区分
+4. 对 volume 口径做进一步人工抽样核验
+5. 再决定是否需要新增更多页面或删减辅助页
+
+## 11. 明天开工的第一步建议
+
+如果明天重新开始，建议按这个顺序：
+
+1. 先看本文件
+2. 再看 `README.md`
+3. 打开首页 `/` 和审计页 `/audit`
+4. 确认今天的数据状态是否仍然成立
+5. 再继续做页面或数据口径调整
+
+## 12. 暂时不要做的事
+
+当前暂时不要优先做这些：
+
+- 不要先做定时任务
+- 不要先做服务器部署
+- 不要先回补 Binance 全历史
+- 不要为了页面完整度去放松数据准确性
+
+## 13. 当前一句话结论
+
+这套系统现在已经从“页面原型”进入“本地可用的数据分析台”阶段。
+
+当前最重要的不是加更多功能，而是：
+
+- 保持数据层可信
+- 继续把首页做顺手
+- 让审计结果更直观
+- 等页面和口径稳定后，再做自动化运行

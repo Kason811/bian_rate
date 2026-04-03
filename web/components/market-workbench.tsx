@@ -19,6 +19,7 @@ import {
   ZAxis,
 } from "recharts";
 import {
+  type AuditRow,
   getRateTrend,
   getRateValue,
   getVolumeTrend,
@@ -29,7 +30,7 @@ import {
   type WorkbenchData,
 } from "@/lib/workbench-data";
 
-type ViewKey = "rates" | "monthly" | "volume" | "combined" | "heatmap";
+type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap";
 type CandidateTier = "priority" | "watch" | "exclude";
 type RateWindowKey = "currentMonth" | "previousMonth" | "previous3Months" | "previous6Months" | "previous12Months";
 type MonthlySortKey = "symbol" | "lastMonth" | "last3Months" | "total" | "average" | "bestMonth" | "worstMonth" | "volatility" | "positiveMonths";
@@ -70,6 +71,7 @@ const chartPalette = ["#2563eb", "#0f766e", "#d97706", "#db2777", "#7c3aed", "#0
 const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "rates", label: "费率总览", href: "/" },
   { key: "monthly", label: "月费率明细", href: "/monthly" },
+  { key: "audit", label: "数据审计", href: "/audit" },
   { key: "volume", label: "成交量观察", href: "/volume" },
   { key: "combined", label: "联合筛选", href: "/combined" },
   { key: "heatmap", label: "热力图", href: "/heatmap" },
@@ -115,6 +117,7 @@ function diffDaysInclusive(start: Date, end: Date) {
 function viewTitle(view: ViewKey) {
   if (view === "rates") return "费率总览";
   if (view === "monthly") return "月费率明细表";
+  if (view === "audit") return "数据审计";
   if (view === "volume") return "成交量观察";
   if (view === "combined") return "联合筛选";
   return "热力图";
@@ -335,6 +338,28 @@ function monthlyHeatStyle(value: number | undefined, scale: number) {
     backgroundColor: "#e2e8f0",
     color: "#475569",
   };
+}
+
+function auditTone(status: string) {
+  if (status === "ok") return "bg-emerald-50 text-emerald-700";
+  if (status === "warning") return "bg-amber-50 text-amber-700";
+  if (status === "failed") return "bg-rose-50 text-rose-700";
+  if (status === "imported") return "bg-sky-50 text-sky-700";
+  if (status === "not_run") return "bg-slate-100 text-slate-600";
+  return "bg-slate-100 text-slate-600";
+}
+
+function formatAuditNotes(...notes: Array<string | undefined>) {
+  const combined = notes.filter(Boolean).join(" | ");
+  if (!combined) return "-";
+  return combined
+    .replaceAll("short_history_or_new_listing", "新币或短历史")
+    .replaceAll("usd_volume=contract_volume*contract_size", "成交量口径: 合约张数 x 合约面值")
+    .replaceAll("source=futures_coin_klines", "来源: COIN-M 日K")
+    .replaceAll("official_kline_fields:v=contract_volume,q=base_asset_volume", "官方字段: v=合约量, q=基础币量")
+    .replaceAll("no kline volume rows returned", "没有返回成交量K线")
+    .replaceAll("volume fetch failed or no kline rows", "成交量抓取失败或没有K线")
+    .replaceAll("ok", "正常");
 }
 
 function getAnnualizedMetrics(symbol: MarketSymbol) {
@@ -1203,7 +1228,7 @@ function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: s
         </div>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid gap-4 xl:grid-cols-5">
         <Kpi label="展示月份" value={`${visibleMonths.length}`} hint="当前矩阵纵向月份数。" />
         <Kpi label="展示币种" value={`${visibleSymbols.length}`} hint="当前筛选和排序后的横向币种数。" />
         <Kpi
@@ -1267,6 +1292,152 @@ function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: s
                 ))}
               </tr>
             </tfoot>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function AuditView({ audits }: { audits: AuditRow[] }) {
+  const [statusFilter, setStatusFilter] = useState<"all" | "warning" | "failed" | "inactive">("all");
+  const [onlyIssues, setOnlyIssues] = useState(false);
+  const [searchText, setSearchText] = useState("");
+
+  const filteredAudits = audits.filter((row) => {
+    const keyword = searchText.trim().toUpperCase();
+    if (keyword && !row.symbol.includes(keyword)) return false;
+    if (statusFilter === "warning" && !["warning", "failed"].includes(row.fundingStatus) && !["warning", "failed"].includes(row.volumeStatus)) return false;
+    if (statusFilter === "failed" && row.volumeStatus !== "failed" && row.fundingStatus !== "failed") return false;
+    if (statusFilter === "inactive" && row.isActive) return false;
+    if (onlyIssues && !["warning", "failed"].includes(row.fundingStatus) && !["warning", "failed"].includes(row.volumeStatus) && row.isActive) return false;
+    return true;
+  });
+  const activeRows = audits.filter((row) => row.isActive);
+  const fundingWarnings = audits.filter((row) => ["warning", "failed"].includes(row.fundingStatus));
+  const volumeWarnings = audits.filter((row) => ["warning", "failed"].includes(row.volumeStatus));
+  const inactiveRows = audits.filter((row) => !row.isActive);
+  const volumeFailedRows = audits.filter((row) => row.volumeStatus === "failed");
+  const fundingNotRunRows = audits.filter((row) => row.fundingStatus === "not_run");
+  const shortHistoryRows = audits.filter((row) => row.volumeNotes?.includes("short_history_or_new_listing"));
+  const fundingWarningSymbols = fundingWarnings.map((row) => row.symbol).join(" / ");
+  const volumeWarningSymbols = volumeWarnings.map((row) => row.symbol).join(" / ");
+  const inactiveSymbols = inactiveRows.map((row) => row.symbol).join(" / ");
+  const shortHistorySymbols = shortHistoryRows.map((row) => row.symbol).join(" / ");
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-4">
+        <Kpi label="当前活跃币种" value={`${activeRows.length}`} hint="目前数据库里仍在交易状态的币种数量。" />
+        <Kpi label="Funding 异常币种" value={`${fundingWarnings.length}`} hint={fundingWarnings.length ? fundingWarningSymbols : "当前 funding 审计没有异常。"} />
+        <Kpi label="Volume 异常币种" value={`${volumeWarnings.length}`} hint={volumeWarnings.length ? volumeWarningSymbols : "当前 volume 审计没有异常。"} />
+        <Kpi label="短历史新币" value={`${shortHistoryRows.length}`} hint={shortHistoryRows.length ? shortHistorySymbols : "当前没有需要单独标记的新币短历史。"} />
+        <Kpi label="当前需处理" value={`${inactiveRows.length + volumeFailedRows.length}`} hint={inactiveRows.length ? `非活跃: ${inactiveSymbols}` : volumeFailedRows.length ? `Volume 失败: ${volumeWarningSymbols}` : "当前没有需要处理的币种。"} />
+      </div>
+
+      <Card title="先看结论" hint="这块只回答四个问题：有没有下架币、funding 是否完整、volume 是否异常、新币是不是只是短历史。">
+        <div className="grid gap-4 xl:grid-cols-4">
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">当前活跃状态</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {inactiveRows.length ? `有 ${inactiveRows.length} 个非活跃币` : "全部 22 个币都活跃"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{inactiveRows.length ? inactiveSymbols : "当前没有下架后仍保留历史的数据币种。"}</div>
+          </div>
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">Funding 审计</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {fundingNotRunRows.length ? "Funding 审计尚未运行" : fundingWarnings.length ? `${fundingWarnings.length} 个币有异常` : "22 个币当前都正常"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{fundingNotRunRows.length ? "当前数据库里还没有 funding_quality_audits 结果。" : fundingWarnings.length ? fundingWarningSymbols : "当前 funding 侧没有 gap 或 0 事件天异常。"}</div>
+          </div>
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">Volume 审计</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {volumeWarnings.length ? `${volumeWarnings.length} 个币存在异常` : "当前 volume 侧全部正常"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{volumeWarnings.length ? volumeWarningSymbols : "当前 volume 侧没有缺口或失败币种。"}</div>
+          </div>
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">新币短历史</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {shortHistoryRows.length ? `${shortHistoryRows.length} 个币属于正常短历史` : "当前没有短历史新币"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{shortHistoryRows.length ? shortHistorySymbols : "所有币种当前都已接近完整历史长度。"}</div>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="数据审计明细" hint="如果上面的结论有异常，再往下看这一张表定位具体原因。">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label className="text-sm text-slate-600">
+            状态筛选
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | "warning" | "failed" | "inactive")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="all">全部</option>
+              <option value="warning">只看异常</option>
+              <option value="failed">只看 failed</option>
+              <option value="inactive">只看 inactive</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input type="checkbox" checked={onlyIssues} onChange={(event) => setOnlyIssues(event.target.checked)} />
+            只保留有问题的币
+          </label>
+          <label className="text-sm text-slate-600">
+            搜索币种
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value.toUpperCase())}
+              placeholder="如 WIF"
+              className="ml-3 w-28 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none"
+            />
+          </label>
+          <div className="text-sm text-slate-500">当前显示 {filteredAudits.length} / {audits.length}</div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-center text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3 text-left">币种</th>
+                <th className="py-3">是否活跃</th>
+                <th className="py-3">Funding 状态</th>
+                <th className="py-3">Funding 分数</th>
+                <th className="py-3">Funding 缺口数</th>
+                <th className="py-3">0事件天数</th>
+                <th className="py-3">Volume 状态</th>
+                <th className="py-3">Volume 分数</th>
+                <th className="py-3">Volume 覆盖天数</th>
+                <th className="py-3">Volume 缺口数</th>
+                <th className="py-3 text-left">备注</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAudits.map((row) => (
+                <tr key={row.symbol} className="border-b border-slate-100">
+                  <td className="py-3 text-left font-medium text-slate-900">{row.symbol}</td>
+                  <td className="py-3">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${row.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                      {row.isActive ? "active" : "inactive"}
+                    </span>
+                  </td>
+                  <td className="py-3">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.fundingStatus)}`}>{row.fundingStatus}</span>
+                  </td>
+                  <td className="py-3 font-medium text-slate-900">{row.fundingScore.toFixed(1)}</td>
+                  <td className="py-3 text-slate-600">{row.fundingGapCount}</td>
+                  <td className="py-3 text-slate-600">{row.fundingZeroEventDays}</td>
+                  <td className="py-3">
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.volumeStatus)}`}>{row.volumeStatus}</span>
+                  </td>
+                  <td className="py-3 font-medium text-slate-900">{row.volumeScore.toFixed(1)}</td>
+                  <td className="py-3 text-slate-600">{row.volumeDayCount}</td>
+                  <td className="py-3 text-slate-600">{row.volumeGapCount}</td>
+                  <td className="py-3 text-left text-xs text-slate-500">
+                    {formatAuditNotes(row.fundingNotes, row.volumeNotes)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </Card>
@@ -1546,6 +1717,7 @@ export default function MarketWorkbench({ data, initialView }: { data: Workbench
     <WorkbenchShell data={data} initialView={initialView}>
       {initialView === "rates" ? <RateOverview symbols={data.symbols} timeframe={timeframe} setTimeframe={setTimeframe} latestDateText={data.updatedAtLabel} /> : null}
       {initialView === "monthly" ? <MonthlyMatrixView rows={data.monthlyRateRows} months={data.monthlyRateMonths} /> : null}
+      {initialView === "audit" ? <AuditView audits={data.audits} /> : null}
       {initialView === "volume" ? <VolumeView symbols={data.symbols} timeframe={timeframe} /> : null}
       {initialView === "combined" ? <CombinedView symbols={data.symbols} timeframe={timeframe} /> : null}
       {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} timeframe={timeframe} /> : null}

@@ -105,6 +105,65 @@ def initialize_database(conn: sqlite3.Connection) -> None:
             FOREIGN KEY (run_id) REFERENCES collector_runs(run_id)
         );
 
+        CREATE TABLE IF NOT EXISTS weekly_funding_metrics (
+            symbol TEXT NOT NULL,
+            metric_week TEXT NOT NULL,
+            weekly_funding_rate REAL NOT NULL,
+            positive_days INTEGER NOT NULL,
+            negative_days INTEGER NOT NULL,
+            zero_days INTEGER NOT NULL,
+            run_id INTEGER,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (symbol, metric_week),
+            FOREIGN KEY (symbol) REFERENCES symbols(symbol),
+            FOREIGN KEY (run_id) REFERENCES collector_runs(run_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS funding_quality_audits (
+            run_id INTEGER NOT NULL,
+            symbol TEXT NOT NULL,
+            raw_event_count INTEGER NOT NULL,
+            duplicate_event_count INTEGER NOT NULL,
+            first_funding_time TEXT,
+            last_funding_time TEXT,
+            inferred_interval_hours REAL NOT NULL,
+            gap_count INTEGER NOT NULL,
+            max_gap_hours REAL NOT NULL,
+            day_count INTEGER NOT NULL,
+            days_with_zero_events INTEGER NOT NULL,
+            min_events_per_day INTEGER NOT NULL,
+            max_events_per_day INTEGER NOT NULL,
+            completeness_score REAL NOT NULL,
+            status TEXT NOT NULL,
+            notes TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (run_id, symbol),
+            FOREIGN KEY (run_id) REFERENCES collector_runs(run_id),
+            FOREIGN KEY (symbol) REFERENCES symbols(symbol)
+        );
+
+        CREATE TABLE IF NOT EXISTS volume_quality_audits (
+            run_id INTEGER NOT NULL,
+            symbol TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            kline_row_count INTEGER NOT NULL,
+            first_metric_date TEXT,
+            last_metric_date TEXT,
+            day_count INTEGER NOT NULL,
+            gap_count INTEGER NOT NULL,
+            max_gap_days INTEGER NOT NULL,
+            avg_usd_volume REAL NOT NULL,
+            min_usd_volume REAL NOT NULL,
+            max_usd_volume REAL NOT NULL,
+            completeness_score REAL NOT NULL,
+            status TEXT NOT NULL,
+            notes TEXT,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (run_id, symbol),
+            FOREIGN KEY (run_id) REFERENCES collector_runs(run_id),
+            FOREIGN KEY (symbol) REFERENCES symbols(symbol)
+        );
+
         CREATE TABLE IF NOT EXISTS daily_volume_metrics (
             symbol TEXT NOT NULL,
             metric_date TEXT NOT NULL,
@@ -140,6 +199,12 @@ def initialize_database(conn: sqlite3.Connection) -> None:
             ON daily_funding_metrics(symbol, metric_date);
         CREATE INDEX IF NOT EXISTS idx_monthly_funding_metrics_symbol_month
             ON monthly_funding_metrics(symbol, metric_month);
+        CREATE INDEX IF NOT EXISTS idx_weekly_funding_metrics_symbol_week
+            ON weekly_funding_metrics(symbol, metric_week);
+        CREATE INDEX IF NOT EXISTS idx_funding_quality_audits_run
+            ON funding_quality_audits(run_id);
+        CREATE INDEX IF NOT EXISTS idx_volume_quality_audits_run
+            ON volume_quality_audits(run_id);
         CREATE INDEX IF NOT EXISTS idx_daily_volume_metrics_symbol_date
             ON daily_volume_metrics(symbol, metric_date);
         CREATE INDEX IF NOT EXISTS idx_market_snapshots_date
@@ -341,6 +406,27 @@ def build_monthly_symbol_metrics(daily_df: pd.DataFrame) -> pd.DataFrame:
     return grouped
 
 
+def build_weekly_symbol_metrics(daily_df: pd.DataFrame) -> pd.DataFrame:
+    if daily_df.empty:
+        return pd.DataFrame(
+            columns=["metric_week", "weekly_funding_rate", "positive_days", "negative_days", "zero_days"]
+        )
+
+    temp = daily_df.copy()
+    temp["date"] = pd.to_datetime(temp["date"])
+    temp["metric_week"] = temp["date"].dt.to_period("W-SUN").astype(str)
+    grouped = (
+        temp.groupby("metric_week", as_index=False)
+        .agg(
+            weekly_funding_rate=("daily_funding_rate", "sum"),
+            positive_days=("daily_funding_rate", lambda s: int((s > 0).sum())),
+            negative_days=("daily_funding_rate", lambda s: int((s < 0).sum())),
+            zero_days=("daily_funding_rate", lambda s: int((s == 0).sum())),
+        )
+    )
+    return grouped
+
+
 def persist_monthly_funding_metrics(
     conn: sqlite3.Connection,
     symbol: str,
@@ -373,6 +459,45 @@ def persist_monthly_funding_metrics(
         insert_sql="""
             INSERT INTO monthly_funding_metrics (
                 symbol, metric_month, monthly_funding_rate, positive_days, negative_days, zero_days, run_id, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+    )
+    return len(rows)
+
+
+def persist_weekly_funding_metrics(
+    conn: sqlite3.Connection,
+    symbol: str,
+    weekly_df: pd.DataFrame,
+    run_id: int,
+) -> int:
+    if weekly_df.empty:
+        return 0
+
+    updated_at = utc_now_iso()
+    rows = [
+        (
+            symbol,
+            str(row.metric_week),
+            float(row.weekly_funding_rate),
+            int(row.positive_days),
+            int(row.negative_days),
+            int(row.zero_days),
+            run_id,
+            updated_at,
+        )
+        for row in weekly_df.itertuples(index=False)
+    ]
+    _replace_table_slice(
+        conn=conn,
+        table="weekly_funding_metrics",
+        date_column="metric_week",
+        symbol=symbol,
+        rows=rows,
+        insert_sql="""
+            INSERT INTO weekly_funding_metrics (
+                symbol, metric_week, weekly_funding_rate, positive_days, negative_days, zero_days, run_id, updated_at
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
@@ -484,3 +609,105 @@ def persist_market_snapshots(
         rows,
     )
     return len(rows)
+
+
+def persist_funding_quality_audit(
+    conn: sqlite3.Connection,
+    run_id: int,
+    audit: Dict[str, object],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO funding_quality_audits (
+            run_id, symbol, raw_event_count, duplicate_event_count, first_funding_time, last_funding_time,
+            inferred_interval_hours, gap_count, max_gap_hours, day_count, days_with_zero_events,
+            min_events_per_day, max_events_per_day, completeness_score, status, notes, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(run_id, symbol) DO UPDATE SET
+            raw_event_count = excluded.raw_event_count,
+            duplicate_event_count = excluded.duplicate_event_count,
+            first_funding_time = excluded.first_funding_time,
+            last_funding_time = excluded.last_funding_time,
+            inferred_interval_hours = excluded.inferred_interval_hours,
+            gap_count = excluded.gap_count,
+            max_gap_hours = excluded.max_gap_hours,
+            day_count = excluded.day_count,
+            days_with_zero_events = excluded.days_with_zero_events,
+            min_events_per_day = excluded.min_events_per_day,
+            max_events_per_day = excluded.max_events_per_day,
+            completeness_score = excluded.completeness_score,
+            status = excluded.status,
+            notes = excluded.notes,
+            updated_at = excluded.updated_at
+        """,
+        (
+            run_id,
+            str(audit["symbol"]),
+            int(audit["raw_event_count"]),
+            int(audit["duplicate_event_count"]),
+            audit.get("first_funding_time"),
+            audit.get("last_funding_time"),
+            float(audit["inferred_interval_hours"]),
+            int(audit["gap_count"]),
+            float(audit["max_gap_hours"]),
+            int(audit["day_count"]),
+            int(audit["days_with_zero_events"]),
+            int(audit["min_events_per_day"]),
+            int(audit["max_events_per_day"]),
+            float(audit["completeness_score"]),
+            str(audit["status"]),
+            str(audit.get("notes", ""))[:500],
+            utc_now_iso(),
+        ),
+    )
+
+
+def persist_volume_quality_audit(
+    conn: sqlite3.Connection,
+    run_id: int,
+    audit: Dict[str, object],
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO volume_quality_audits (
+            run_id, symbol, source_type, kline_row_count, first_metric_date, last_metric_date,
+            day_count, gap_count, max_gap_days, avg_usd_volume, min_usd_volume, max_usd_volume,
+            completeness_score, status, notes, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(run_id, symbol) DO UPDATE SET
+            source_type = excluded.source_type,
+            kline_row_count = excluded.kline_row_count,
+            first_metric_date = excluded.first_metric_date,
+            last_metric_date = excluded.last_metric_date,
+            day_count = excluded.day_count,
+            gap_count = excluded.gap_count,
+            max_gap_days = excluded.max_gap_days,
+            avg_usd_volume = excluded.avg_usd_volume,
+            min_usd_volume = excluded.min_usd_volume,
+            max_usd_volume = excluded.max_usd_volume,
+            completeness_score = excluded.completeness_score,
+            status = excluded.status,
+            notes = excluded.notes,
+            updated_at = excluded.updated_at
+        """,
+        (
+            run_id,
+            str(audit["symbol"]),
+            str(audit["source_type"]),
+            int(audit["kline_row_count"]),
+            audit.get("first_metric_date"),
+            audit.get("last_metric_date"),
+            int(audit["day_count"]),
+            int(audit["gap_count"]),
+            int(audit["max_gap_days"]),
+            float(audit["avg_usd_volume"]),
+            float(audit["min_usd_volume"]),
+            float(audit["max_usd_volume"]),
+            float(audit["completeness_score"]),
+            str(audit["status"]),
+            str(audit.get("notes", ""))[:500],
+            utc_now_iso(),
+        ),
+    )

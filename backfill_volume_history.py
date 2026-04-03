@@ -11,12 +11,19 @@ from __future__ import annotations
 
 from binance.client import Client
 
-from binance_coin_funding_rate_collector import LOOKBACK_YEARS, fetch_volume_metrics, get_coin_perpetual_symbols
+from binance_coin_funding_rate_collector import (
+    LOOKBACK_YEARS,
+    build_failed_volume_quality_audit,
+    build_volume_quality_audit,
+    fetch_volume_metrics,
+    get_coin_perpetual_symbols,
+)
 from sqlite_store import (
     create_collector_run,
     finalize_collector_run,
     initialize_database,
     persist_daily_volume_metrics,
+    persist_volume_quality_audit,
     sqlite_connection,
     upsert_symbols,
 )
@@ -56,6 +63,10 @@ def main() -> None:
             persisted = 0
             for symbol, volume_df in volume_history.items():
                 persisted += persist_daily_volume_metrics(conn, symbol, volume_df, run_id)
+                persist_volume_quality_audit(conn, run_id, build_volume_quality_audit(symbol, volume_df))
+            for symbol in selected_symbols:
+                if symbol not in volume_history:
+                    persist_volume_quality_audit(conn, run_id, build_failed_volume_quality_audit(symbol, "volume fetch failed or no kline rows"))
 
             finalize_collector_run(
                 conn,

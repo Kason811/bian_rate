@@ -2,11 +2,15 @@ import "server-only";
 
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { type MarketSymbol, type MonthlyRateRow, type Point, type WorkbenchData } from "@/lib/workbench-data";
+import { type AuditRow, type MarketSymbol, type MonthlyRateRow, type Point, type WorkbenchData } from "@/lib/workbench-data";
 
 type DailyFundingRow = { symbol: string; metric_date: string; daily_funding_rate: number };
+type WeeklyFundingRow = { symbol: string; metric_week: string; weekly_funding_rate: number };
 type MonthlyFundingRow = { symbol: string; metric_month: string; monthly_funding_rate: number };
 type VolumeRow = { symbol: string; metric_date: string; usd_volume: number };
+type SymbolMetaRow = { symbol: string; is_active: number };
+type FundingAuditRow = { symbol: string; status: string; completeness_score: number; gap_count: number; days_with_zero_events: number; notes: string };
+type VolumeAuditRow = { symbol: string; status: string; completeness_score: number; day_count: number; gap_count: number; notes: string };
 
 function toPct(value: number) {
   return Number((value * 100).toFixed(3));
@@ -93,8 +97,16 @@ function buildMonthlyRateRow(symbol: string, monthlyRates: MonthlyFundingRow[], 
   };
 }
 
-function buildSymbol(symbol: string, dailyRates: DailyFundingRow[], monthlyRates: MonthlyFundingRow[], dailyVolumes: VolumeRow[]): MarketSymbol {
+function buildSymbol(
+  symbol: string,
+  symbolMeta: SymbolMetaRow | undefined,
+  dailyRates: DailyFundingRow[],
+  weeklyRates: WeeklyFundingRow[],
+  monthlyRates: MonthlyFundingRow[],
+  dailyVolumes: VolumeRow[],
+): MarketSymbol {
   const sortedDailyRates = [...dailyRates].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
+  const sortedWeeklyRates = [...weeklyRates].sort((a, b) => a.metric_week.localeCompare(b.metric_week));
   const sortedMonthlyRates = [...monthlyRates].sort((a, b) => a.metric_month.localeCompare(b.metric_month));
   const sortedVolumes = [...dailyVolumes].sort((a, b) => a.metric_date.localeCompare(b.metric_date));
 
@@ -120,6 +132,7 @@ function buildSymbol(symbol: string, dailyRates: DailyFundingRow[], monthlyRates
   const avg180Rate = avgValues(last180Rates.map((row) => row.daily_funding_rate));
   const avg365Rate = avgValues(last365Rates.map((row) => row.daily_funding_rate));
   const weekRate = sumValues(last7Rates.map((row) => row.daily_funding_rate));
+  const latestWeeklyRate = sortedWeeklyRates.at(-1)?.weekly_funding_rate ?? weekRate;
   const variance30 = stdDev(last30Rates.map((row) => row.daily_funding_rate));
   const variance365 = stdDev(last365Rates.map((row) => row.daily_funding_rate));
   const positiveDays30 = last30Rates.filter((row) => row.daily_funding_rate > 0).length;
@@ -163,7 +176,10 @@ function buildSymbol(symbol: string, dailyRates: DailyFundingRow[], monthlyRates
 
   return {
     symbol: symbol.replace("USD_PERP", ""),
+    isActive: Boolean(symbolMeta?.is_active ?? 1),
     rateDayPct: toPct(latestRate),
+    rateWeekFromDailyPct: toPct(weekRate),
+    rateWeekFromWeeklyPct: toPct(latestWeeklyRate),
     rateWeekPct: toPct(weekRate),
     rateMonthPct: toPct(latestMonth),
     ratePrevMonthPct: toPct(previousMonth),
@@ -212,6 +228,7 @@ export function getWorkbenchData(): WorkbenchData {
         symbols: [],
         monthlyRateMonths: [],
         monthlyRateRows: [],
+        audits: [],
         sourceLabel: "SQLite 无数据",
         updatedAtLabel: "未采集",
         loadError: "daily_funding_metrics 为空，请先运行 collector。",
@@ -219,18 +236,41 @@ export function getWorkbenchData(): WorkbenchData {
     }
 
     const dailyFunding = db.prepare("SELECT symbol, metric_date, daily_funding_rate FROM daily_funding_metrics ORDER BY symbol, metric_date").all() as DailyFundingRow[];
+    const weeklyFunding = db.prepare("SELECT symbol, metric_week, weekly_funding_rate FROM weekly_funding_metrics ORDER BY symbol, metric_week").all() as WeeklyFundingRow[];
     const monthlyFunding = db.prepare("SELECT symbol, metric_month, monthly_funding_rate FROM monthly_funding_metrics ORDER BY symbol, metric_month").all() as MonthlyFundingRow[];
     const dailyVolumes = db.prepare("SELECT symbol, metric_date, usd_volume FROM daily_volume_metrics ORDER BY symbol, metric_date").all() as VolumeRow[];
+    const symbolMeta = db.prepare("SELECT symbol, is_active FROM symbols").all() as SymbolMetaRow[];
     const latestDate = db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics").get() as { latest_date: string | null };
+    const latestFundingRun = db.prepare("SELECT MAX(run_id) AS run_id FROM funding_quality_audits").get() as { run_id: number | null };
+    const latestVolumeRun = db.prepare("SELECT MAX(run_id) AS run_id FROM volume_quality_audits").get() as { run_id: number | null };
+    const fundingAudits = latestFundingRun.run_id
+      ? (db
+          .prepare("SELECT symbol, status, completeness_score, gap_count, days_with_zero_events, notes FROM funding_quality_audits WHERE run_id = ?")
+          .all(latestFundingRun.run_id) as FundingAuditRow[])
+      : [];
+    const volumeAudits = latestVolumeRun.run_id
+      ? (db
+          .prepare("SELECT symbol, status, completeness_score, day_count, gap_count, notes FROM volume_quality_audits WHERE run_id = ?")
+          .all(latestVolumeRun.run_id) as VolumeAuditRow[])
+      : [];
 
     const ratesBySymbol = new Map<string, DailyFundingRow[]>();
+    const weeklyBySymbol = new Map<string, WeeklyFundingRow[]>();
     const monthlyBySymbol = new Map<string, MonthlyFundingRow[]>();
     const volumeBySymbol = new Map<string, VolumeRow[]>();
+    const symbolMetaBySymbol = new Map(symbolMeta.map((row) => [row.symbol, row]));
+    const fundingAuditBySymbol = new Map(fundingAudits.map((row) => [row.symbol, row]));
+    const volumeAuditBySymbol = new Map(volumeAudits.map((row) => [row.symbol, row]));
 
     for (const row of dailyFunding) {
       const bucket = ratesBySymbol.get(row.symbol) ?? [];
       bucket.push(row);
       ratesBySymbol.set(row.symbol, bucket);
+    }
+    for (const row of weeklyFunding) {
+      const bucket = weeklyBySymbol.get(row.symbol) ?? [];
+      bucket.push(row);
+      weeklyBySymbol.set(row.symbol, bucket);
     }
     for (const row of monthlyFunding) {
       const bucket = monthlyBySymbol.get(row.symbol) ?? [];
@@ -244,18 +284,48 @@ export function getWorkbenchData(): WorkbenchData {
     }
 
     const symbols = [...ratesBySymbol.keys()]
-      .map((symbol) => buildSymbol(symbol, ratesBySymbol.get(symbol) ?? [], monthlyBySymbol.get(symbol) ?? [], volumeBySymbol.get(symbol) ?? []))
+      .map((symbol) =>
+        buildSymbol(
+          symbol,
+          symbolMetaBySymbol.get(symbol),
+          ratesBySymbol.get(symbol) ?? [],
+          weeklyBySymbol.get(symbol) ?? [],
+          monthlyBySymbol.get(symbol) ?? [],
+          volumeBySymbol.get(symbol) ?? [],
+        ),
+      )
       .sort((a, b) => b.volumeMonthM - a.volumeMonthM);
     const monthlyRateMonths = [...new Set(monthlyFunding.map((row) => row.metric_month))].sort();
     const monthlyRateRows = [...monthlyBySymbol.keys()]
       .map((symbol) => buildMonthlyRateRow(symbol, monthlyBySymbol.get(symbol) ?? [], monthlyRateMonths))
       .sort((a, b) => a.symbol.localeCompare(b.symbol));
+    const audits: AuditRow[] = [...symbolMetaBySymbol.keys()]
+      .sort()
+      .map((symbol) => {
+        const fundingAudit = fundingAuditBySymbol.get(symbol);
+        const volumeAudit = volumeAuditBySymbol.get(symbol);
+        return {
+          symbol: symbol.replace("USD_PERP", ""),
+          isActive: Boolean(symbolMetaBySymbol.get(symbol)?.is_active ?? 1),
+          fundingStatus: fundingAudit?.status ?? "not_run",
+          fundingScore: fundingAudit?.completeness_score ?? 0,
+          fundingGapCount: fundingAudit?.gap_count ?? 0,
+          fundingZeroEventDays: fundingAudit?.days_with_zero_events ?? 0,
+          fundingNotes: fundingAudit?.notes ?? (latestFundingRun.run_id ? "" : "funding 审计尚未运行"),
+          volumeStatus: volumeAudit?.status ?? "not_run",
+          volumeScore: volumeAudit?.completeness_score ?? 0,
+          volumeDayCount: volumeAudit?.day_count ?? 0,
+          volumeGapCount: volumeAudit?.gap_count ?? 0,
+          volumeNotes: volumeAudit?.notes ?? (latestVolumeRun.run_id ? "" : "volume 审计尚未运行"),
+        };
+      });
 
     if (!symbols.length) {
       return {
         symbols: [],
         monthlyRateMonths,
         monthlyRateRows,
+        audits,
         sourceLabel: "SQLite 无可用数据",
         updatedAtLabel: latestDate.latest_date ?? "未知",
         loadError: "SQLite 中没有可供页面展示的聚合结果。",
@@ -266,6 +336,7 @@ export function getWorkbenchData(): WorkbenchData {
       symbols,
       monthlyRateMonths,
       monthlyRateRows,
+      audits,
       sourceLabel: "SQLite 实盘历史数据",
       updatedAtLabel: latestDate.latest_date ?? "未知",
     };
@@ -275,6 +346,7 @@ export function getWorkbenchData(): WorkbenchData {
       symbols: [],
       monthlyRateMonths: [],
       monthlyRateRows: [],
+      audits: [],
       sourceLabel: "SQLite 读取失败",
       updatedAtLabel: "-",
       loadError: message,

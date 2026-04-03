@@ -7,6 +7,7 @@ and export symbol-level daily Excel files plus summary workbooks.
 
 from __future__ import annotations
 
+import argparse
 from copy import copy
 import tempfile
 import shutil
@@ -24,14 +25,18 @@ from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 from sqlite_store import (
+    build_weekly_symbol_metrics,
     build_monthly_symbol_metrics,
     create_collector_run,
     finalize_collector_run,
     initialize_database,
     persist_daily_funding_metrics,
     persist_daily_volume_metrics,
+    persist_funding_quality_audit,
+    persist_volume_quality_audit,
     persist_market_snapshots,
     persist_monthly_funding_metrics,
+    persist_weekly_funding_metrics,
     persist_raw_funding_rates,
     sqlite_connection,
     upsert_symbols,
@@ -51,6 +56,7 @@ SUMMARY_TIME_FORMAT = "%Y%m%d%H%M"
 GROUP_TIMEZONE = "Asia/Shanghai"
 AVG_VOLUME_WINDOW_DAYS = 30
 VOLUME_KLINE_BATCH_LIMIT = 1500
+VOLUME_KLINE_MAX_WINDOW_DAYS = 200
 LOW_VOLUME_THRESHOLD = 10_000_000
 DAILY_CHART_DAYS = 30
 
@@ -149,20 +155,175 @@ def fetch_symbol_funding_history(client: Client, symbol: str, start_ts: int) -> 
         return pd.DataFrame(columns=["fundingTime", "fundingRate"])
 
     df = pd.DataFrame(rows)
+    raw_row_count = len(df)
     df["fundingTime"] = pd.to_datetime(df["fundingTime"], unit="ms", utc=True)
     df["fundingRate"] = pd.to_numeric(df["fundingRate"], errors="coerce").fillna(0.0)
     df.drop_duplicates(subset="fundingTime", inplace=True)
+    df.attrs["raw_row_count"] = raw_row_count
     return df
 
 
-def compute_daily_funding(df: pd.DataFrame) -> pd.DataFrame:
+def build_funding_quality_audit(symbol: str, funding_df: pd.DataFrame, daily_df: pd.DataFrame, raw_row_count: int) -> Dict[str, object]:
+    duplicate_event_count = max(raw_row_count - len(funding_df), 0)
+    if funding_df.empty:
+        return {
+            "symbol": symbol,
+            "raw_event_count": raw_row_count,
+            "duplicate_event_count": duplicate_event_count,
+            "first_funding_time": None,
+            "last_funding_time": None,
+            "inferred_interval_hours": 0.0,
+            "gap_count": 0,
+            "max_gap_hours": 0.0,
+            "day_count": 0,
+            "days_with_zero_events": 0,
+            "min_events_per_day": 0,
+            "max_events_per_day": 0,
+            "completeness_score": 0.0,
+            "status": "empty",
+            "notes": "no funding rows returned",
+        }
+
+    times = funding_df["fundingTime"].sort_values()
+    first_funding_time = pd.Timestamp(times.iloc[0]).isoformat()
+    last_funding_time = pd.Timestamp(times.iloc[-1]).isoformat()
+    diffs = times.diff().dropna().dt.total_seconds().div(3600)
+    inferred_interval_hours = float(diffs.median()) if not diffs.empty else 0.0
+    gap_threshold = inferred_interval_hours * 1.5 if inferred_interval_hours > 0 else 0.0
+    large_gaps = diffs[diffs > gap_threshold] if gap_threshold > 0 else diffs.iloc[0:0]
+    gap_count = int(len(large_gaps))
+    max_gap_hours = float(large_gaps.max()) if gap_count else 0.0
+
+    day_count = int(len(daily_df))
+    days_with_zero_events = int((daily_df["funding_event_count"] == 0).sum()) if not daily_df.empty else 0
+    min_events_per_day = int(daily_df["funding_event_count"].min()) if not daily_df.empty else 0
+    max_events_per_day = int(daily_df["funding_event_count"].max()) if not daily_df.empty else 0
+
+    completeness_score = 100.0
+    completeness_score -= min(duplicate_event_count * 0.2, 10.0)
+    completeness_score -= min(gap_count * 8.0, 40.0)
+    completeness_score -= min(days_with_zero_events * 4.0, 20.0)
+    completeness_score = max(completeness_score, 0.0)
+
+    status = "ok"
+    notes: List[str] = []
+    if duplicate_event_count:
+        notes.append(f"duplicates={duplicate_event_count}")
+    if gap_count:
+        notes.append(f"gaps={gap_count}")
+        status = "warning"
+    if days_with_zero_events:
+        notes.append(f"zero_event_days={days_with_zero_events}")
+        status = "warning"
+    if inferred_interval_hours <= 0:
+        status = "warning"
+        notes.append("interval_unknown")
+
+    return {
+        "symbol": symbol,
+        "raw_event_count": raw_row_count,
+        "duplicate_event_count": duplicate_event_count,
+        "first_funding_time": first_funding_time,
+        "last_funding_time": last_funding_time,
+        "inferred_interval_hours": inferred_interval_hours,
+        "gap_count": gap_count,
+        "max_gap_hours": max_gap_hours,
+        "day_count": day_count,
+        "days_with_zero_events": days_with_zero_events,
+        "min_events_per_day": min_events_per_day,
+        "max_events_per_day": max_events_per_day,
+        "completeness_score": round(completeness_score, 2),
+        "status": status,
+        "notes": ", ".join(notes) if notes else "ok",
+    }
+
+
+def build_volume_quality_audit(symbol: str, volume_df: pd.DataFrame) -> Dict[str, object]:
+    if volume_df.empty:
+        return {
+            "symbol": symbol,
+            "source_type": "coinm_1d_kline",
+            "kline_row_count": 0,
+            "first_metric_date": None,
+            "last_metric_date": None,
+            "day_count": 0,
+            "gap_count": 0,
+            "max_gap_days": 0,
+            "avg_usd_volume": 0.0,
+            "min_usd_volume": 0.0,
+            "max_usd_volume": 0.0,
+            "completeness_score": 0.0,
+            "status": "empty",
+            "notes": "no kline volume rows returned",
+        }
+
+    sorted_volume = volume_df.sort_values("date").drop_duplicates(subset="date", keep="last")
+    dates = pd.to_datetime(sorted_volume["date"])
+    diffs = dates.diff().dropna().dt.days
+    gap_sizes = diffs[diffs > 1]
+    gap_count = int(len(gap_sizes))
+    max_gap_days = int(gap_sizes.max()) if gap_count else 0
+    avg_usd_volume = float(sorted_volume["usd_volume"].mean())
+    min_usd_volume = float(sorted_volume["usd_volume"].min())
+    max_usd_volume = float(sorted_volume["usd_volume"].max())
+    completeness_score = 100.0 - min(gap_count * 5.0, 40.0)
+    notes = [
+        "usd_volume=contract_volume*contract_size",
+        "source=futures_coin_klines",
+        "official_kline_fields:v=contract_volume,q=base_asset_volume",
+    ]
+    status = "ok"
+    if gap_count:
+        status = "warning"
+        notes.append(f"gaps={gap_count}")
+    if len(sorted_volume) < LOOKBACK_YEARS * 365:
+        notes.append("short_history_or_new_listing")
+
+    return {
+        "symbol": symbol,
+        "source_type": "coinm_1d_kline",
+        "kline_row_count": int(len(sorted_volume)),
+        "first_metric_date": pd.Timestamp(dates.iloc[0]).strftime("%Y-%m-%d"),
+        "last_metric_date": pd.Timestamp(dates.iloc[-1]).strftime("%Y-%m-%d"),
+        "day_count": int(len(sorted_volume)),
+        "gap_count": gap_count,
+        "max_gap_days": max_gap_days,
+        "avg_usd_volume": avg_usd_volume,
+        "min_usd_volume": min_usd_volume,
+        "max_usd_volume": max_usd_volume,
+        "completeness_score": round(max(completeness_score, 0.0), 2),
+        "status": status,
+        "notes": ", ".join(notes),
+    }
+
+
+def build_failed_volume_quality_audit(symbol: str, note: str) -> Dict[str, object]:
+    return {
+        "symbol": symbol,
+        "source_type": "coinm_1d_kline",
+        "kline_row_count": 0,
+        "first_metric_date": None,
+        "last_metric_date": None,
+        "day_count": 0,
+        "gap_count": 0,
+        "max_gap_days": 0,
+        "avg_usd_volume": 0.0,
+        "min_usd_volume": 0.0,
+        "max_usd_volume": 0.0,
+        "completeness_score": 0.0,
+        "status": "failed",
+        "notes": note,
+    }
+
+
+def compute_daily_funding(df: pd.DataFrame, group_timezone: str = GROUP_TIMEZONE) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["date", "daily_funding_rate", "funding_event_count"])
 
     daily = (
         df.assign(funding_event_count=1)
         .set_index("fundingTime")
-        .tz_convert(GROUP_TIMEZONE)
+        .tz_convert(group_timezone)
         .resample("D")
         .agg({"fundingRate": "sum", "funding_event_count": "sum"})
         .reset_index()
@@ -172,7 +333,9 @@ def compute_daily_funding(df: pd.DataFrame) -> pd.DataFrame:
     return daily[["date", "daily_funding_rate", "funding_event_count"]]
 
 
-def compute_monthly_summary(symbol_daily: Dict[str, pd.DataFrame], periods: int = 24) -> pd.DataFrame:
+def compute_monthly_summary(
+    symbol_daily: Dict[str, pd.DataFrame], periods: int = 24, group_timezone: str = GROUP_TIMEZONE
+) -> pd.DataFrame:
     monthly_frames = []
     for symbol, daily in symbol_daily.items():
         if daily.empty:
@@ -188,7 +351,7 @@ def compute_monthly_summary(symbol_daily: Dict[str, pd.DataFrame], periods: int 
 
     monthly_summary = pd.concat(monthly_frames, axis=1).fillna(0.0)
     monthly_summary = monthly_summary.groupby(level=0).sum()
-    current_period = pd.Timestamp.now(tz=GROUP_TIMEZONE).tz_localize(None).to_period("M")
+    current_period = pd.Timestamp.now(tz=group_timezone).tz_localize(None).to_period("M")
     period_index = pd.period_range(end=current_period, periods=periods, freq="M")
     monthly_summary = monthly_summary.reindex(period_index, fill_value=0.0)
     monthly_summary = monthly_summary.rename(columns={col: simplify_symbol(col) for col in monthly_summary.columns})
@@ -280,10 +443,16 @@ def build_overview_table(monthly_summary: pd.DataFrame, low_volume_symbols: Set[
     return pd.DataFrame(rows)
 
 
-def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dict[str, float]) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+def fetch_volume_metrics(
+    client: Client,
+    symbols: List[str],
+    contract_sizes: Dict[str, float],
+    group_timezone: str = GROUP_TIMEZONE,
+) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
     start_time = datetime.now(timezone.utc) - timedelta(days=365 * LOOKBACK_YEARS)
     start_ts = int(start_time.timestamp() * 1000)
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    window_span_ms = VOLUME_KLINE_MAX_WINDOW_DAYS * 86_400_000 - 1
     records: List[dict] = []
     volume_history: Dict[str, pd.DataFrame] = {}
     for symbol in symbols:
@@ -291,6 +460,7 @@ def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dic
         cursor = start_ts
         fetch_ok = True
         while cursor < now_ms:
+            request_end = min(cursor + window_span_ms, now_ms)
             retries = 0
             batch = []
             while retries < MAX_RETRIES:
@@ -299,6 +469,7 @@ def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dic
                         symbol=symbol,
                         interval=Client.KLINE_INTERVAL_1DAY,
                         startTime=cursor,
+                        endTime=request_end,
                         limit=VOLUME_KLINE_BATCH_LIMIT,
                     )
                     break
@@ -314,16 +485,19 @@ def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dic
                 break
 
             if not batch:
-                break
+                next_cursor = request_end + 1
+                if next_cursor <= cursor or request_end >= now_ms:
+                    break
+                cursor = next_cursor
+                time.sleep(REQUEST_SLEEP_SECONDS)
+                continue
 
             klines.extend(batch)
-            next_cursor = int(batch[-1][0]) + 86_400_000
-            if next_cursor <= cursor:
+            next_cursor = request_end + 1
+            if next_cursor <= cursor or request_end >= now_ms:
                 break
             cursor = next_cursor
 
-            if len(batch) < VOLUME_KLINE_BATCH_LIMIT:
-                break
             time.sleep(REQUEST_SLEEP_SECONDS)
 
         if not fetch_ok or not klines:
@@ -333,11 +507,15 @@ def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dic
         contract_size = contract_sizes.get(symbol, 1.0)
         daily_rows = []
         for entry in klines:
+            # Binance COIN-M kline docs define:
+            # entry[5] -> volume (contract count, "v")
+            # entry[7] -> base asset volume ("q")
+            # We persist contract_volume from v and derive usd_volume using contract_size.
             contract_volume = float(entry[5])
             usd_volume = contract_volume * contract_size
             daily_rows.append(
                 {
-                    "date": pd.to_datetime(int(entry[0]), unit="ms", utc=True).tz_convert(GROUP_TIMEZONE).tz_localize(None),
+                    "date": pd.to_datetime(int(entry[0]), unit="ms", utc=True).tz_convert(group_timezone).tz_localize(None),
                     "contract_volume": contract_volume,
                     "usd_volume": usd_volume,
                 }
@@ -684,6 +862,10 @@ def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFram
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Collect Binance COIN-M funding and volume into Excel + SQLite.")
+    parser.add_argument("--timezone", default=GROUP_TIMEZONE, help="Aggregation timezone, e.g. Asia/Shanghai or UTC.")
+    args = parser.parse_args()
+
     client = Client()
     utc_now = datetime.now(timezone.utc)
     start_time = utc_now - timedelta(days=365 * LOOKBACK_YEARS)
@@ -699,6 +881,7 @@ def main() -> None:
     run_id = None
     symbol_daily: Dict[str, pd.DataFrame] = {}
     skipped_symbols: List[str] = []
+    quality_audits: List[Dict[str, object]] = []
     try:
         with sqlite_connection() as conn:
             initialize_database(conn)
@@ -714,11 +897,21 @@ def main() -> None:
                     skipped_symbols.append(symbol)
                     continue
 
-                symbol_daily[symbol] = compute_daily_funding(funding_df)
+                symbol_daily[symbol] = compute_daily_funding(funding_df, group_timezone=args.timezone)
+                quality_audits.append(
+                    build_funding_quality_audit(
+                        symbol,
+                        funding_df,
+                        symbol_daily[symbol],
+                        raw_row_count=int(funding_df.attrs.get("raw_row_count", len(funding_df))),
+                    )
+                )
 
                 persist_raw_funding_rates(conn, symbol, funding_df, run_id)
                 persist_daily_funding_metrics(conn, symbol, symbol_daily[symbol], run_id)
+                persist_weekly_funding_metrics(conn, symbol, build_weekly_symbol_metrics(symbol_daily[symbol]), run_id)
                 persist_monthly_funding_metrics(conn, symbol, build_monthly_symbol_metrics(symbol_daily[symbol]), run_id)
+                persist_funding_quality_audit(conn, run_id, quality_audits[-1])
 
             if not symbol_daily:
                 finalize_collector_run(
@@ -733,13 +926,24 @@ def main() -> None:
 
             if skipped_symbols:
                 print(f"\u5df2\u8df3\u8fc7 {len(skipped_symbols)} \u4e2a\u6570\u636e\u4e0d\u5b8c\u6574\u7684\u4ea4\u6613\u5bf9: {', '.join(skipped_symbols)}")
+            warning_symbols = [str(entry["symbol"]) for entry in quality_audits if str(entry["status"]) != "ok"]
 
             save_daily_excels(symbol_daily)
-            avg_volume_table, volume_history = fetch_volume_metrics(client, list(symbol_daily.keys()), contract_sizes)
+            avg_volume_table, volume_history = fetch_volume_metrics(
+                client,
+                list(symbol_daily.keys()),
+                contract_sizes,
+                group_timezone=args.timezone,
+            )
             for symbol, volume_df in volume_history.items():
                 persist_daily_volume_metrics(conn, symbol, volume_df, run_id)
+                persist_volume_quality_audit(conn, run_id, build_volume_quality_audit(symbol, volume_df))
+            for row in avg_volume_table.itertuples(index=False):
+                if str(row.FetchStatus) != "OK":
+                    failed_symbol = f"{str(row.Symbol)}USD_PERP"
+                    persist_volume_quality_audit(conn, run_id, build_failed_volume_quality_audit(failed_symbol, "volume fetch failed or no kline rows"))
 
-            monthly_37 = compute_monthly_summary(symbol_daily, periods=37)
+            monthly_37 = compute_monthly_summary(symbol_daily, periods=37, group_timezone=args.timezone)
             if monthly_37.empty:
                 finalize_collector_run(
                     conn,
@@ -775,7 +979,7 @@ def main() -> None:
                 run_id=run_id,
                 status="completed",
                 skipped_symbol_count=len(skipped_symbols),
-                notes=f"persisted {len(symbol_daily)} symbols to sqlite and excel outputs",
+                notes=f"persisted {len(symbol_daily)} symbols; audit warnings={len(warning_symbols)}; timezone={args.timezone}",
             )
             print("\u5df2\u5b8c\u6210 SQLite \u5199\u5165\u4e0e Excel \u5bfc\u51fa\u3002")
     except Exception as exc:

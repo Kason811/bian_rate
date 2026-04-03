@@ -30,17 +30,18 @@ bian_rate/
 
 - 自动获取 Binance COIN-M `TRADING + PERPETUAL` 交易对
 - 抓取近 3 年资金费率历史
-- 按上海时区聚合日频和月频
+- 按可配置时区聚合日频、周频、月频，默认 `Asia/Shanghai`
 - 抓取并写入成交量数据
 - 输出单币日频 Excel 和月度汇总 Excel
 - 将 funding / volume / snapshot 同步写入 `data/bian_rate.sqlite3`
 
 ### Web 侧
 
-当前网页有 4 个页面：
+当前网页有 6 个页面：
 
 - `/` 费率总览
 - `/monthly` 月费率明细表
+- `/audit` 数据审计
 - `/volume` 成交量观察
 - `/combined` 联合筛选
 - `/heatmap` 热力图
@@ -80,6 +81,12 @@ npm install
 python binance_coin_funding_rate_collector.py
 ```
 
+如果后面要按 UTC 或别的时区重算聚合，可直接传参：
+
+```bash
+python binance_coin_funding_rate_collector.py --timezone UTC
+```
+
 执行后会：
 
 - 更新 `coin_funding_rate_outputs/`
@@ -103,7 +110,21 @@ python import_outputs_to_sqlite.py
 python backfill_volume_history.py
 ```
 
-### 4. 启动网页
+### 4. 从 raw funding 重建日 / 周 / 月聚合
+
+如果已经有 `funding_rates_raw`，但想补 `weekly_funding_metrics`、`funding_quality_audits`，或切换聚合时区：
+
+```bash
+python rebuild_funding_from_raw.py
+```
+
+切换到 UTC 示例：
+
+```bash
+python rebuild_funding_from_raw.py --timezone UTC
+```
+
+### 5. 启动网页
 
 开发模式：
 
@@ -141,9 +162,11 @@ data/bian_rate.sqlite3
 - `symbols`
 - `funding_rates_raw`
 - `daily_funding_metrics`
-- `weekly_funding_metrics`（计划新增）
+- `weekly_funding_metrics`
 - `monthly_funding_metrics`
 - `daily_volume_metrics`
+- `funding_quality_audits`
+- `volume_quality_audits`
 - `market_snapshots`
 - `collector_runs`
 
@@ -174,13 +197,19 @@ coin_funding_rate_outputs/
 
 ## 下一阶段
 
-下一阶段重点不是继续快速堆页面，而是先增强数据层：
+下一阶段重点是两件事并行：
 
-- 增加 `weekly_funding_metrics`
-- 增强 funding 完整性校验
-- 核验 COIN-M 成交量口径
-- 将时区聚合配置化，支持后续从 `Asia/Shanghai` 切到 `UTC`
-- 为每日定时拉取、补数和质量报告做准备
+- 继续完善主页 `/` 的使用体验
+- 继续增强数据层的可校验和可重建能力
+
+当前已知结果：
+
+- volume 历史分页逻辑已经修正为按 200 天窗口抓取
+- funding 已可通过 `rebuild_funding_from_raw.py` 从 raw 一键重建
+- 最新 funding 审计结果中，22 个币种当前均为 `ok`
+- 最新 volume 回填中，22 个币种都已有数据
+- `SUI / WIF / WLD` 属于新上市、短历史，不再误报为抓取失败
+- 定时任务和服务器部署暂时后置，当前仍以手动运行脚本为主
 
 详细计划见：
 

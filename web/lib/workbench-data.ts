@@ -7,7 +7,10 @@ export type Point = {
 
 export type MarketSymbol = {
   symbol: string;
+  isActive?: boolean;
   rateDayPct: number;
+  rateWeekFromDailyPct: number;
+  rateWeekFromWeeklyPct: number;
   rateWeekPct: number;
   rateMonthPct: number;
   ratePrevMonthPct: number;
@@ -47,6 +50,7 @@ export type WorkbenchData = {
   symbols: MarketSymbol[];
   monthlyRateMonths: string[];
   monthlyRateRows: MonthlyRateRow[];
+  audits: AuditRow[];
   sourceLabel: string;
   updatedAtLabel: string;
   loadError?: string;
@@ -66,6 +70,21 @@ export type MonthlyRateRow = {
   positiveMonths: number;
   negativeMonths: number;
   availableMonths: number;
+};
+
+export type AuditRow = {
+  symbol: string;
+  isActive: boolean;
+  fundingStatus: string;
+  fundingScore: number;
+  fundingGapCount: number;
+  fundingZeroEventDays: number;
+  fundingNotes: string;
+  volumeStatus: string;
+  volumeScore: number;
+  volumeDayCount: number;
+  volumeGapCount: number;
+  volumeNotes: string;
 };
 
 export function getRateValue(symbol: MarketSymbol, timeframe: Timeframe) {
