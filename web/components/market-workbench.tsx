@@ -601,6 +601,16 @@ function WorkbenchShell({
   initialView: ViewKey;
   children: React.ReactNode;
 }) {
+  const overviewWindows = rateWindowItems.map((window) => {
+    const ranked = buildWindowRateTable(data.symbols, window.key);
+    return {
+      window,
+      leader: ranked[0],
+      positiveCount: data.symbols.filter((item) => getWindowRateValue(item, window.key) > 0).length,
+      lowLiquidityCount: data.symbols.filter((item) => getWindowVolumeValue(item, window.key) < 5).length,
+    };
+  });
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e0f2fe,_#f8fafc_42%,_#f8fafc)] text-slate-900">
       <div className="mx-auto max-w-[1480px] px-4 py-5 md:px-6">
@@ -628,6 +638,37 @@ function WorkbenchShell({
           </aside>
 
           <main className="min-w-0">
+            {initialView === "rates" ? (
+              <header className="mb-6 rounded-[30px] border border-slate-200 bg-white/92 p-6 shadow-sm backdrop-blur">
+                <div className="flex flex-col gap-6">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                    <div>
+                      <div className="text-sm text-slate-500">Analysis Mode</div>
+                      <h1 className="mt-1 text-3xl font-semibold tracking-tight">{viewTitle(initialView)}</h1>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      Data: {data.sourceLabel}
+                      <br />
+                      Updated: {data.updatedAtLabel}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-5">
+                    {overviewWindows.map((entry) => (
+                      <WindowMetricCard
+                        key={entry.window.key}
+                        window={entry.window}
+                        leader={entry.leader}
+                        positiveCount={entry.positiveCount}
+                        totalCount={data.symbols.length}
+                        lowLiquidityCount={entry.lowLiquidityCount}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </header>
+            ) : null}
+
             {data.loadError ? (
               <div className="mb-6 rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 SQLite 数据暂不可用：{data.loadError}
