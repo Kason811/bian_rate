@@ -1,118 +1,188 @@
-﻿# bian_rate
+# bian_rate
 
-币安币本位永续资金费率抓取与整理工具。脚本会抓取近 3 年数据，输出日频明细、月度统计（近 12 / 24 / 37 个月）以及可点击的币种月度趋势图。
+币安币本位永续资金费率采集与分析仓库。
 
-## 功能
+当前仓库已经不是早期原型结构，主线是：
 
-- 自动获取币本位永续交易对列表（TRADING + PERPETUAL）
-- 抓取资金费率并按上海时区聚合日频/月频
-- 输出每个交易对 `daily` Excel（含近 30 天图表、7 日均线、0 轴基准线）
-- 输出月度统计 Excel：
-  - `近12月`（实际保留 13 个月用于“上12个月”窗口计算）
-  - `近24个月`
-  - `近37个月`
-- `MonthlySummary` 支持点击币种表头跳转到 `Trend_币种` sheet 查看月度走势
-- `Overview` 包含本月/上月正负零费率币种数及 Top3
-- `30天日平均成交量` sheet 自动标记低成交量币种
+1. Python 采集币安 COIN-M 永续资金费率与成交量
+2. 同时输出 Excel 和本地 SQLite
+3. Next.js 网页直接读取 SQLite 做分析看板
 
-## 目录结构
+## 当前目录
 
-- `binance_coin_funding_rate_collector.py`：主脚本
-- `coin_funding_rate_outputs/`：输出目录
-  - `daily/`：单币日频文件
-  - `费率统计表_近xx_时间戳.xlsx`：月度汇总文件
+```text
+bian_rate/
+├─ binance_coin_funding_rate_collector.py   # 主采集脚本：抓 funding + volume，写 Excel 和 SQLite
+├─ sqlite_store.py                          # SQLite schema 与持久化逻辑
+├─ import_outputs_to_sqlite.py              # 从已有 Excel 输出回灌 SQLite
+├─ backfill_volume_history.py               # 给 SQLite 回填日成交量历史
+├─ web/                                     # Next.js 分析前端
+├─ scripts/
+│  └─ git-sync.ps1                          # 走代理的 Git 同步脚本
+├─ coin_funding_rate_outputs/               # Excel 输出目录（gitignore）
+└─ data/
+   └─ bian_rate.sqlite3                     # SQLite 数据库（gitignore）
+```
 
-## 依赖
+## 当前功能
 
-推荐 Python 3.10+
+### 数据侧
+
+- 自动获取 Binance COIN-M `TRADING + PERPETUAL` 交易对
+- 抓取近 3 年资金费率历史
+- 按上海时区聚合日频和月频
+- 抓取并写入成交量数据
+- 输出单币日频 Excel 和月度汇总 Excel
+- 将 funding / volume / snapshot 同步写入 `data/bian_rate.sqlite3`
+
+### Web 侧
+
+当前网页有 4 个页面：
+
+- `/` 费率总览
+- `/volume` 成交量观察
+- `/combined` 联合筛选
+- `/heatmap` 热力图
+
+当前网页直接读取本地 SQLite，不再依赖样例数据。
+
+## 环境要求
+
+### Python
+
+推荐 Python `3.10+`
+
+安装依赖：
 
 ```bash
 pip install pandas openpyxl python-binance requests
 ```
 
-## 使用方式
+### Node.js
 
-在项目根目录执行：
+推荐 Node.js `20+`
+
+安装前端依赖：
+
+```bash
+cd web
+npm install
+```
+
+## 常用命令
+
+### 1. 运行主采集
+
+在仓库根目录执行：
 
 ```bash
 python binance_coin_funding_rate_collector.py
 ```
 
-脚本会自动清理并重建 `coin_funding_rate_outputs/daily`，然后重新生成全部输出。
+执行后会：
 
-为避免运行中断时先删除旧结果，`daily` 目录现在采用“先写入临时目录，成功后再替换”的方式更新。
+- 更新 `coin_funding_rate_outputs/`
+- 更新 `data/bian_rate.sqlite3`
 
-如果某个交易对的资金费率历史连续重试后仍抓取失败，该交易对会被跳过，不会用半截数据参与汇总。
+### 2. 从已有 Excel 回灌 SQLite
 
-如果 30 天成交量抓取失败，会在成交量 sheet 中标记为 `FetchStatus = Failed`，不会被误判为低成交量。
+如果已经有历史输出，但 SQLite 还没准备好：
 
-## 一键同步到 GitHub
+```bash
+python import_outputs_to_sqlite.py
+```
 
-提供了一个 PowerShell 脚本用于一键执行：
+这个脚本会读取最新的 `费率统计表_近37个月_*.xlsx` 和 `daily/` 明细，再写入 SQLite。
 
-- `git pull --rebase`
-- `git add -A`
-- `git commit`
-- `git push`
+### 3. 回填日成交量历史
 
-本项目约定：**GitHub 拉取/推送默认必须走 v2rayN 代理 `socks5h://127.0.0.1:10808`**。
+如果 funding 已经在 SQLite 中，但还需要补齐日成交量历史：
 
-默认命令（已内置 10808 代理）：
+```bash
+python backfill_volume_history.py
+```
+
+### 4. 启动网页
+
+开发模式：
+
+```bash
+cd web
+npm run dev
+```
+
+更稳的本地查看方式是生产模式：
+
+```bash
+cd web
+npm run build
+npm run start -- --hostname 127.0.0.1 --port 3026
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:3026/
+```
+
+## 数据说明
+
+### SQLite
+
+默认数据库路径：
+
+```text
+data/bian_rate.sqlite3
+```
+
+当前核心表：
+
+- `symbols`
+- `funding_rates_raw`
+- `daily_funding_metrics`
+- `monthly_funding_metrics`
+- `daily_volume_metrics`
+- `market_snapshots`
+- `collector_runs`
+
+### Excel 输出
+
+输出目录：
+
+```text
+coin_funding_rate_outputs/
+```
+
+主要包含：
+
+- `daily/`：单币日频明细
+- `费率统计表_近12月_*.xlsx`
+- `费率统计表_近24个月_*.xlsx`
+- `费率统计表_近37个月_*.xlsx`
+
+## 当前分析原则
+
+网页当前默认遵循这套思路：
+
+- 费率优先
+- 正费持续性次之
+- 成交量用于过滤和确认
+- 超低成交量直接排除
+- 高成交量但长期负费率不会自然进入优先池
+
+## Git 同步
+
+仓库里保留了一个 PowerShell 辅助脚本：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1
 ```
 
-自定义提交信息：
+它会按仓库约定通过代理执行 `pull / add / commit / push`。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -Message "feat: update funding report layout"
-```
+## 注意事项
 
-如果只想跳过 `pull`（例如你已经手动同步过）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -SkipPull
-```
-
-显式指定代理（与默认一致）：
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1 -ProxyUrl "socks5h://127.0.0.1:10808"
-```
-
-## GitHub 连接异常排查（HTTPS）
-
-当出现 `Recv failure: Connection was reset`，先确认代理链路：
-
-```powershell
-git -c http.proxy=socks5h://127.0.0.1:10808 -c https.proxy=socks5h://127.0.0.1:10808 ls-remote https://github.com/Kason811/bian_rate.git
-```
-
-推荐：配置仓库级持久代理（仅当前仓库）：
-
-```powershell
-git config http.proxy socks5h://127.0.0.1:10808
-git config https.proxy socks5h://127.0.0.1:10808
-```
-
-取消：
-
-```powershell
-git config --unset http.proxy
-git config --unset https.proxy
-```
-
-## 主要输出说明
-
-- `Trend_XXX` 图表：
-  - X 轴：月份（YYYY-MM）
-  - Y 轴：费率(%)，固定范围 -3 到 3，步长 0.5
-  - 包含 `ZeroLine` 基准线
-- `TopRanking`：本月 / 上个月 / 上三个月 / 上6个月 / 上12个月 排名
-- `MonthlySummary`：热力色阶 + 正负费率字体颜色 + Top5 加粗
-
-## 注意
-
-- 依赖币安接口连通性；如遇网络/代理异常会自动重试。
-- 输出包含实时抓取结果，重复执行会生成新的时间戳文件。
+- `coin_funding_rate_outputs/` 和 `data/` 默认不进 Git
+- `web/.next-build/` 是前端构建产物，不进 Git
+- 如果网页已经在运行，不要直接删构建目录；先停服务再重建
+- 这个仓库当前应以 `README` 为入口，不再依赖旧原型交接文档

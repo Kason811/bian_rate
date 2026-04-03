@@ -23,6 +23,19 @@ from openpyxl.chart import LineChart, Reference
 from openpyxl.formatting.rule import ColorScaleRule
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from sqlite_store import (
+    build_monthly_symbol_metrics,
+    create_collector_run,
+    finalize_collector_run,
+    initialize_database,
+    persist_daily_funding_metrics,
+    persist_daily_volume_metrics,
+    persist_market_snapshots,
+    persist_monthly_funding_metrics,
+    persist_raw_funding_rates,
+    sqlite_connection,
+    upsert_symbols,
+)
 
 LOOKBACK_YEARS = 3
 API_BATCH_LIMIT = 1000
@@ -37,6 +50,7 @@ SUMMARY_TIME_FORMAT = "%Y%m%d%H%M"
 
 GROUP_TIMEZONE = "Asia/Shanghai"
 AVG_VOLUME_WINDOW_DAYS = 30
+VOLUME_KLINE_BATCH_LIMIT = 1500
 LOW_VOLUME_THRESHOLD = 10_000_000
 DAILY_CHART_DAYS = 30
 
@@ -50,6 +64,7 @@ HIGHLIGHT_FILL = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type
 LOW_VOLUME_FILL = PatternFill(start_color="FFEBEE", end_color="FFEBEE", fill_type="solid")
 POSITIVE_FONT = Font(color="FF1B5E20")
 NEGATIVE_FONT = Font(color="FFB71C1C")
+FOCUS_BASKET = ["BTCUSD_PERP", "ETHUSD_PERP", "BNBUSD_PERP", "SOLUSD_PERP", "XRPUSD_PERP"]
 
 
 class DataFetchIncompleteError(RuntimeError):
@@ -142,18 +157,19 @@ def fetch_symbol_funding_history(client: Client, symbol: str, start_ts: int) -> 
 
 def compute_daily_funding(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
-        return pd.DataFrame(columns=["date", "daily_funding_rate"])
+        return pd.DataFrame(columns=["date", "daily_funding_rate", "funding_event_count"])
 
     daily = (
-        df.set_index("fundingTime")["fundingRate"]
+        df.assign(funding_event_count=1)
+        .set_index("fundingTime")
         .tz_convert(GROUP_TIMEZONE)
         .resample("D")
-        .sum()
+        .agg({"fundingRate": "sum", "funding_event_count": "sum"})
         .reset_index()
     )
     daily["date"] = daily["fundingTime"].dt.tz_localize(None)
     daily.rename(columns={"fundingRate": "daily_funding_rate"}, inplace=True)
-    return daily[["date", "daily_funding_rate"]]
+    return daily[["date", "daily_funding_rate", "funding_event_count"]]
 
 
 def compute_monthly_summary(symbol_daily: Dict[str, pd.DataFrame], periods: int = 24) -> pd.DataFrame:
@@ -264,37 +280,77 @@ def build_overview_table(monthly_summary: pd.DataFrame, low_volume_symbols: Set[
     return pd.DataFrame(rows)
 
 
-def build_avg_volume_table(client: Client, symbols: List[str], contract_sizes: Dict[str, float]) -> pd.DataFrame:
+def fetch_volume_metrics(client: Client, symbols: List[str], contract_sizes: Dict[str, float]) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
+    start_time = datetime.now(timezone.utc) - timedelta(days=365 * LOOKBACK_YEARS)
+    start_ts = int(start_time.timestamp() * 1000)
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     records: List[dict] = []
+    volume_history: Dict[str, pd.DataFrame] = {}
     for symbol in symbols:
-        retries = 0
-        klines = []
-        fetch_ok = False
-        while retries < MAX_RETRIES:
-            try:
-                klines = client.futures_coin_klines(symbol=symbol, interval=Client.KLINE_INTERVAL_1DAY, limit=AVG_VOLUME_WINDOW_DAYS)
-                fetch_ok = True
+        klines: List[list] = []
+        cursor = start_ts
+        fetch_ok = True
+        while cursor < now_ms:
+            retries = 0
+            batch = []
+            while retries < MAX_RETRIES:
+                try:
+                    batch = client.futures_coin_klines(
+                        symbol=symbol,
+                        interval=Client.KLINE_INTERVAL_1DAY,
+                        startTime=cursor,
+                        limit=VOLUME_KLINE_BATCH_LIMIT,
+                    )
+                    break
+                except (BinanceAPIException, BinanceRequestException, RequestException) as exc:
+                    retries += 1
+                    wait = REQUEST_SLEEP_SECONDS * (2**retries)
+                    print(f"[{symbol}] \u83b7\u53d6\u6210\u4ea4\u91cfK\u7ebf API\u9519\u8bef\uff0c{wait:.1f}s\u540e\u91cd\u8bd5 ({retries}/{MAX_RETRIES}): {exc}")
+                    time.sleep(wait)
+            else:
+                print(f"[{symbol}] \u591a\u6b21\u5c1d\u8bd5\u83b7\u53d6\u6210\u4ea4\u91cf\u5931\u8d25\uff0c\u8df3\u8fc7\u8be5\u4ea4\u6613\u5bf9\u7684\u6210\u4ea4\u91cf\u8ba1\u7b97\u3002")
+                fetch_ok = False
+                klines = []
                 break
-            except (BinanceAPIException, BinanceRequestException, RequestException) as exc:
-                retries += 1
-                wait = REQUEST_SLEEP_SECONDS * (2**retries)
-                print(f"[{symbol}] \u83b7\u53d6\u6210\u4ea4\u91cfK\u7ebf API\u9519\u8bef\uff0c{wait:.1f}s\u540e\u91cd\u8bd5 ({retries}/{MAX_RETRIES}): {exc}")
-                time.sleep(wait)
-        else:
-            print(f"[{symbol}] \u591a\u6b21\u5c1d\u8bd5\u83b7\u53d6\u6210\u4ea4\u91cf\u5931\u8d25\uff0c\u8df3\u8fc7\u8be5\u4ea4\u6613\u5bf9\u7684\u6210\u4ea4\u91cf\u8ba1\u7b97\u3002")
 
-        if not fetch_ok:
+            if not batch:
+                break
+
+            klines.extend(batch)
+            next_cursor = int(batch[-1][0]) + 86_400_000
+            if next_cursor <= cursor:
+                break
+            cursor = next_cursor
+
+            if len(batch) < VOLUME_KLINE_BATCH_LIMIT:
+                break
+            time.sleep(REQUEST_SLEEP_SECONDS)
+
+        if not fetch_ok or not klines:
             records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": pd.NA, "FetchStatus": "Failed"})
             continue
 
         contract_size = contract_sizes.get(symbol, 1.0)
-        total_contracts = sum(float(entry[5]) for entry in klines) if klines else 0.0
-        usd_volume_sum = total_contracts * contract_size
-        divisor = AVG_VOLUME_WINDOW_DAYS if len(klines) >= AVG_VOLUME_WINDOW_DAYS else max(len(klines), 1)
-        records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": usd_volume_sum / divisor, "FetchStatus": "OK"})
+        daily_rows = []
+        for entry in klines:
+            contract_volume = float(entry[5])
+            usd_volume = contract_volume * contract_size
+            daily_rows.append(
+                {
+                    "date": pd.to_datetime(int(entry[0]), unit="ms", utc=True).tz_convert(GROUP_TIMEZONE).tz_localize(None),
+                    "contract_volume": contract_volume,
+                    "usd_volume": usd_volume,
+                }
+            )
+        if daily_rows:
+            volume_history[symbol] = pd.DataFrame(daily_rows).sort_values("date").drop_duplicates(subset="date", keep="last")
+
+        recent_window = volume_history[symbol].tail(AVG_VOLUME_WINDOW_DAYS)
+        avg_daily_usd = recent_window["usd_volume"].mean() if not recent_window.empty else pd.NA
+        records.append({"Symbol": simplify_symbol(symbol), "AvgDailyUSDVolume": avg_daily_usd, "FetchStatus": "OK"})
 
     if not records:
-        return pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume", "FetchStatus"])
+        return pd.DataFrame(columns=["Symbol", "AvgDailyUSDVolume", "FetchStatus"]), volume_history
 
     df = pd.DataFrame(records)
     df["AvgDailyUSDVolume"] = pd.to_numeric(df["AvgDailyUSDVolume"], errors="coerce")
@@ -308,7 +364,7 @@ def build_avg_volume_table(client: Client, symbols: List[str], contract_sizes: D
     df["StatusOrder"] = df["FetchStatus"].map({"OK": 0, "Failed": 1}).fillna(2)
     df.sort_values(["StatusOrder", "AvgDailyUSDVolume"], ascending=[True, False], na_position="last", inplace=True)
     df.drop(columns=["StatusOrder"], inplace=True)
-    return df
+    return df, volume_history
 
 
 def auto_fit_columns(sheet, min_width: int = 9, max_width: int = 40, padding: int = 2) -> None:
@@ -640,44 +696,100 @@ def main() -> None:
         return
     print(f"\u5171 {len(symbols)} \u4e2a\u4ea4\u6613\u5bf9\u3002")
 
+    run_id = None
     symbol_daily: Dict[str, pd.DataFrame] = {}
     skipped_symbols: List[str] = []
-    for idx, symbol in enumerate(symbols, start=1):
-        print(f"[{idx}/{len(symbols)}] \u6293\u53d6 {symbol} ...")
-        try:
-            df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
-        except DataFetchIncompleteError as exc:
-            print(str(exc))
-            skipped_symbols.append(symbol)
-            continue
-        symbol_daily[symbol] = compute_daily_funding(df)
+    try:
+        with sqlite_connection() as conn:
+            initialize_database(conn)
+            run_id = create_collector_run(conn, lookback_years=LOOKBACK_YEARS, symbol_count=len(symbols))
+            upsert_symbols(conn, symbols, contract_sizes)
 
-    if not symbol_daily:
-        print("\u6240\u6709\u4ea4\u6613\u5bf9\u7684\u8d44\u91d1\u8d39\u7387\u6293\u53d6\u5747\u5931\u8d25\uff0c\u672a\u751f\u6210\u4efb\u4f55\u8f93\u51fa\u3002")
-        return
+            for idx, symbol in enumerate(symbols, start=1):
+                print(f"[{idx}/{len(symbols)}] \u6293\u53d6 {symbol} ...")
+                try:
+                    funding_df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
+                except DataFetchIncompleteError as exc:
+                    print(str(exc))
+                    skipped_symbols.append(symbol)
+                    continue
 
-    if skipped_symbols:
-        print(f"\u5df2\u8df3\u8fc7 {len(skipped_symbols)} \u4e2a\u6570\u636e\u4e0d\u5b8c\u6574\u7684\u4ea4\u6613\u5bf9: {', '.join(skipped_symbols)}")
+                symbol_daily[symbol] = compute_daily_funding(funding_df)
 
-    save_daily_excels(symbol_daily)
-    avg_volume_table = build_avg_volume_table(client, list(symbol_daily.keys()), contract_sizes)
+                persist_raw_funding_rates(conn, symbol, funding_df, run_id)
+                persist_daily_funding_metrics(conn, symbol, symbol_daily[symbol], run_id)
+                persist_monthly_funding_metrics(conn, symbol, build_monthly_symbol_metrics(symbol_daily[symbol]), run_id)
 
-    monthly_37 = compute_monthly_summary(symbol_daily, periods=37)
-    if monthly_37.empty:
-        print("\u672a\u751f\u6210\u6708\u5ea6\u7edf\u8ba1\u6570\u636e\u3002")
-        return
+            if not symbol_daily:
+                finalize_collector_run(
+                    conn,
+                    run_id=run_id,
+                    status="failed",
+                    skipped_symbol_count=len(skipped_symbols),
+                    notes="all funding fetches failed",
+                )
+                print("\u6240\u6709\u4ea4\u6613\u5bf9\u7684\u8d44\u91d1\u8d39\u7387\u6293\u53d6\u5747\u5931\u8d25\uff0c\u672a\u751f\u6210\u4efb\u4f55\u8f93\u51fa\u3002")
+                return
 
-    save_monthly_summary(monthly_37, build_recent_top_table(monthly_37), label="\u8fd137\u4e2a\u6708", avg_volume_table=avg_volume_table)
+            if skipped_symbols:
+                print(f"\u5df2\u8df3\u8fc7 {len(skipped_symbols)} \u4e2a\u6570\u636e\u4e0d\u5b8c\u6574\u7684\u4ea4\u6613\u5bf9: {', '.join(skipped_symbols)}")
 
-    monthly_24 = monthly_37.tail(24)
-    if not monthly_24.empty:
-        monthly_24 = monthly_24[monthly_24.sum().sort_values(ascending=False).index]
-    save_monthly_summary(monthly_24, build_recent_top_table(monthly_24), label="\u8fd124\u4e2a\u6708", avg_volume_table=avg_volume_table)
+            save_daily_excels(symbol_daily)
+            avg_volume_table, volume_history = fetch_volume_metrics(client, list(symbol_daily.keys()), contract_sizes)
+            for symbol, volume_df in volume_history.items():
+                persist_daily_volume_metrics(conn, symbol, volume_df, run_id)
 
-    recent_12 = monthly_37.tail(13)
-    if not recent_12.empty:
-        recent_12 = recent_12[recent_12.sum().sort_values(ascending=False).index]
-    save_monthly_summary(recent_12, build_recent_top_table(recent_12), label="\u8fd112\u6708", avg_volume_table=avg_volume_table)
+            monthly_37 = compute_monthly_summary(symbol_daily, periods=37)
+            if monthly_37.empty:
+                finalize_collector_run(
+                    conn,
+                    run_id=run_id,
+                    status="failed",
+                    skipped_symbol_count=len(skipped_symbols),
+                    notes="monthly summary empty",
+                )
+                print("\u672a\u751f\u6210\u6708\u5ea6\u7edf\u8ba1\u6570\u636e\u3002")
+                return
+
+            high_liquidity_symbols = [
+                symbol
+                for symbol, daily_volume in volume_history.items()
+                if not daily_volume.empty and daily_volume["usd_volume"].mean() >= 150_000_000
+            ]
+            persist_market_snapshots(conn, monthly_37, FOCUS_BASKET, high_liquidity_symbols, run_id)
+
+            save_monthly_summary(monthly_37, build_recent_top_table(monthly_37), label="\u8fd137\u4e2a\u6708", avg_volume_table=avg_volume_table)
+
+            monthly_24 = monthly_37.tail(24)
+            if not monthly_24.empty:
+                monthly_24 = monthly_24[monthly_24.sum().sort_values(ascending=False).index]
+            save_monthly_summary(monthly_24, build_recent_top_table(monthly_24), label="\u8fd124\u4e2a\u6708", avg_volume_table=avg_volume_table)
+
+            recent_12 = monthly_37.tail(13)
+            if not recent_12.empty:
+                recent_12 = recent_12[recent_12.sum().sort_values(ascending=False).index]
+            save_monthly_summary(recent_12, build_recent_top_table(recent_12), label="\u8fd112\u6708", avg_volume_table=avg_volume_table)
+
+            finalize_collector_run(
+                conn,
+                run_id=run_id,
+                status="completed",
+                skipped_symbol_count=len(skipped_symbols),
+                notes=f"persisted {len(symbol_daily)} symbols to sqlite and excel outputs",
+            )
+            print("\u5df2\u5b8c\u6210 SQLite \u5199\u5165\u4e0e Excel \u5bfc\u51fa\u3002")
+    except Exception as exc:
+        if run_id is not None:
+            with sqlite_connection() as conn:
+                initialize_database(conn)
+                finalize_collector_run(
+                    conn,
+                    run_id=run_id,
+                    status="failed",
+                    skipped_symbol_count=len(skipped_symbols),
+                    notes=str(exc)[:500],
+                )
+        raise
 
 
 if __name__ == "__main__":

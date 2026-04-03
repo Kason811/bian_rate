@@ -3,9 +3,16 @@
 *.pyo
 
 coin_funding_rate_outputs/
+data/
 
 .venv/
 venv/
 
 .DS_Store
 Thumbs.db
+
+web/node_modules/
+web/.next/
+web/.next-build/
+web/.dev-*.log
+web/.start-*.log
