@@ -56,6 +56,51 @@ export type WorkbenchData = {
   loadError?: string;
 };
 
+export type ResearchRegime = {
+  label: string;
+  start: string;
+  end: string;
+  tone: string;
+};
+
+export type BtcWeeklyResearchPoint = {
+  weekStart: string;
+  weekEnd: string;
+  weekLabel: string;
+  fundingRatePct: number;
+  avgVolumeM: number;
+  closePrice: number;
+  weeklyReturnPct: number;
+  regimeLabel: string;
+  regimeTone: string;
+};
+
+export type ResearchLagStat = {
+  metric: string;
+  bestLagWeeks: number;
+  correlation: number;
+};
+
+export type ResearchRegimeStat = {
+  label: string;
+  weeks: number;
+  avgFundingRatePct: number;
+  avgVolumeM: number;
+  cumulativeReturnPct: number;
+  positiveFundingWeeks: number;
+};
+
+export type BtcWeeklyResearchData = {
+  symbol: string;
+  timeframe: "week";
+  points: BtcWeeklyResearchPoint[];
+  regimes: ResearchRegime[];
+  lagStats: ResearchLagStat[];
+  regimeStats: ResearchRegimeStat[];
+  sourceLabel: string;
+  loadError?: string;
+};
+
 export type MonthlyRateRow = {
   symbol: string;
   months: Record<string, number>;

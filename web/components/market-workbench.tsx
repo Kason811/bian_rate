@@ -7,6 +7,7 @@ import {
   Cell,
   Line,
   LineChart,
+  ReferenceArea,
   ReferenceLine,
   ResponsiveContainer,
   Scatter,
@@ -19,6 +20,7 @@ import {
 } from "recharts";
 import {
   type AuditRow,
+  type BtcWeeklyResearchData,
   getRateTrend,
   getRateValue,
   getVolumeTrend,
@@ -29,7 +31,7 @@ import {
   type WorkbenchData,
 } from "@/lib/workbench-data";
 
-type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap";
+type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap" | "research";
 type RateWindowKey = "currentMonth" | "previousMonth" | "previous3Months" | "previous6Months" | "previous12Months";
 type MonthlySortKey = "symbol" | "lastMonth" | "last3Months" | "total" | "average" | "bestMonth" | "worstMonth" | "volatility" | "positiveMonths";
 type RateTableSortKey =
@@ -66,6 +68,7 @@ const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "volume", label: "成交量观察", href: "/volume" },
   { key: "combined", label: "联合筛选", href: "/combined" },
   { key: "heatmap", label: "热力图", href: "/heatmap" },
+  { key: "research", label: "研究页", href: "/research" },
 ];
 const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "currentMonth", label: "本月维度", hint: "本月累计费率" },
@@ -81,6 +84,10 @@ function fmtPct(value: number) {
 
 function fmtVol(value: number) {
   return `${value.toFixed(1)}M`;
+}
+
+function fmtPrice(value: number) {
+  return `$${Math.round(value).toLocaleString("en-US")}`;
 }
 
 function parseDateText(dateText: string) {
@@ -111,6 +118,7 @@ function viewTitle(view: ViewKey) {
   if (view === "audit") return "数据审计";
   if (view === "volume") return "成交量观察";
   if (view === "combined") return "联合筛选";
+  if (view === "research") return "BTC 周线研究";
   return "热力图";
 }
 
@@ -686,7 +694,7 @@ function WorkbenchShell({
           </aside>
 
           <main className="relative z-0 min-w-0 overflow-x-hidden">
-            {initialView === "rates" || initialView === "audit" || initialView === "monthly" || initialView === "combined" || initialView === "heatmap" ? (
+            {initialView === "rates" || initialView === "audit" || initialView === "monthly" || initialView === "combined" || initialView === "heatmap" || initialView === "research" ? (
               <header className="mb-6 rounded-[30px] border border-slate-200 bg-white/92 p-6 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -1711,7 +1719,215 @@ function HeatmapView({ symbols }: { symbols: MarketSymbol[] }) {
   );
 }
 
-export default function MarketWorkbench({ data, initialView }: { data: WorkbenchData; initialView: ViewKey }) {
+function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }) {
+  const points = researchData?.points ?? [];
+  const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearchData["points"][number] | null>(points[points.length - 1] ?? null);
+
+  if (!researchData || researchData.loadError) {
+    return (
+      <Card title="BTC 周线研究" hint="固定先看 BTC 周线，把价格、费率、成交量和市场阶段放到同一时间轴。">
+        <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+          {researchData?.loadError ?? "研究数据暂不可用。"}
+        </div>
+      </Card>
+    );
+  }
+
+  const regimeRanges = researchData.regimes
+    .map((regime) => {
+      const rangePoints = points.filter((point) => point.weekStart >= regime.start && point.weekStart < regime.end);
+      if (!rangePoints.length) return null;
+      return {
+        ...regime,
+        x1: rangePoints[0].weekStart,
+        x2: rangePoints[rangePoints.length - 1].weekStart,
+      };
+    })
+    .filter((item): item is { label: string; start: string; end: string; tone: string; x1: string; x2: string } => item !== null);
+  const handleResearchHover = (state?: { activePayload?: Array<{ payload?: BtcWeeklyResearchData["points"][number] }> }) => {
+    const point = state?.activePayload?.[0]?.payload;
+    if (point) setHoverPoint(point);
+  };
+  const activeRegime = hoverPoint ? researchData.regimes.find((regime) => hoverPoint.weekStart >= regime.start && hoverPoint.weekStart < regime.end) : null;
+  const activeRegimePoints = activeRegime
+    ? points.filter((point) => point.weekStart >= activeRegime.start && point.weekStart < activeRegime.end)
+    : [];
+  const activeRegimeWeeks = activeRegimePoints.length;
+  const activeRegimeReturn =
+    activeRegimePoints.length >= 2
+      ? Number((((activeRegimePoints[activeRegimePoints.length - 1].closePrice / activeRegimePoints[0].closePrice) - 1) * 100).toFixed(3))
+      : 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        {researchData.lagStats.map((stat) => (
+          <Kpi
+            key={stat.metric}
+            label={stat.metric}
+            value={`领先 ${stat.bestLagWeeks} 周`}
+            hint={`相关系数 ${stat.correlation >= 0 ? "+" : ""}${stat.correlation.toFixed(3)}，用于先粗看谁更早启动。`}
+          />
+        ))}
+        <Kpi label="数据源" value="BTC 周线" hint={researchData.sourceLabel} />
+      </div>
+
+      <Card title="BTC 周线联动图" hint="上到下依次看价格、周费率、周成交量和你定义的市场区间，同一时间轴同步联动。">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {researchData.regimes.map((regime) => (
+            <span key={`${regime.label}-${regime.start}`} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: regime.tone }} />
+              {regime.label} {regime.start.slice(5)} ~ {regime.end.slice(5)}
+            </span>
+          ))}
+        </div>
+
+        <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/75 px-4 py-3 shadow-sm backdrop-blur">
+          {hoverPoint ? (
+            <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-6">
+              <div>
+                <div className="text-xs text-slate-500">时间</div>
+                <div className="mt-1 font-medium text-slate-900">{hoverPoint.weekStart}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">区间</div>
+                <div className="mt-1 font-medium text-slate-900">{hoverPoint.regimeLabel}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">价格</div>
+                <div className="mt-1 font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">周费率</div>
+                <div className={`mt-1 font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">周日均成交量</div>
+                <div className="mt-1 font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</div>
+              </div>
+              <div>
+                <div className="text-xs text-slate-500">周涨跌</div>
+                <div className={`mt-1 font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</div>
+              </div>
+              <div className="md:col-span-6">
+                <div className="grid gap-3 md:grid-cols-6">
+                  <div className="md:col-start-2">
+                    <div className="text-xs text-slate-500">当前区间周数</div>
+                    <div className="mt-1 font-medium text-slate-900">{activeRegimeWeeks}周</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">当前区间总涨跌</div>
+                    <div className={`mt-1 font-medium ${rateText(activeRegimeReturn)}`}>{fmtPct(activeRegimeReturn)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-500">移动到任意一层图表上查看当前周数据。</div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer>
+              <LineChart data={points} syncId="btc-weekly-research" onMouseMove={handleResearchHover}>
+                {regimeRanges.map((regime) => (
+                  <ReferenceArea key={`price-${regime.label}-${regime.x1}`} x1={regime.x1} x2={regime.x2} fill={regime.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                <Tooltip content={() => null} />
+                <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[180px] w-full">
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research" onMouseMove={handleResearchHover}>
+                {regimeRanges.map((regime) => (
+                  <ReferenceArea key={`funding-${regime.label}-${regime.x1}`} x1={regime.x1} x2={regime.x2} fill={regime.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                <Tooltip content={() => null} />
+                <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
+                  {points.map((point) => (
+                    <Cell key={`funding-bar-${point.weekStart}`} fill={point.fundingRatePct >= 0 ? "#059669" : "#dc2626"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[180px] w-full">
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research" onMouseMove={handleResearchHover}>
+                {regimeRanges.map((regime) => (
+                  <ReferenceArea key={`volume-${regime.label}-${regime.x1}`} x1={regime.x1} x2={regime.x2} fill={regime.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis scale="log" domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value))}M`} />
+                <Tooltip content={() => null} />
+                <Bar dataKey="avgVolumeM" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[90px] w-full">
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research" onMouseMove={handleResearchHover}>
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <YAxis hide domain={[0, 1]} />
+                <Tooltip content={() => null} />
+                <Bar dataKey={() => 1} isAnimationActive={false}>
+                  {points.map((point) => (
+                    <Cell key={`regime-band-${point.weekStart}`} fill={point.regimeTone} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="区间统计" hint="先用这张表比较不同市场区间里费率、成交量和价格表现，再决定下一步要不要扩展到更多币种。">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3">区间</th>
+                <th className="py-3 text-right">周数</th>
+                <th className="py-3 text-right">平均周费率</th>
+                <th className="py-3 text-right">平均周日均成交量</th>
+                <th className="py-3 text-right">累计涨跌</th>
+                <th className="py-3 text-right">正费率周数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {researchData.regimeStats.map((row, index) => (
+                <tr key={`${row.label}-${index}`} className="border-b border-slate-100">
+                  <td className="py-3 font-medium text-slate-900">{row.label}</td>
+                  <td className="py-3 text-right text-slate-600">{row.weeks}</td>
+                  <td className={`py-3 text-right ${rateText(row.avgFundingRatePct)}`}>{fmtPct(row.avgFundingRatePct)}</td>
+                  <td className="py-3 text-right text-slate-600">{fmtVol(row.avgVolumeM)}</td>
+                  <td className={`py-3 text-right ${rateText(row.cumulativeReturnPct)}`}>{fmtPct(row.cumulativeReturnPct)}</td>
+                  <td className="py-3 text-right text-slate-600">{row.positiveFundingWeeks}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export default function MarketWorkbench({ data, initialView, researchData }: { data: WorkbenchData; initialView: ViewKey; researchData?: BtcWeeklyResearchData }) {
   const [timeframe, setTimeframe] = useState<Timeframe>("month");
 
   return (
@@ -1722,6 +1938,7 @@ export default function MarketWorkbench({ data, initialView }: { data: Workbench
       {initialView === "volume" ? <VolumeView symbols={data.symbols} timeframe={timeframe} /> : null}
       {initialView === "combined" ? <CombinedView symbols={data.symbols} /> : null}
       {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} /> : null}
+      {initialView === "research" ? <ResearchView researchData={researchData} /> : null}
     </WorkbenchShell>
   );
 }

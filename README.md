@@ -37,7 +37,7 @@ bian_rate/
 
 ### Web 侧
 
-当前网页有 6 个页面：
+当前网页有 7 个页面：
 
 - `/` 费率总览
 - `/monthly` 月费率明细表
@@ -45,6 +45,7 @@ bian_rate/
 - `/volume` 成交量观察
 - `/combined` 联合筛选
 - `/heatmap` 热力图
+- `/research` BTC 周线研究页
 
 当前网页直接读取本地 SQLite，不再依赖样例数据。
 
@@ -56,6 +57,9 @@ bian_rate/
 - `/combined` 的成交量轴使用对数压缩并对极端值封顶，费率轴也会对称封顶，避免少数异常值拉坏整体分布
 - `/heatmap` 当前包含 5 个维度：当前、上月、上3个月、上6个月、上12个月
 - `/heatmap` 面积看费率绝对值，颜色看费率方向和强弱，并对极端值做封顶处理
+- `/research` 当前固定做 `BTC + 周线`，在同一时间轴内展示价格、周费率、周成交量和市场区间带
+- `/research` 当前价格序列来自本地缓存文件 `web/lib/btc-weekly-klines.json`，避免页面打开时依赖外网请求
+- `/research` 目前支持统一 hover 信息框，显示时间、区间、价格、周费率、周日均成交量、周涨跌、当前区间周数和区间总涨跌
 
 ## 环境要求
 
@@ -161,6 +165,19 @@ npm run start -- --hostname 127.0.0.1 --port 3026
 http://127.0.0.1:3026/
 ```
 
+研究页地址：
+
+```text
+http://127.0.0.1:3026/research
+```
+
+工作约定：
+
+- 下次继续工作时，不要先让用户手动启动程序
+- 应先执行 `npm run build` 与 `npm run start -- --hostname 127.0.0.1 --port 3026`
+- 确认 `3026` 可访问后，再开始继续改页面或数据逻辑
+- 每次改动完成后，都要重新启动并确认页面返回正常
+
 ## 数据说明
 
 ### SQLite
@@ -230,6 +247,30 @@ coin_funding_rate_outputs/
 详细计划见：
 
 - `docs/2026-04-03-next-phase-plan.md`
+
+## 当前进度快照
+
+截至 `2026-04-04`，当前已落地的重点变更如下：
+
+- 数据侧
+  - `import_outputs_to_sqlite.py` 已禁止把 Excel 的 `30天日平均成交量` 伪造成 `daily_volume_metrics`
+  - `binance_coin_funding_rate_collector.py` 已修正“上12个月”逻辑，排除当月未完成月份
+  - `web/lib/sqlite-workbench-data.ts` 已加入按 SQLite 文件修改时间的缓存，减少页面重复全表扫描
+
+- 前端页结构
+  - `/audit` 已独立成纯审计页，不再复用费率总览顶部 5 张维度卡
+  - `/monthly` 默认范围为“上12个月”，并改成标题栏模式
+  - `/combined` 已改成 5 张维度散点卡，点大小来自费率优先表综合分，坐标为 `X=成交量`、`Y=费率`
+  - `/combined` 的成交量轴使用对数压缩并做极值封顶，费率轴也做对称封顶，hover 显示币种名、成交量、费率、分数
+  - `/heatmap` 已改成 5 个维度卡片，面积看费率绝对值，颜色按方向和强弱分层，并对极值封顶
+  - `/research` 已上线 BTC 周线研究页，用来测试价格、周费率、周成交量在不同市场区间中的联动关系
+
+- 工具链
+  - `web/eslint.config.mjs` 已补齐
+  - `npm run lint` 当前可直接执行
+  - 本地查看统一使用 `3026` 端口
+
+当前建议直接从 `docs/2026-04-03-next-phase-plan.md` 接着看，因为那里记录会更详细。
 
 ## Git 同步
 

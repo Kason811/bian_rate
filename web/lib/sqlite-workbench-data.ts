@@ -3,7 +3,7 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { type AuditRow, type MarketSymbol, type MonthlyRateRow, type Point, type WorkbenchData } from "@/lib/workbench-data";
+import { type AuditRow, type BtcWeeklyResearchData, type BtcWeeklyResearchPoint, type MarketSymbol, type MonthlyRateRow, type Point, type ResearchLagStat, type ResearchRegime, type ResearchRegimeStat, type WorkbenchData } from "@/lib/workbench-data";
 
 type DailyFundingRow = { symbol: string; metric_date: string; daily_funding_rate: number };
 type WeeklyFundingRow = { symbol: string; metric_week: string; weekly_funding_rate: number };
@@ -15,6 +15,21 @@ type VolumeAuditRow = { symbol: string; status: string; completeness_score: numb
 
 let cachedWorkbenchData: WorkbenchData | null = null;
 let cachedDbMtimeMs: number | null = null;
+let cachedBtcWeeklyResearchData: BtcWeeklyResearchData | null = null;
+let cachedBtcWeeklyResearchDbMtimeMs: number | null = null;
+
+const BTC_WEEKLY_REGIMES: ResearchRegime[] = [
+  { start: "2023-10-16", end: "2024-03-11", label: "牛市", tone: "#dcfce7" },
+  { start: "2024-03-11", end: "2024-09-09", label: "震荡熊", tone: "#fee2e2" },
+  { start: "2024-09-09", end: "2024-12-16", label: "牛市", tone: "#dcfce7" },
+  { start: "2024-12-16", end: "2025-04-07", label: "小熊", tone: "#fecaca" },
+  { start: "2025-04-07", end: "2025-07-07", label: "牛市", tone: "#bbf7d0" },
+  { start: "2025-07-07", end: "2025-10-06", label: "震荡", tone: "#e2e8f0" },
+  { start: "2025-10-06", end: "2025-11-17", label: "大熊", tone: "#fca5a5" },
+  { start: "2025-11-17", end: "2026-01-19", label: "震荡", tone: "#e2e8f0" },
+  { start: "2026-01-19", end: "2026-02-09", label: "小熊", tone: "#fecaca" },
+  { start: "2026-02-09", end: "2026-03-30", label: "震荡", tone: "#e2e8f0" },
+];
 
 function toPct(value: number) {
   return Number((value * 100).toFixed(3));
@@ -34,6 +49,21 @@ function weekLabel(dateText: string) {
 
 function monthLabel(dateText: string) {
   return dateText.slice(0, 7);
+}
+
+function parseWeekRange(metricWeek: string) {
+  const [start, end] = metricWeek.split("/");
+  return { start, end };
+}
+
+function weekRangeLabel(dateText: string) {
+  const date = new Date(`${dateText}T00:00:00Z`);
+  const day = date.getUTCDay() || 7;
+  const monday = new Date(date);
+  monday.setUTCDate(date.getUTCDate() - day + 1);
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return `${monday.toISOString().slice(0, 10)}/${sunday.toISOString().slice(0, 10)}`;
 }
 
 function groupSum(rows: { key: string; value: number }[]) {
@@ -68,6 +98,61 @@ function stdDev(values: number[]) {
   const avg = avgValues(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
+}
+
+function correlation(left: number[], right: number[]) {
+  if (left.length !== right.length || left.length < 2) return 0;
+  const leftAvg = avgValues(left);
+  const rightAvg = avgValues(right);
+  let numerator = 0;
+  let leftDenominator = 0;
+  let rightDenominator = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const leftDiff = left[index] - leftAvg;
+    const rightDiff = right[index] - rightAvg;
+    numerator += leftDiff * rightDiff;
+    leftDenominator += leftDiff ** 2;
+    rightDenominator += rightDiff ** 2;
+  }
+  if (!leftDenominator || !rightDenominator) return 0;
+  return numerator / Math.sqrt(leftDenominator * rightDenominator);
+}
+
+function findResearchRegime(weekStart: string) {
+  return BTC_WEEKLY_REGIMES.find((regime) => weekStart >= regime.start && weekStart < regime.end);
+}
+
+function lagCorrelation(points: BtcWeeklyResearchPoint[], metricKey: "fundingRatePct" | "avgVolumeM"): ResearchLagStat {
+  const options: ResearchLagStat[] = [];
+  for (let lag = 0; lag <= 4; lag += 1) {
+    const metricValues: number[] = [];
+    const futureReturns: number[] = [];
+    for (let index = 0; index + lag < points.length; index += 1) {
+      metricValues.push(points[index][metricKey]);
+      futureReturns.push(points[index + lag].weeklyReturnPct);
+    }
+    options.push({
+      metric: metricKey === "fundingRatePct" ? "费率领先价格" : "成交量领先价格",
+      bestLagWeeks: lag,
+      correlation: Number(correlation(metricValues, futureReturns).toFixed(3)),
+    });
+  }
+  return options.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation))[0];
+}
+
+function loadBtcWeeklyCloses() {
+  const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+  const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
+  return rows.map((row) => {
+    const weekStart = new Date(row[0]).toISOString().slice(0, 10);
+    const weekEndDate = new Date(row[0]);
+    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+    return {
+      weekStart,
+      weekEnd: weekEndDate.toISOString().slice(0, 10),
+      closePrice: Number(row[4]),
+    };
+  });
 }
 
 function buildMonthlyRateRow(symbol: string, monthlyRates: MonthlyFundingRow[], allMonths: string[]): MonthlyRateRow {
@@ -369,6 +454,121 @@ export function getWorkbenchData(): WorkbenchData {
       sourceLabel: "SQLite 读取失败",
       updatedAtLabel: "-",
       loadError: message,
+    };
+  } finally {
+    db?.close();
+  }
+}
+
+export async function getBtcWeeklyResearchData(): Promise<BtcWeeklyResearchData> {
+  const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
+  const databaseMtimeMs = fs.statSync(databasePath).mtimeMs;
+  if (cachedBtcWeeklyResearchData && cachedBtcWeeklyResearchDbMtimeMs === databaseMtimeMs) {
+    return cachedBtcWeeklyResearchData;
+  }
+
+  let db: DatabaseSync | null = null;
+
+  try {
+    db = new DatabaseSync(databasePath, { open: true, readOnly: true });
+    const weeklyFunding = db
+      .prepare("SELECT metric_week, weekly_funding_rate FROM weekly_funding_metrics WHERE symbol = ? ORDER BY metric_week")
+      .all("BTCUSD_PERP") as Array<{ metric_week: string; weekly_funding_rate: number }>;
+    const dailyVolumes = db
+      .prepare("SELECT metric_date, usd_volume FROM daily_volume_metrics WHERE symbol = ? ORDER BY metric_date")
+      .all("BTCUSD_PERP") as Array<{ metric_date: string; usd_volume: number }>;
+
+    if (!weeklyFunding.length || !dailyVolumes.length) {
+      return {
+        symbol: "BTC",
+        timeframe: "week",
+        points: [],
+        regimes: BTC_WEEKLY_REGIMES,
+        lagStats: [],
+        regimeStats: [],
+        sourceLabel: "SQLite 无 BTC 周线研究数据",
+        loadError: "BTC 周费率或成交量数据缺失。",
+      };
+    }
+
+    const volumeByWeek = new Map<string, number[]>();
+    for (const row of dailyVolumes) {
+      const bucket = volumeByWeek.get(weekRangeLabel(row.metric_date)) ?? [];
+      bucket.push(row.usd_volume);
+      volumeByWeek.set(weekRangeLabel(row.metric_date), bucket);
+    }
+
+    const prices = loadBtcWeeklyCloses();
+    const priceByWeekStart = new Map(prices.map((row) => [row.weekStart, row.closePrice]));
+
+    const points: BtcWeeklyResearchPoint[] = weeklyFunding
+      .map((row) => {
+        const { start, end } = parseWeekRange(row.metric_week);
+        if (start < "2023-10-16" || start >= "2026-03-30") return null;
+        const price = priceByWeekStart.get(start);
+        if (price == null) return null;
+        const regime = findResearchRegime(start);
+        const volumes = volumeByWeek.get(row.metric_week) ?? [];
+        return {
+          weekStart: start,
+          weekEnd: end,
+          weekLabel: start.slice(5),
+          fundingRatePct: toPct(row.weekly_funding_rate),
+          avgVolumeM: toMillion(avgValues(volumes)),
+          closePrice: Number(price.toFixed(2)),
+          weeklyReturnPct: 0,
+          regimeLabel: regime?.label ?? "未定义",
+          regimeTone: regime?.tone ?? "#e2e8f0",
+        };
+      })
+      .filter((row): row is BtcWeeklyResearchPoint => row !== null);
+
+    for (let index = 0; index < points.length; index += 1) {
+      const previous = points[index - 1];
+      points[index].weeklyReturnPct = previous ? Number((((points[index].closePrice / previous.closePrice) - 1) * 100).toFixed(3)) : 0;
+    }
+
+    const lagStats = [
+      lagCorrelation(points, "fundingRatePct"),
+      lagCorrelation(points, "avgVolumeM"),
+    ];
+
+    const regimeStats: ResearchRegimeStat[] = BTC_WEEKLY_REGIMES.map((regime) => {
+      const regimePoints = points.filter((point) => point.weekStart >= regime.start && point.weekStart < regime.end);
+      const firstClose = regimePoints[0]?.closePrice ?? 0;
+      const lastClose = regimePoints.at(-1)?.closePrice ?? 0;
+      return {
+        label: regime.label,
+        weeks: regimePoints.length,
+        avgFundingRatePct: Number(avgValues(regimePoints.map((point) => point.fundingRatePct)).toFixed(3)),
+        avgVolumeM: Number(avgValues(regimePoints.map((point) => point.avgVolumeM)).toFixed(1)),
+        cumulativeReturnPct: firstClose && lastClose ? Number((((lastClose / firstClose) - 1) * 100).toFixed(2)) : 0,
+        positiveFundingWeeks: regimePoints.filter((point) => point.fundingRatePct > 0).length,
+      };
+    });
+
+    const result = {
+      symbol: "BTC",
+      timeframe: "week" as const,
+      points,
+      regimes: BTC_WEEKLY_REGIMES,
+      lagStats,
+      regimeStats,
+      sourceLabel: "SQLite 周费率/周成交量 + Binance BTCUSDT 周收盘价",
+    };
+    cachedBtcWeeklyResearchData = result;
+    cachedBtcWeeklyResearchDbMtimeMs = databaseMtimeMs;
+    return result;
+  } catch (error) {
+    return {
+      symbol: "BTC",
+      timeframe: "week",
+      points: [],
+      regimes: BTC_WEEKLY_REGIMES,
+      lagStats: [],
+      regimeStats: [],
+      sourceLabel: "BTC 周线研究数据读取失败",
+      loadError: error instanceof Error ? error.message : "unknown error",
     };
   } finally {
     db?.close();
