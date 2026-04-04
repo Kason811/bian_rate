@@ -16,3 +16,4 @@ web/.next/
 web/.next-build/
 web/.dev-*.log
 web/.start-*.log
+web/server*.log

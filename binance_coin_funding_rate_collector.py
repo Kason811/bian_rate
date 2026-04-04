@@ -969,7 +969,7 @@ def main() -> None:
                 monthly_24 = monthly_24[monthly_24.sum().sort_values(ascending=False).index]
             save_monthly_summary(monthly_24, build_recent_top_table(monthly_24), label="\u8fd124\u4e2a\u6708", avg_volume_table=avg_volume_table)
 
-            recent_12 = monthly_37.tail(13)
+            recent_12 = monthly_37.iloc[-13:-1]
             if not recent_12.empty:
                 recent_12 = recent_12[recent_12.sum().sort_values(ascending=False).index]
             save_monthly_summary(recent_12, build_recent_top_table(recent_12), label="\u8fd112\u6708", avg_volume_table=avg_volume_table)

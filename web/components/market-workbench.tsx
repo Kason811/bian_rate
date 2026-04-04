@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
@@ -31,7 +30,6 @@ import {
 } from "@/lib/workbench-data";
 
 type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap";
-type CandidateTier = "priority" | "watch" | "exclude";
 type RateWindowKey = "currentMonth" | "previousMonth" | "previous3Months" | "previous6Months" | "previous12Months";
 type MonthlySortKey = "symbol" | "lastMonth" | "last3Months" | "total" | "average" | "bestMonth" | "worstMonth" | "volatility" | "positiveMonths";
 type RateTableSortKey =
@@ -48,13 +46,6 @@ type RateTableSortKey =
   | "avg90dVolumeM"
   | "avg365dVolumeM"
   | "compositeScore";
-type ScoredSymbol = MarketSymbol & {
-  combinedScore: number;
-  currentRate: number;
-  currentVolume: number;
-  tier: CandidateTier;
-  reason: string;
-};
 type RateTableRow = {
   row: MarketSymbol;
   metrics: ReturnType<typeof getAnnualizedMetrics>;
@@ -123,14 +114,6 @@ function viewTitle(view: ViewKey) {
   return "热力图";
 }
 
-function tierLabel(tier: CandidateTier) {
-  return tier === "priority" ? "优先候选" : tier === "watch" ? "可观察" : "排除";
-}
-
-function tierTone(tier: CandidateTier) {
-  return tier === "priority" ? "bg-emerald-50 text-emerald-700" : tier === "watch" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600";
-}
-
 function rateText(value: number) {
   return value > 0 ? "text-emerald-600" : value < 0 ? "text-rose-600" : "text-slate-500";
 }
@@ -184,6 +167,12 @@ function getWindowAnnualizedRate(symbol: MarketSymbol, window: RateWindowKey, la
   const { dayCount } = getWindowRangeInfo(window, latestDateText);
   if (!dayCount) return 0;
   return (rawValue / dayCount) * 365;
+}
+
+function volumeMetricLabel(timeframe: Timeframe) {
+  if (timeframe === "day") return "最新日成交量";
+  if (timeframe === "week") return "近7日平均成交量";
+  return "近30日平均成交量";
 }
 
 function topRankHighlightClass(score: number) {
@@ -394,53 +383,63 @@ function buildVolumeTable(symbols: MarketSymbol[], timeframe: Timeframe) {
   return [...symbols].sort((a, b) => getVolumeValue(b, timeframe) - getVolumeValue(a, timeframe));
 }
 
-function buildCombinedScore(symbol: MarketSymbol, timeframe: Timeframe, minVolume: number) {
-  const rate = getRateValue(symbol, timeframe);
-  const volume = getVolumeValue(symbol, timeframe);
-  const rateStrength = Math.max(rate, 0) * 700;
-  const stability = Math.max(0, 24 - symbol.rateVolatility30Pct * 450);
-  const persistence = (symbol.positiveDays30 / 30) * 24;
-  const liquidity = Math.min(volume * 1.2, 24);
-  const penalty = volume < minVolume ? 18 : 0;
-  return Math.max(0, Math.min(100, Math.round(rateStrength + stability + persistence + liquidity - penalty)));
-}
+function buildPriorityTableRows(symbols: MarketSymbol[]) {
+  const prevMonthRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prevMonthYearly })));
+  const prev3MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev3MonthsYearly })));
+  const prev6MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev6MonthsYearly })));
+  const prev12MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev12MonthsYearly })));
+  const prev24MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev24MonthsYearly })));
+  const positive30RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays30 })));
+  const positive90RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays90 })));
+  const positive180RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays180 })));
+  const volume30RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg30dVolumeM })));
+  const volume90RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg90dVolumeM })));
+  const volume365RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg365dVolumeM })));
+  const annualVolumeUniverse = symbols.map((item) => item.avg365dVolumeM);
 
-function classifySymbol(symbol: MarketSymbol, timeframe: Timeframe, minVolume: number): ScoredSymbol {
-  const currentRate = getRateValue(symbol, timeframe);
-  const currentVolume = getVolumeValue(symbol, timeframe);
-  const combinedScore = buildCombinedScore(symbol, timeframe, minVolume);
+  const rows = symbols.map((row) => {
+    const metrics = getAnnualizedMetrics(row);
+    const annualizedScore =
+      scoreFromRank(prevMonthRankMap.get(row.symbol)?.rank ?? 0, prevMonthRankMap.get(row.symbol)?.total ?? 1) * 0.1 +
+      scoreFromRank(prev3MonthsRankMap.get(row.symbol)?.rank ?? 0, prev3MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.15 +
+      scoreFromRank(prev6MonthsRankMap.get(row.symbol)?.rank ?? 0, prev6MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.2 +
+      scoreFromRank(prev12MonthsRankMap.get(row.symbol)?.rank ?? 0, prev12MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.3 +
+      scoreFromRank(prev24MonthsRankMap.get(row.symbol)?.rank ?? 0, prev24MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.25;
+    const positiveScore =
+      scoreFromRank(positive30RankMap.get(row.symbol)?.rank ?? 0, positive30RankMap.get(row.symbol)?.total ?? 1) * 0.25 +
+      scoreFromRank(positive90RankMap.get(row.symbol)?.rank ?? 0, positive90RankMap.get(row.symbol)?.total ?? 1) * 0.35 +
+      scoreFromRank(positive180RankMap.get(row.symbol)?.rank ?? 0, positive180RankMap.get(row.symbol)?.total ?? 1) * 0.4;
+    const volumeScore =
+      scoreFromLogVolume(row.avg30dVolumeM, annualVolumeUniverse) * 0.2 +
+      scoreFromLogVolume(row.avg90dVolumeM, annualVolumeUniverse) * 0.3 +
+      scoreFromLogVolume(row.avg365dVolumeM, annualVolumeUniverse) * 0.5;
 
-  let tier: CandidateTier = "watch";
-  let reason = "费率和成交量都在中间区域，适合继续观察。";
-
-  if (currentVolume < minVolume) {
-    tier = "exclude";
-    reason = "成交量低于门槛，先排除容量风险。";
-  } else if (currentRate <= 0 && symbol.avg30dRatePct <= 0) {
-    tier = "exclude";
-    reason = "当前与近 30 日费率都不强，不进入优先池。";
-  } else if (currentRate > 0 && symbol.avg30dRatePct > 0 && symbol.positiveDays30 >= 20) {
-    tier = "priority";
-    reason = "当前费率为正，近 30 日保持正偏，且容量达到门槛。";
-  } else if (currentRate <= 0) {
-    reason = "短期转弱，但中期费率还没完全坏掉。";
-  } else if (symbol.positiveDays30 < 16) {
-    reason = "费率可看，但连续性一般，需要确认是否只是短期脉冲。";
-  }
+    return {
+      row,
+      metrics,
+      compositeScore: Math.round((annualizedScore * 0.6 + positiveScore * 0.25 + volumeScore * 0.15) * 100),
+    };
+  });
 
   return {
-    ...symbol,
-    combinedScore,
-    currentRate,
-    currentVolume,
-    tier,
-    reason,
+    rows,
+    prevMonthRankMap,
+    prev3MonthsRankMap,
+    prev6MonthsRankMap,
+    prev12MonthsRankMap,
+    prev24MonthsRankMap,
+    positive30RankMap,
+    positive90RankMap,
+    positive180RankMap,
+    volume30RankMap,
+    volume90RankMap,
+    volume365RankMap,
   };
 }
 
 function Card({ title, hint, children }: { title?: string; hint?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="overflow-hidden rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
       {title || hint ? (
         <div className="mb-4">
           {title ? <h3 className="text-base font-semibold text-slate-900">{title}</h3> : null}
@@ -545,10 +544,27 @@ function WindowTopList({
   );
 }
 
-function HeatmapNode(props: { depth?: number; x?: number; y?: number; width?: number; height?: number; name?: string; rate?: number }) {
+function HeatmapNode(props: { depth?: number; x?: number; y?: number; width?: number; height?: number; name?: string; rate?: number; scale?: number }) {
   if ((props.depth ?? 0) < 1) return <g />;
   const rate = props.rate ?? 0;
-  const fill = rate > 0.03 ? "#047857" : rate > 0 ? "#10b981" : rate < -0.03 ? "#b91c1c" : "#fb7185";
+  const scale = Math.max(props.scale ?? 0.1, 0.001);
+  const intensity = clamp01(Math.abs(rate) / scale);
+  let fill = "#e2e8f0";
+  if (rate > 0) {
+    fill =
+      intensity > 0.85 ? "#047857" :
+      intensity > 0.65 ? "#059669" :
+      intensity > 0.45 ? "#10b981" :
+      intensity > 0.25 ? "#6ee7b7" :
+      "#d1fae5";
+  } else if (rate < 0) {
+    fill =
+      intensity > 0.85 ? "#b91c1c" :
+      intensity > 0.65 ? "#dc2626" :
+      intensity > 0.45 ? "#f43f5e" :
+      intensity > 0.25 ? "#fb7185" :
+      "#fecdd3";
+  }
   const showText = (props.width ?? 0) > 42 && (props.height ?? 0) > 34;
 
   return (
@@ -568,53 +584,57 @@ function HeatmapNode(props: { depth?: number; x?: number; y?: number; width?: nu
   );
 }
 
-function TierSummary({ rows }: { rows: ScoredSymbol[] }) {
-  const groups: CandidateTier[] = ["priority", "watch", "exclude"];
+function CombinedScatterTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload?: { symbol?: string; rawVolume?: number; y?: number; score?: number } }> }) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+
   return (
-    <div className="grid gap-3 md:grid-cols-3">
-      {groups.map((tier) => (
-        <div key={tier} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
-          <div className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${tierTone(tier)}`}>{tierLabel(tier)}</div>
-          <div className="mt-3 text-2xl font-semibold text-slate-900">{rows.filter((row) => row.tier === tier).length}</div>
-          <div className="mt-1 text-sm text-slate-500">{tier === "priority" ? "费率强且容量达标。" : tier === "watch" ? "费率可看，但还要确认。" : "先规避容量或费率问题。"}</div>
-        </div>
-      ))}
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
+      <div className="text-sm font-semibold text-slate-900">{point.symbol ?? "-"}</div>
+      <div className="mt-2 text-sm text-slate-600">成交量：{fmtVol(Number(point.rawVolume ?? 0))}</div>
+      <div className="mt-1 text-sm text-slate-600">费率：{fmtPct(Number(point.y ?? 0))}</div>
+      <div className="mt-1 text-sm text-slate-600">分数：{Number(point.score ?? 0).toFixed(0)}</div>
     </div>
   );
 }
 
-function FocusList({ title, rows, emptyText }: { title: string; rows: ScoredSymbol[]; emptyText: string }) {
-  return (
-    <Card title={title}>
-      <div className="space-y-3">
-        {rows.length ? rows.map((row) => (
-          <div key={row.symbol} className="rounded-[20px] border border-slate-200 p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="font-semibold text-slate-900">{row.symbol}</div>
-                <div className="mt-1 text-sm text-slate-500">{row.reason}</div>
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-medium ${tierTone(row.tier)}`}>{tierLabel(row.tier)}</span>
-            </div>
-            <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
-              <div>
-                <div className="text-slate-500">当前费率</div>
-                <div className={`mt-1 font-medium ${rateText(row.currentRate)}`}>{fmtPct(row.currentRate)}</div>
-              </div>
-              <div>
-                <div className="text-slate-500">成交量</div>
-                <div className="mt-1 font-medium text-slate-900">{fmtVol(row.currentVolume)}</div>
-              </div>
-              <div>
-                <div className="text-slate-500">联合分数</div>
-                <div className="mt-1 font-medium text-slate-900">{row.combinedScore}</div>
-              </div>
-            </div>
-          </div>
-        )) : <div className="rounded-[20px] border border-dashed border-slate-300 p-4 text-sm text-slate-500">{emptyText}</div>}
-      </div>
-    </Card>
-  );
+function heatmapMetricValue(symbol: MarketSymbol, metric: "current" | "prevMonth" | "prev3Months" | "prev6Months" | "prev12Months") {
+  if (metric === "current") return symbol.rateMonthPct;
+  if (metric === "prevMonth") return symbol.ratePrevMonthPct;
+  if (metric === "prev3Months") return symbol.ratePrev3MonthsPct;
+  if (metric === "prev6Months") return symbol.ratePrev6MonthsPct;
+  return symbol.ratePrev12MonthsPct;
+}
+
+function heatmapColorScale(values: number[]) {
+  const sorted = values
+    .map((value) => Math.abs(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+  if (!sorted.length) return 0.001;
+
+  const percentileIndex = Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * 0.9));
+  return Math.max(sorted[percentileIndex] ?? sorted[sorted.length - 1] ?? 0.001, 0.001);
+}
+
+function volumeAxisCap(values: number[]) {
+  const positiveValues = values
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => a - b);
+
+  if (!positiveValues.length) return 5;
+  return Math.max(percentile(positiveValues, 0.95), 5);
+}
+
+function rateAxisCap(values: number[]) {
+  const absoluteValues = values
+    .map((value) => Math.abs(value))
+    .filter((value) => Number.isFinite(value))
+    .sort((a, b) => a - b);
+
+  if (!absoluteValues.length) return 0.2;
+  return Math.max(percentile(absoluteValues, 0.95), 0.2);
 }
 
 function WorkbenchShell({
@@ -639,31 +659,34 @@ function WorkbenchShell({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#e0f2fe,_#f8fafc_42%,_#f8fafc)] text-slate-900">
       <div className="mx-auto max-w-[1480px] px-4 py-5 md:px-6">
-        <div className="grid gap-5 xl:grid-cols-[150px_minmax(0,1fr)]">
-          <aside className="xl:sticky xl:top-5 xl:self-start">
+        <div className="grid gap-5 xl:grid-cols-[150px_minmax(0,1fr)] xl:items-start">
+          <aside className="relative z-50 xl:sticky xl:top-5 xl:self-start">
             <div className="rounded-[26px] border border-slate-200 bg-white/92 p-3 shadow-sm backdrop-blur">
               <div className="px-2 pb-2 text-xs font-medium tracking-[0.18em] text-slate-400">PAGES</div>
-              <nav className="flex flex-wrap gap-2 xl:flex-col">
+              <nav className="relative z-30 flex flex-wrap gap-2 xl:flex-col">
                 {viewItems.map((item) => {
                   const active = item.key === initialView;
                   return (
-                    <Link
+                    <button
                       key={item.key}
-                      href={item.href}
-                      className={`rounded-2xl px-3 py-2 text-sm transition-colors ${
+                      type="button"
+                      onClick={() => {
+                        window.location.href = item.href;
+                      }}
+                      className={`relative z-30 block cursor-pointer rounded-2xl px-3 py-2 text-sm transition-colors pointer-events-auto ${
                         active ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                       }`}
                     >
                       {item.label}
-                    </Link>
+                    </button>
                   );
                 })}
               </nav>
             </div>
           </aside>
 
-          <main className="min-w-0">
-            {initialView === "rates" ? (
+          <main className="relative z-0 min-w-0 overflow-x-hidden">
+            {initialView === "rates" || initialView === "audit" || initialView === "monthly" || initialView === "combined" || initialView === "heatmap" ? (
               <header className="mb-6 rounded-[30px] border border-slate-200 bg-white/92 p-6 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -678,18 +701,20 @@ function WorkbenchShell({
                     </div>
                   </div>
 
-                  <div className="grid gap-4 xl:grid-cols-5">
-                    {overviewWindows.map((entry) => (
-                      <WindowMetricCard
-                        key={entry.window.key}
-                        window={entry.window}
-                        leader={entry.leader}
-                        positiveCount={entry.positiveCount}
-                        totalCount={data.symbols.length}
-                        lowLiquidityCount={entry.lowLiquidityCount}
-                      />
-                    ))}
-                  </div>
+                  {initialView === "rates" ? (
+                    <div className="grid gap-4 xl:grid-cols-5">
+                      {overviewWindows.map((entry) => (
+                        <WindowMetricCard
+                          key={entry.window.key}
+                          window={entry.window}
+                          leader={entry.leader}
+                          positiveCount={entry.positiveCount}
+                          totalCount={data.symbols.length}
+                          lowLiquidityCount={entry.lowLiquidityCount}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               </header>
             ) : null}
@@ -769,7 +794,7 @@ function RateOverview({
 
   useEffect(() => {
     setSelected(defaultSelectedSymbols);
-  }, [comparisonWindow, minVolume, symbols]);
+  }, [comparisonWindow, defaultSelectedSymbols, minVolume, symbols]);
 
   const chartAnchor = comparisonRanked[0] ?? filtered[0];
   const chartRows = (chartAnchor ? getRateTrend(chartAnchor, timeframe) : []).map((point, index) => {
@@ -781,43 +806,21 @@ function RateOverview({
     return row;
   });
 
-  const scored = filtered.map((item) => classifySymbol(item, timeframe, minVolume));
-  const prevMonthRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prevMonthYearly })));
-  const prev3MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev3MonthsYearly })));
-  const prev6MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev6MonthsYearly })));
-  const prev12MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev12MonthsYearly })));
-  const prev24MonthsRankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: getAnnualizedMetrics(item).prev24MonthsYearly })));
-  const positive30RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays30 })));
-  const positive90RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays90 })));
-  const positive180RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.positiveDays180 })));
-  const volume30RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg30dVolumeM })));
-  const volume90RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg90dVolumeM })));
-  const volume365RankMap = buildRankMap(symbols.map((item) => ({ symbol: item.symbol, value: item.avg365dVolumeM })));
-  const annualVolumeUniverse = symbols.map((item) => item.avg365dVolumeM);
-  const priorityRows = symbols
-    .map((row) => {
-      const metrics = getAnnualizedMetrics(row);
-      const annualizedScore =
-        scoreFromRank(prevMonthRankMap.get(row.symbol)?.rank ?? 0, prevMonthRankMap.get(row.symbol)?.total ?? 1) * 0.1 +
-        scoreFromRank(prev3MonthsRankMap.get(row.symbol)?.rank ?? 0, prev3MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.15 +
-        scoreFromRank(prev6MonthsRankMap.get(row.symbol)?.rank ?? 0, prev6MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.2 +
-        scoreFromRank(prev12MonthsRankMap.get(row.symbol)?.rank ?? 0, prev12MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.3 +
-        scoreFromRank(prev24MonthsRankMap.get(row.symbol)?.rank ?? 0, prev24MonthsRankMap.get(row.symbol)?.total ?? 1) * 0.25;
-      const positiveScore =
-        scoreFromRank(positive30RankMap.get(row.symbol)?.rank ?? 0, positive30RankMap.get(row.symbol)?.total ?? 1) * 0.25 +
-        scoreFromRank(positive90RankMap.get(row.symbol)?.rank ?? 0, positive90RankMap.get(row.symbol)?.total ?? 1) * 0.35 +
-        scoreFromRank(positive180RankMap.get(row.symbol)?.rank ?? 0, positive180RankMap.get(row.symbol)?.total ?? 1) * 0.4;
-      const volumeScore =
-        scoreFromLogVolume(row.avg30dVolumeM, annualVolumeUniverse) * 0.2 +
-        scoreFromLogVolume(row.avg90dVolumeM, annualVolumeUniverse) * 0.3 +
-        scoreFromLogVolume(row.avg365dVolumeM, annualVolumeUniverse) * 0.5;
-
-      return {
-        row,
-        metrics,
-        compositeScore: Math.round((annualizedScore * 0.6 + positiveScore * 0.25 + volumeScore * 0.15) * 100),
-      };
-    })
+  const {
+    rows: unsortedPriorityRows,
+    prevMonthRankMap,
+    prev3MonthsRankMap,
+    prev6MonthsRankMap,
+    prev12MonthsRankMap,
+    prev24MonthsRankMap,
+    positive30RankMap,
+    positive90RankMap,
+    positive180RankMap,
+    volume30RankMap,
+    volume90RankMap,
+    volume365RankMap,
+  } = useMemo(() => buildPriorityTableRows(symbols), [symbols]);
+  const priorityRows = [...unsortedPriorityRows]
     .sort((a, b) => {
       const left = rateTableValue(a, sortKey);
       const right = rateTableValue(b, sortKey);
@@ -1107,14 +1110,15 @@ function RateOverview({
 }
 
 function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: string[] }) {
-  const [rangeKey, setRangeKey] = useState<"12" | "24" | "all">("24");
+  const [rangeKey, setRangeKey] = useState<"12" | "24" | "all">("12");
   const [sortKey, setSortKey] = useState<MonthlySortKey>("total");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [filterMode, setFilterMode] = useState<"all" | "positive" | "negative" | "volatile">("all");
   const [coverageMonths, setCoverageMonths] = useState<0 | 12 | 24>(12);
   const [searchText, setSearchText] = useState("");
 
-  const visibleMonths = rangeKey === "12" ? months.slice(-12) : rangeKey === "24" ? months.slice(-24) : months;
+  const completedMonths = months.slice(0, -1);
+  const visibleMonths = rangeKey === "12" ? completedMonths.slice(-12) : rangeKey === "24" ? completedMonths.slice(-24) : months;
   const rowSummaries = useMemo(
     () =>
       rows.map((row) => ({
@@ -1157,24 +1161,15 @@ function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: s
   const topPositive = [...visibleSymbols].sort((a, b) => b.summary.total - a.summary.total)[0];
   const topNegative = [...visibleSymbols].sort((a, b) => a.summary.total - b.summary.total)[0];
 
-  const toggleSort = (key: MonthlySortKey) => {
-    if (sortKey === key) {
-      setSortDirection((current) => (current === "desc" ? "asc" : "desc"));
-      return;
-    }
-    setSortKey(key);
-    setSortDirection(key === "symbol" ? "asc" : "desc");
-  };
-
   return (
     <div className="space-y-6">
-      <Card title="月费率明细表" hint="横向看币种，纵向看月份。热力图直接展示每个月的费率强弱。">
+      <Card>
         <div className="flex flex-wrap items-center gap-3">
           <label className="text-sm text-slate-600">
             月份范围
             <select value={rangeKey} onChange={(event) => setRangeKey(event.target.value as "12" | "24" | "all")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
-              <option value="12">近12个月</option>
-              <option value="24">近24个月</option>
+              <option value="12">上12个月</option>
+              <option value="24">上24个月</option>
               <option value="all">全部月份</option>
             </select>
           </label>
@@ -1327,7 +1322,7 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 xl:grid-cols-4">
+      <div className="grid grid-cols-5 gap-3">
         <Kpi label="当前活跃币种" value={`${activeRows.length}`} hint="目前数据库里仍在交易状态的币种数量。" />
         <Kpi label="Funding 异常币种" value={`${fundingWarnings.length}`} hint={fundingWarnings.length ? fundingWarningSymbols : "当前 funding 审计没有异常。"} />
         <Kpi label="Volume 异常币种" value={`${volumeWarnings.length}`} hint={volumeWarnings.length ? volumeWarningSymbols : "当前 volume 审计没有异常。"} />
@@ -1536,7 +1531,7 @@ function VolumeView({ symbols, timeframe }: { symbols: MarketSymbol[]; timeframe
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-3">币种</th>
-                <th className="py-3 text-right">当前成交量</th>
+                <th className="py-3 text-right">{volumeMetricLabel(timeframe)}</th>
                 <th className="py-3 text-right">当前费率</th>
                 <th className="py-3 text-right">30日均费率</th>
                 <th className="py-3 text-right">30日正费天数</th>
@@ -1560,152 +1555,158 @@ function VolumeView({ symbols, timeframe }: { symbols: MarketSymbol[]; timeframe
   );
 }
 
-function CombinedView({ symbols, timeframe }: { symbols: MarketSymbol[]; timeframe: Timeframe }) {
-  const [minVolume, setMinVolume] = useState(5);
-  const [positiveOnly, setPositiveOnly] = useState(false);
-
-  const scored = useMemo(() => {
-    return symbols
-      .map((symbol) => classifySymbol(symbol, timeframe, minVolume))
-      .filter((row) => (positiveOnly ? row.currentRate > 0 : true))
-      .sort((a, b) => b.combinedScore - a.combinedScore);
-  }, [symbols, timeframe, minVolume, positiveOnly]);
-
-  const scatterRows = scored.map((row) => ({
-    symbol: row.symbol,
-    x: row.currentVolume,
-    y: row.currentRate,
-    z: Math.max(row.combinedScore, 10),
-    tier: row.tier,
-  }));
-
-  const priorityRows = scored.filter((row) => row.tier === "priority");
-  const watchRows = scored.filter((row) => row.tier === "watch");
-  const excludeRows = scored.filter((row) => row.tier === "exclude");
+function CombinedView({ symbols }: { symbols: MarketSymbol[] }) {
+  const scoredRows = useMemo(
+    () => [...buildPriorityTableRows(symbols).rows].sort((a, b) => b.compositeScore - a.compositeScore),
+    [symbols],
+  );
+  const combinedSections: { key: RateWindowKey; title: string; hint: string }[] = [
+    { key: "currentMonth", title: "当前费率 + 成交量", hint: "X 轴看当前费率，Y 轴看本月日均成交量，点大小看费率优先分。" },
+    { key: "previousMonth", title: "上月费率 + 成交量", hint: "X 轴看上月累计费率，Y 轴看上月日均成交量，点大小看费率优先分。" },
+    { key: "previous3Months", title: "上3个月费率 + 成交量", hint: "X 轴看上3个月累计费率，Y 轴看上3个月日均成交量，点大小看费率优先分。" },
+    { key: "previous6Months", title: "上6个月费率 + 成交量", hint: "X 轴看上6个月累计费率，Y 轴看上6个月日均成交量，点大小看费率优先分。" },
+    { key: "previous12Months", title: "上12个月费率 + 成交量", hint: "X 轴看上12个月累计费率，Y 轴看上12个月日均成交量，点大小看费率优先分。" },
+  ];
+  const highScorePositive = [...scoredRows]
+    .filter((entry) => entry.row.rateMonthPct > 0)
+    .sort((a, b) => b.compositeScore - a.compositeScore)[0];
+  const volumeLeader = [...scoredRows].sort((a, b) => b.row.avg30dVolumeM - a.row.avg30dVolumeM)[0];
 
   return (
     <div className="space-y-6">
-      <Card title="联合筛选规则" hint="费率优先，成交量只做过滤和风险确认。">
-        <div className="flex flex-wrap gap-4">
-          <label className="text-sm text-slate-600">
-            最低成交量
-            <select value={String(minVolume)} onChange={(event) => setMinVolume(Number(event.target.value))} className="ml-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
-              <option value="0">不限</option>
-              <option value="1">1M+</option>
-              <option value="5">5M+</option>
-              <option value="10">10M+</option>
-              <option value="30">30M+</option>
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input type="checkbox" checked={positiveOnly} onChange={(event) => setPositiveOnly(event.target.checked)} />
-            只看当前正费率
-          </label>
-        </div>
-      </Card>
-
       <div className="grid gap-4 md:grid-cols-3">
-        <Kpi label="优先候选数" value={`${priorityRows.length}`} hint="当前费率为正、近 30 日保持正偏且容量达标。" />
-        <Kpi label="当前榜首" value={scored[0] ? `${scored[0].symbol} ${scored[0].combinedScore}` : "-"} hint="先看费率，再看持续性和容量。" />
-        <Kpi label="排除数量" value={`${excludeRows.length}`} hint="不直接消失，而是明确显示排除原因。" />
+        <Kpi label="分数来源" value="费率优先表" hint="点大小直接复用费率总览里费率优先表的综合分数。" />
+        <Kpi label="当前高分正费率" value={highScorePositive ? `${highScorePositive.row.symbol} ${highScorePositive.compositeScore}` : "-"} hint="同时满足正费率和高优先分的币，更适合优先看。" />
+        <Kpi label="当前高量币" value={volumeLeader ? `${volumeLeader.row.symbol} ${fmtVol(volumeLeader.row.avg30dVolumeM)}` : "-"} hint="高量不代表优先，只代表容量够大。" />
       </div>
 
-      <TierSummary rows={scored} />
+      <div className="grid gap-6">
+        {combinedSections.map((section) => {
+          const sectionVolumeCap = volumeAxisCap(scoredRows.map((entry) => getWindowVolumeValue(entry.row, section.key)));
+          const sectionRateCap = rateAxisCap(scoredRows.map((entry) => getWindowRateValue(entry.row, section.key)));
+          const scatterRows = scoredRows.map((entry) => ({
+            symbol: entry.row.symbol,
+            x: Math.min(Math.max(getWindowVolumeValue(entry.row, section.key), 0.1), sectionVolumeCap),
+            y: Math.max(Math.min(getWindowRateValue(entry.row, section.key), sectionRateCap), -sectionRateCap),
+            rawRate: getWindowRateValue(entry.row, section.key),
+            rawVolume: getWindowVolumeValue(entry.row, section.key),
+            z: Math.max(entry.compositeScore, 10),
+            score: entry.compositeScore,
+          }));
+          const strongestRate = [...scatterRows].sort((a, b) => b.rawRate - a.rawRate)[0];
+          const highestVolume = [...scatterRows].sort((a, b) => b.rawVolume - a.rawVolume)[0];
 
-      <Card title="费率 + 成交量联合分布" hint="X 轴是成交量，Y 轴是费率，点大小是联合分数。">
-        <div className="h-[390px] w-full">
-          <ResponsiveContainer>
-            <ScatterChart>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis type="number" dataKey="x" name="volume" unit="M" tick={{ fill: "#64748b", fontSize: 12 }} />
-              <YAxis type="number" dataKey="y" name="rate" unit="%" tick={{ fill: "#64748b", fontSize: 12 }} />
-              <ZAxis type="number" dataKey="z" range={[80, 360]} />
-              <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-              <ReferenceLine x={minVolume} stroke="#94a3b8" strokeDasharray="4 4" />
-              <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Scatter data={scatterRows}>
-                {scatterRows.map((row) => (
-                  <Cell key={row.symbol} fill={row.tier === "priority" ? "#0f766e" : row.tier === "watch" ? "#d97706" : "#94a3b8"} />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <FocusList title="优先候选" rows={priorityRows.slice(0, 4)} emptyText="当前条件下没有进入优先池的币。" />
-        <FocusList title="可观察" rows={watchRows.slice(0, 4)} emptyText="当前没有需要额外观察的币。" />
-        <FocusList title="排除原因" rows={excludeRows.slice(0, 4)} emptyText="当前没有被排除的币。" />
+          return (
+            <Card key={section.key} title={section.title} hint={`${section.hint} 成交量轴做对数压缩，费率轴按对称 P95 封顶，避免极端值挤压主体分布。`}>
+              <div className="mb-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs text-slate-500">最高费率</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">
+                    {strongestRate ? `${strongestRate.symbol} ${fmtPct(strongestRate.x)}` : "-"}
+                  </div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs text-slate-500">最高成交量</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">
+                    {highestVolume ? `${highestVolume.symbol} ${fmtVol(highestVolume.y)}` : "-"}
+                  </div>
+                </div>
+              </div>
+              <div className="h-[420px] w-full">
+                <ResponsiveContainer>
+                  <ScatterChart margin={{ top: 12, right: 12, bottom: 12, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" dataKey="x" name="volume" scale="log" domain={[0.1, sectionVolumeCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(0)}M`} />
+                    <YAxis type="number" dataKey="y" name="rate" domain={[-sectionRateCap, sectionRateCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
+                    <ZAxis type="number" dataKey="z" range={[90, 500]} />
+                    <ReferenceLine x={Math.min(5, sectionVolumeCap)} stroke="#cbd5e1" strokeDasharray="4 4" />
+                    <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                    <Tooltip
+                      cursor={{ strokeDasharray: "3 3" }}
+                      content={<CombinedScatterTooltip />}
+                    />
+                    <Scatter data={scatterRows}>
+                      {scatterRows.map((row) => (
+                        <Cell key={`${section.key}-${row.symbol}`} fill={row.rawRate >= 0 ? "#059669" : "#dc2626"} fillOpacity={0.78} stroke="#ffffff" strokeWidth={1.5} />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          );
+        })}
       </div>
-
-      <Card title="联合候选表" hint="不做空表。即使不满足，也保留并写明原因。">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="py-3">币种</th>
-                <th className="py-3">状态</th>
-                <th className="py-3 text-right">当前费率</th>
-                <th className="py-3 text-right">当前成交量</th>
-                <th className="py-3 text-right">30日波动</th>
-                <th className="py-3 text-right">正费天数</th>
-                <th className="py-3 text-right">联合分数</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scored.map((row) => (
-                <tr key={row.symbol} className="border-b border-slate-100">
-                  <td className="py-3 font-medium text-slate-900">{row.symbol}</td>
-                  <td className="py-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${tierTone(row.tier)}`}>{tierLabel(row.tier)}</span>
-                  </td>
-                  <td className={`py-3 text-right ${rateText(row.currentRate)}`}>{fmtPct(row.currentRate)}</td>
-                  <td className="py-3 text-right text-slate-600">{fmtVol(row.currentVolume)}</td>
-                  <td className="py-3 text-right text-slate-600">{fmtPct(row.rateVolatility30Pct)}</td>
-                  <td className="py-3 text-right text-slate-600">{row.positiveDays30}/30</td>
-                  <td className="py-3 text-right font-semibold text-slate-900">{row.combinedScore}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
     </div>
   );
 }
 
-function HeatmapView({ symbols, timeframe }: { symbols: MarketSymbol[]; timeframe: Timeframe }) {
-  const ranked = buildRateTable(symbols, timeframe);
-  const byVolume = buildVolumeTable(symbols, timeframe);
-  const heatmapData = [
-    {
-      name: "Market",
-      children: symbols.map((item) => ({
-        name: item.symbol,
-        size: Math.max(getVolumeValue(item, timeframe), 0.1),
-        rate: getRateValue(item, timeframe),
-      })),
-    },
+function HeatmapView({ symbols }: { symbols: MarketSymbol[] }) {
+  const heatmapSections: { key: "current" | "prevMonth" | "prev3Months" | "prev6Months" | "prev12Months"; title: string; hint: string }[] = [
+    { key: "current", title: "当前费率热力图", hint: "当前月累计费率。" },
+    { key: "prevMonth", title: "上月费率热力图", hint: "上一个完整月的累计费率。" },
+    { key: "prev3Months", title: "上3个月热力图", hint: "不含本月，近 3 个完整月累计费率。" },
+    { key: "prev6Months", title: "上6个月热力图", hint: "不含本月，近 6 个完整月累计费率。" },
+    { key: "prev12Months", title: "上12个月热力图", hint: "不含本月，近 12 个完整月累计费率。" },
   ];
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
-        <Kpi label="最强色块" value={ranked[0] ? `${ranked[0].symbol} ${fmtPct(getRateValue(ranked[0], timeframe))}` : "-"} hint="颜色代表费率方向和强弱。" />
-        <Kpi label="最大色块" value={byVolume[0] ? `${byVolume[0].symbol} ${fmtVol(getVolumeValue(byVolume[0], timeframe))}` : "-"} hint="面积代表容量，不代表优先级。" />
-        <Kpi label="用途" value="辅助扫盘" hint="热力图只用于快速扫全市场，不替代费率总览和联合筛选。" />
+        <Kpi label="面积含义" value="费率强弱" hint="面积越大，代表该维度费率绝对值越大。" />
+        <Kpi label="颜色含义" value="费率方向" hint="绿色偏正费率，红色偏负费率，颜色深浅仍看费率强弱。" />
+        <Kpi label="用途" value="多周期扫盘" hint="同一页快速对比当前、上月、上6个月、上12个月的费率结构。" />
       </div>
 
-      <Card title="市场热力图" hint="面积看成交量，颜色看费率。先保留作为辅助扫盘工具。">
-        <div className="h-[540px] w-full">
-          <ResponsiveContainer>
-            <Treemap data={heatmapData} dataKey="size" aspectRatio={4 / 3} stroke="#fff" content={<HeatmapNode />}>
-              <Tooltip />
-            </Treemap>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      <div className="grid gap-6">
+        {heatmapSections.map((section) => {
+          const sectionValues = symbols.map((item) => heatmapMetricValue(item, section.key));
+          const sectionScale = heatmapColorScale(sectionValues);
+          const ranked = [...symbols].sort((a, b) => heatmapMetricValue(b, section.key) - heatmapMetricValue(a, section.key));
+          const biggest = [...symbols].sort((a, b) => Math.abs(heatmapMetricValue(b, section.key)) - Math.abs(heatmapMetricValue(a, section.key)))[0];
+          const heatmapData = [
+            {
+              name: section.title,
+              children: symbols.map((item) => ({
+                name: item.symbol,
+                size: Math.max(Math.abs(heatmapMetricValue(item, section.key)), 0.001),
+                rate: heatmapMetricValue(item, section.key),
+                scale: sectionScale,
+              })),
+            },
+          ];
+
+          return (
+            <Card
+              key={section.key}
+              title={section.title}
+              hint={`${section.hint} 面积看费率绝对值，颜色看费率方向，并对极端值做封顶避免整图失真。`}
+            >
+              <div className="mb-4 grid gap-3 md:grid-cols-2">
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs text-slate-500">最强正费率</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">
+                    {ranked[0] ? `${ranked[0].symbol} ${fmtPct(heatmapMetricValue(ranked[0], section.key))}` : "-"}
+                  </div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                  <div className="text-xs text-slate-500">最大面积</div>
+                  <div className="mt-1 text-base font-semibold text-slate-900">
+                    {biggest ? `${biggest.symbol} ${fmtPct(heatmapMetricValue(biggest, section.key))}` : "-"}
+                  </div>
+                </div>
+              </div>
+              <div className="h-[420px] w-full">
+                <ResponsiveContainer>
+                  <Treemap data={heatmapData} dataKey="size" aspectRatio={4 / 3} stroke="#fff" content={<HeatmapNode />}>
+                    <Tooltip formatter={(value) => fmtPct(Number(value))} />
+                  </Treemap>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -1719,8 +1720,8 @@ export default function MarketWorkbench({ data, initialView }: { data: Workbench
       {initialView === "monthly" ? <MonthlyMatrixView rows={data.monthlyRateRows} months={data.monthlyRateMonths} /> : null}
       {initialView === "audit" ? <AuditView audits={data.audits} /> : null}
       {initialView === "volume" ? <VolumeView symbols={data.symbols} timeframe={timeframe} /> : null}
-      {initialView === "combined" ? <CombinedView symbols={data.symbols} timeframe={timeframe} /> : null}
-      {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} timeframe={timeframe} /> : null}
+      {initialView === "combined" ? <CombinedView symbols={data.symbols} /> : null}
+      {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} /> : null}
     </WorkbenchShell>
   );
 }

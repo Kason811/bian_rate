@@ -1,5 +1,6 @@
 import "server-only";
 
+import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { type AuditRow, type MarketSymbol, type MonthlyRateRow, type Point, type WorkbenchData } from "@/lib/workbench-data";
@@ -11,6 +12,9 @@ type VolumeRow = { symbol: string; metric_date: string; usd_volume: number };
 type SymbolMetaRow = { symbol: string; is_active: number };
 type FundingAuditRow = { symbol: string; status: string; completeness_score: number; gap_count: number; days_with_zero_events: number; notes: string };
 type VolumeAuditRow = { symbol: string; status: string; completeness_score: number; day_count: number; gap_count: number; notes: string };
+
+let cachedWorkbenchData: WorkbenchData | null = null;
+let cachedDbMtimeMs: number | null = null;
 
 function toPct(value: number) {
   return Number((value * 100).toFixed(3));
@@ -140,8 +144,9 @@ function buildSymbol(
   const positiveDays180 = last180Rates.filter((row) => row.daily_funding_rate > 0).length;
 
   const volumeDay = sortedVolumes.at(-1)?.usd_volume ?? 0;
-  const volumeWeek = avgValues(last7Volumes.map((row) => row.usd_volume));
-  const volumeMonth = avgValues(last30Volumes.map((row) => row.usd_volume));
+  // Week/month views are based on recent daily averages, not summed turnover.
+  const avgVolumeWeek = avgValues(last7Volumes.map((row) => row.usd_volume));
+  const avgVolumeMonth = avgValues(last30Volumes.map((row) => row.usd_volume));
   const avg30Volume = avgValues(last30Volumes.map((row) => row.usd_volume));
   const avg90Volume = avgValues(last90Volumes.map((row) => row.usd_volume));
   const avg365Volume = avgValues(last365Volumes.map((row) => row.usd_volume));
@@ -188,8 +193,8 @@ function buildSymbol(
     ratePrev12MonthsPct: toPct(previous12Months),
     ratePrev24MonthsPct: toPct(previous24Months),
     volumeDayM: toMillion(volumeDay),
-    volumeWeekM: toMillion(volumeWeek),
-    volumeMonthM: toMillion(volumeMonth),
+    volumeWeekM: toMillion(avgVolumeWeek),
+    volumeMonthM: toMillion(avgVolumeMonth),
     avg30dVolumeM: toMillion(avg30Volume),
     avg90dVolumeM: toMillion(avg90Volume),
     avg365dVolumeM: toMillion(avg365Volume),
@@ -218,13 +223,18 @@ function buildSymbol(
 
 export function getWorkbenchData(): WorkbenchData {
   const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
+  const databaseMtimeMs = fs.statSync(databasePath).mtimeMs;
+  if (cachedWorkbenchData && cachedDbMtimeMs === databaseMtimeMs) {
+    return cachedWorkbenchData;
+  }
+
   let db: DatabaseSync | null = null;
 
   try {
     db = new DatabaseSync(databasePath, { open: true, readOnly: true });
     const rowCount = db.prepare("SELECT COUNT(*) AS count FROM daily_funding_metrics").get() as { count: number };
     if (!rowCount.count) {
-      return {
+      const emptyData = {
         symbols: [],
         monthlyRateMonths: [],
         monthlyRateRows: [],
@@ -233,6 +243,9 @@ export function getWorkbenchData(): WorkbenchData {
         updatedAtLabel: "未采集",
         loadError: "daily_funding_metrics 为空，请先运行 collector。",
       };
+      cachedWorkbenchData = emptyData;
+      cachedDbMtimeMs = databaseMtimeMs;
+      return emptyData;
     }
 
     const dailyFunding = db.prepare("SELECT symbol, metric_date, daily_funding_rate FROM daily_funding_metrics ORDER BY symbol, metric_date").all() as DailyFundingRow[];
@@ -321,7 +334,7 @@ export function getWorkbenchData(): WorkbenchData {
       });
 
     if (!symbols.length) {
-      return {
+      const emptyView = {
         symbols: [],
         monthlyRateMonths,
         monthlyRateRows,
@@ -330,9 +343,12 @@ export function getWorkbenchData(): WorkbenchData {
         updatedAtLabel: latestDate.latest_date ?? "未知",
         loadError: "SQLite 中没有可供页面展示的聚合结果。",
       };
+      cachedWorkbenchData = emptyView;
+      cachedDbMtimeMs = databaseMtimeMs;
+      return emptyView;
     }
 
-    return {
+    const result = {
       symbols,
       monthlyRateMonths,
       monthlyRateRows,
@@ -340,6 +356,9 @@ export function getWorkbenchData(): WorkbenchData {
       sourceLabel: "SQLite 实盘历史数据",
       updatedAtLabel: latestDate.latest_date ?? "未知",
     };
+    cachedWorkbenchData = result;
+    cachedDbMtimeMs = databaseMtimeMs;
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown error";
     return {
