@@ -1,0 +1,12 @@
+[
+  { "symbol": "BTC", "start": "2023-10-16", "end": "2024-03-11", "label": "牛" },
+  { "symbol": "BTC", "start": "2024-03-11", "end": "2024-09-09", "label": "震荡熊" },
+  { "symbol": "BTC", "start": "2024-09-09", "end": "2024-12-16", "label": "牛" },
+  { "symbol": "BTC", "start": "2024-12-16", "end": "2025-04-07", "label": "小熊" },
+  { "symbol": "BTC", "start": "2025-04-07", "end": "2025-07-07", "label": "牛" },
+  { "symbol": "BTC", "start": "2025-07-07", "end": "2025-10-06", "label": "震荡" },
+  { "symbol": "BTC", "start": "2025-10-06", "end": "2025-11-17", "label": "熊" },
+  { "symbol": "BTC", "start": "2025-11-17", "end": "2026-01-19", "label": "震荡" },
+  { "symbol": "BTC", "start": "2026-01-19", "end": "2026-02-09", "label": "小熊" },
+  { "symbol": "BTC", "start": "2026-02-09", "end": "2026-03-30", "label": "震荡" }
+]

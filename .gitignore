@@ -14,6 +14,11 @@ Thumbs.db
 web/node_modules/
 web/.next/
 web/.next-build/
+web/.next-runtime/
+web/.next-start-3026.log
+web/.next-start-3026.err.log
+web/server-*.out.log
+web/server-*.err.log
 web/.dev-*.log
 web/.start-*.log
 web/server*.log

@@ -60,6 +60,11 @@ bian_rate/
 - `/research` 当前固定做 `BTC + 周线`，在同一时间轴内展示价格、周费率、周成交量和市场区间带
 - `/research` 当前价格序列来自本地缓存文件 `web/lib/btc-weekly-klines.json`，避免页面打开时依赖外网请求
 - `/research` 目前支持统一 hover 信息框，显示时间、区间、价格、周费率、周日均成交量、周涨跌、当前区间周数和区间总涨跌
+- `/research` 现在支持手动区间编辑器：BTC 可直接在周线图上点起点、点终点，先看周数、涨跌、波动、最大上冲、最大回撤，再选择 `牛 / 小牛 / 震荡牛 / 震荡 / 震荡熊 / 小熊 / 熊`
+- `/research` 的手动区间编辑器支持把已保存区间直接显示成图表底色热力带：`牛=深绿`、`小牛=绿`、`震荡牛=浅绿`、`震荡=灰`、`震荡熊=浅红`、`小熊=红`、`熊=深红`
+- `/research` 的手动区间编辑器也支持录入其他币种，例如 `SOL`；切到目标币种后可直接手填开始/结束日期并保存到同一个本地手工区间文件
+- `/research` 现在会在保存前提示新区间和哪些已有区间重叠，并支持“用当前新区间覆盖全部重叠区间，以最新这段为准”
+- `/research` 当前手工区间文件即使混入重叠或无效区间，页面也会跳过坏行继续打开，不再整页报 Server Components 渲染错误
 
 ## 环境要求
 
@@ -250,7 +255,7 @@ coin_funding_rate_outputs/
 
 ## 当前进度快照
 
-截至 `2026-04-04`，当前已落地的重点变更如下：
+截至 `2026-04-06`，当前已落地的重点变更如下：
 
 - 数据侧
   - `import_outputs_to_sqlite.py` 已禁止把 Excel 的 `30天日平均成交量` 伪造成 `daily_volume_metrics`
@@ -264,11 +269,17 @@ coin_funding_rate_outputs/
   - `/combined` 的成交量轴使用对数压缩并做极值封顶，费率轴也做对称封顶，hover 显示币种名、成交量、费率、分数
   - `/heatmap` 已改成 5 个维度卡片，面积看费率绝对值，颜色按方向和强弱分层，并对极值封顶
   - `/research` 已上线 BTC 周线研究页，用来测试价格、周费率、周成交量在不同市场区间中的联动关系
+  - `/research` 已增加手动区间编辑器，支持本地保存 `BTC` 以及后续其他币种的手工区间
+  - `/research` 的 `BTC` 手动区间交互已改成图上点起点、点终点，并实时预览周数、区间涨跌、波动、最大上冲、最大回撤
+  - `/research` 的重叠区间提示已上线，支持直接点冲突区间载入编辑，也支持“最新区间覆盖全部重叠”
+  - `/research` 的自动区间热力图已加入长周期低净涨跌 / 低振幅优先判定为震荡的收敛逻辑，并支持手动覆盖文件修正自动结果
 
 - 工具链
   - `web/eslint.config.mjs` 已补齐
   - `npm run lint` 当前可直接执行
   - 本地查看统一使用 `3026` 端口
+  - `web/next.config.ts` 已把构建输出目录切到 `.next-runtime`，避开 Windows/Nutstore 下旧 `.next-build` 的构建问题
+  - 仓库已补 `scripts/restart-web-3026.ps1`，用于只清理 `3026` 监听进程并安全重启网页
 
 当前建议直接从 `docs/2026-04-03-next-phase-plan.md` 接着看，因为那里记录会更详细。
 
@@ -281,6 +292,55 @@ powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1
 ```
 
 它会按仓库约定通过代理执行 `pull / add / commit / push`。
+
+## 安全重启 3026
+
+如果只想清掉网页端口并干净重启，不要执行“杀所有 node”。
+
+直接在仓库根目录运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\restart-web-3026.ps1
+```
+
+这个脚本会：
+
+- 只停止当前监听 `3026` 的进程
+- 在 `web/` 下后台启动 `npm run start -- --hostname 127.0.0.1 --port 3026`
+- 输出新的日志文件路径和实际监听 PID
+
+这样不会把本机其他 `node` 进程一并杀掉。
+
+## 自动区间手动覆盖
+
+研究页里的“自动区间热力图”支持手动参与修正。
+
+配置文件：
+
+```text
+web/lib/btc-weekly-auto-regime-overrides.json
+```
+
+当前文件默认是空数组。后面如果你要手动指定某段区间，可按下面格式追加：
+
+```json
+[
+  {
+    "start": "2025-07-07",
+    "end": "2025-10-06",
+    "stateLabel": "震荡",
+    "heatScore": 0,
+    "note": "长周期小波动，手动压回震荡"
+  }
+]
+```
+
+说明：
+
+- `start` / `end` 使用周起始日期范围，规则是 `start <= weekStart < end`
+- `stateLabel` 支持写 `上行`、`震荡`、`下行`
+- `heatScore` 可选；不写时会按状态给默认热度
+- `note` 可选；会显示在研究页 tooltip 里
 
 ## 注意事项
 

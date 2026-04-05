@@ -61,6 +61,16 @@ export type ResearchRegime = {
   start: string;
   end: string;
   tone: string;
+  stateClass: -1 | 0 | 1;
+};
+
+export type ManualResearchRegimeRow = {
+  symbol: string;
+  label: string;
+  start: string;
+  end: string;
+  tone: string;
+  stateClass: -1 | 0 | 1;
 };
 
 export type BtcWeeklyResearchPoint = {
@@ -95,13 +105,50 @@ export type ResearchRegimeStat = {
   positiveReturnWeeks: number;
 };
 
+export type ResearchAutoRegimePoint = {
+  weekStart: string;
+  weekEnd: string;
+  closePrice: number;
+  heatScore: number;
+  heatColor: string;
+  segmentIndex: number;
+  stateClass: -1 | 0 | 1;
+  stateLabel: string;
+  source: "auto" | "manual";
+  note?: string;
+};
+
+export type ResearchAutoRegimeSegment = {
+  index: number;
+  start: string;
+  end: string;
+  weeks: number;
+  cumulativeReturnPct: number;
+  maxAdvancePct: number;
+  maxDrawdownPct: number;
+  volatilityPct: number;
+  positiveReturnWeeks: number;
+  heatScore: number;
+  heatColor: string;
+  stateClass: -1 | 0 | 1;
+  stateLabel: string;
+  source: "auto" | "manual";
+  note?: string;
+};
+
 export type BtcWeeklyResearchData = {
   symbol: string;
   timeframe: "week";
   points: BtcWeeklyResearchPoint[];
   regimes: ResearchRegime[];
+  manualRegimeRows: ManualResearchRegimeRow[];
   lagStats: ResearchLagStat[];
   regimeStats: ResearchRegimeStat[];
+  autoRegimePoints: ResearchAutoRegimePoint[];
+  autoRegimeSegments: ResearchAutoRegimeSegment[];
+  autoRegimeAgreementPct: number;
+  autoOverrideCount: number;
+  editableSymbols: string[];
   sourceLabel: string;
   loadError?: string;
 };

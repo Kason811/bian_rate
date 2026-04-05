@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -18,6 +18,7 @@ import {
   YAxis,
   ZAxis,
 } from "recharts";
+import { saveManualResearchRegimes } from "@/app/research/actions";
 import {
   type AuditRow,
   type BtcWeeklyResearchData,
@@ -78,6 +79,14 @@ const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "previous12Months", label: "上12个月维度", hint: "不含本月，近 12 个完整月总费率" },
 ];
 
+const manualRegimeLabelOptions = ["牛", "小牛", "震荡牛", "震荡", "震荡熊", "小熊", "熊"] as const;
+type ManualRegimeLabel = (typeof manualRegimeLabelOptions)[number];
+type EditableResearchRegime = { symbol: string; start: string; end: string; label: ManualRegimeLabel; tone: string; stateClass: -1 | 0 | 1 };
+
+function hasRegimeOverlap(left: Pick<EditableResearchRegime, "start" | "end">, right: Pick<EditableResearchRegime, "start" | "end">) {
+  return left.start < right.end && right.start < left.end;
+}
+
 function fmtPct(value: number) {
   return `${value > 0 ? "+" : ""}${value.toFixed(3)}%`;
 }
@@ -92,6 +101,10 @@ function fmtPrice(value: number) {
 
 function fmtCount(value: number) {
   return value.toLocaleString("en-US");
+}
+
+function fmtScore(value: number) {
+  return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
 }
 
 function parseDateText(dateText: string) {
@@ -130,6 +143,38 @@ function formatDateSpan(startText: string, endText: string) {
   const endDate = parseDateText(endText);
   endDate.setDate(endDate.getDate() - 1);
   return formatRangeLabel(parseDateText(startText), endDate);
+}
+
+function formatClosedDateSpan(startText: string, endText: string) {
+  return formatRangeLabel(parseDateText(startText), parseDateText(endText));
+}
+
+function manualRegimeTone(label: ManualRegimeLabel) {
+  if (label === "牛") return "#166534";
+  if (label === "小牛") return "#22c55e";
+  if (label === "震荡牛") return "#bbf7d0";
+  if (label === "震荡") return "#e2e8f0";
+  if (label === "震荡熊") return "#fecdd3";
+  if (label === "小熊") return "#fca5a5";
+  return "#b91c1c";
+}
+
+function manualRegimeStateClass(label: ManualRegimeLabel): -1 | 0 | 1 {
+  if (label === "牛" || label === "小牛" || label === "震荡牛") return 1;
+  if (label === "震荡熊" || label === "小熊" || label === "熊") return -1;
+  return 0;
+}
+
+function toEditableRegime(regime: BtcWeeklyResearchData["manualRegimeRows"][number]): EditableResearchRegime {
+  const label = (manualRegimeLabelOptions.includes(regime.label as ManualRegimeLabel) ? regime.label : "震荡") as ManualRegimeLabel;
+  return {
+    symbol: regime.symbol,
+    start: regime.start,
+    end: regime.end,
+    label,
+    tone: regime.tone,
+    stateClass: regime.stateClass,
+  };
 }
 
 function rateText(value: number) {
@@ -246,9 +291,13 @@ function percentile(values: number[], p: number) {
   return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
+function avgValues(values: number[]) {
+  return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+}
+
 function stdDev(values: number[]) {
   if (!values.length) return 0;
-  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const avg = avgValues(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
 }
@@ -631,6 +680,29 @@ function CombinedScatterTooltip({ active, payload }: { active?: boolean; payload
       <div className="mt-2 text-sm text-slate-600">成交量：{fmtVol(Number(point.rawVolume ?? 0))}</div>
       <div className="mt-1 text-sm text-slate-600">费率：{fmtPct(Number(point.y ?? 0))}</div>
       <div className="mt-1 text-sm text-slate-600">分数：{Number(point.score ?? 0).toFixed(0)}</div>
+    </div>
+  );
+}
+
+function AutoRegimeTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload?: { weekStart?: string; autoHeatScore?: number; autoSegmentIndex?: number; closePrice?: number; autoStateLabel?: string; autoSource?: string; autoNote?: string } }>;
+}) {
+  const point = payload?.[0]?.payload;
+  if (!active || !point) return null;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
+      <div className="text-sm font-semibold text-slate-900">{point.weekStart ?? "-"}</div>
+      <div className="mt-2 text-sm text-slate-600">自动热度：{fmtScore(Number(point.autoHeatScore ?? 0))}</div>
+      <div className="mt-1 text-sm text-slate-600">状态：{point.autoStateLabel ?? "-"}</div>
+      <div className="mt-1 text-sm text-slate-600">来源：{point.autoSource === "manual" ? "手动覆盖" : "自动识别"}</div>
+      <div className="mt-1 text-sm text-slate-600">区间编号：#{Number(point.autoSegmentIndex ?? 0) + 1}</div>
+      <div className="mt-1 text-sm text-slate-600">价格：{fmtPrice(Number(point.closePrice ?? 0))}</div>
+      {point.autoNote ? <div className="mt-1 text-sm text-slate-600">备注：{point.autoNote}</div> : null}
     </div>
   );
 }
@@ -1784,6 +1856,454 @@ function HeatmapView({ symbols }: { symbols: MarketSymbol[] }) {
   );
 }
 
+function ResearchManualRegimeEditor({
+  symbol,
+  points,
+  manualRegimeRows,
+  editableSymbols,
+}: {
+  symbol: string;
+  points: BtcWeeklyResearchData["points"];
+  manualRegimeRows: BtcWeeklyResearchData["manualRegimeRows"];
+  editableSymbols: BtcWeeklyResearchData["editableSymbols"];
+}) {
+  const normalizedSymbols = useMemo(() => {
+    const values = [...new Set([symbol, ...editableSymbols].map((item) => item.trim().toUpperCase()).filter(Boolean))];
+    return values.sort((left, right) => (left === symbol ? -1 : right === symbol ? 1 : left.localeCompare(right)));
+  }, [editableSymbols, symbol]);
+  const [targetSymbol, setTargetSymbol] = useState(symbol);
+  const [draftRegimes, setDraftRegimes] = useState<EditableResearchRegime[]>([]);
+  const [selectedStartIndex, setSelectedStartIndex] = useState<number | null>(points[0] ? 0 : null);
+  const [selectedEndIndex, setSelectedEndIndex] = useState<number | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState<ManualRegimeLabel>("震荡");
+  const [manualStart, setManualStart] = useState(points[0]?.weekStart ?? "");
+  const [manualEnd, setManualEnd] = useState(points.at(-1)?.weekEnd ?? "");
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [replaceOverlaps, setReplaceOverlaps] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const nextRows = manualRegimeRows.filter((row) => row.symbol === targetSymbol).map(toEditableRegime);
+    setDraftRegimes(nextRows);
+    setEditingIndex(null);
+  }, [manualRegimeRows, targetSymbol]);
+
+  const usesBrushSelection = targetSymbol === symbol;
+  const effectiveStartIndex = selectedStartIndex == null ? null : selectedEndIndex == null ? selectedStartIndex : Math.min(selectedStartIndex, selectedEndIndex);
+  const effectiveEndIndex = selectedStartIndex == null ? null : selectedEndIndex == null ? selectedStartIndex : Math.max(selectedStartIndex, selectedEndIndex);
+  const selectionStart = effectiveStartIndex == null ? null : points[effectiveStartIndex];
+  const selectionEnd = effectiveEndIndex == null ? null : points[effectiveEndIndex];
+  const previewStart = selectionStart?.weekStart ?? "";
+  const previewEnd = selectionEnd?.weekEnd ?? "";
+
+  useEffect(() => {
+    if (!usesBrushSelection) return;
+    setManualStart(previewStart);
+    setManualEnd(previewEnd);
+  }, [previewEnd, previewStart, usesBrushSelection]);
+
+  const btcDraftRanges = useMemo(
+    () =>
+      draftRegimes
+        .filter((row) => row.symbol === symbol)
+        .map((regime) => {
+          const rangePoints = points.filter((point) => point.weekStart >= regime.start && point.weekStart < regime.end);
+          if (!rangePoints.length) return null;
+          return {
+            ...regime,
+            x1: rangePoints[0].weekStart,
+            x2: rangePoints.at(-1)?.weekStart ?? rangePoints[0].weekStart,
+          };
+        })
+        .filter((item): item is EditableResearchRegime & { x1: string; x2: string } => item !== null),
+    [draftRegimes, points, symbol],
+  );
+
+  const selectionMetrics = useMemo(() => {
+    if (!selectionStart || !selectionEnd) return null;
+    const selectedPoints = points.filter((point) => point.weekStart >= selectionStart.weekStart && point.weekStart < selectionEnd.weekEnd);
+    if (!selectedPoints.length) return null;
+    const firstClose = selectedPoints[0].closePrice;
+    const lastClose = selectedPoints.at(-1)?.closePrice ?? firstClose;
+    const pathReturns = firstClose ? selectedPoints.map((point) => ((point.closePrice / firstClose) - 1) * 100) : [];
+    const weeklyReturns = selectedPoints.length >= 2
+      ? selectedPoints.slice(1).map((point, index) => ((point.closePrice / selectedPoints[index].closePrice) - 1) * 100)
+      : [];
+    return {
+      weeks: selectedPoints.length,
+      cumulativeReturnPct: firstClose && lastClose ? Number((((lastClose / firstClose) - 1) * 100).toFixed(2)) : 0,
+      avgFundingRatePct: Number(avgValues(selectedPoints.map((point) => point.fundingRatePct)).toFixed(3)),
+      avgVolumeM: Number(avgValues(selectedPoints.map((point) => point.avgVolumeM)).toFixed(1)),
+      maxAdvancePct: pathReturns.length ? Number(Math.max(...pathReturns).toFixed(2)) : 0,
+      maxDrawdownPct: pathReturns.length ? Number(Math.min(...pathReturns).toFixed(2)) : 0,
+      volatilityPct: Number(stdDev(weeklyReturns).toFixed(3)),
+      positiveFundingWeeks: selectedPoints.filter((point) => point.fundingRatePct > 0).length,
+      positiveReturnWeeks: selectedPoints.filter((point) => point.weeklyReturnPct > 0).length,
+    };
+  }, [points, selectionEnd, selectionStart]);
+
+  const pendingSelection = useMemo(() => {
+    const start = usesBrushSelection ? selectionStart?.weekStart ?? "" : manualStart;
+    const end = usesBrushSelection ? selectionEnd?.weekEnd ?? "" : manualEnd;
+    if (!targetSymbol || !start || !end || start >= end) return null;
+    return {
+      symbol: targetSymbol,
+      start,
+      end,
+      label: selectedLabel,
+      tone: manualRegimeTone(selectedLabel),
+      stateClass: manualRegimeStateClass(selectedLabel),
+    } satisfies EditableResearchRegime;
+  }, [manualEnd, manualStart, selectedLabel, selectionEnd, selectionStart, targetSymbol, usesBrushSelection]);
+
+  const overlappingDraftRows = useMemo(() => {
+    if (!pendingSelection) return [];
+    return draftRegimes.filter((row, index) => index !== editingIndex && row.symbol === pendingSelection.symbol && hasRegimeOverlap(row, pendingSelection));
+  }, [draftRegimes, editingIndex, pendingSelection]);
+
+  const findDraftRowIndex = (targetRow: EditableResearchRegime) =>
+    draftRegimes.findIndex(
+      (row) => row.symbol === targetRow.symbol && row.start === targetRow.start && row.end === targetRow.end && row.label === targetRow.label,
+    );
+
+  const handleChartClick = (state?: { activePayload?: Array<{ payload?: BtcWeeklyResearchData["points"][number] }> }) => {
+    if (!usesBrushSelection) return;
+    const clickedPoint = state?.activePayload?.[0]?.payload;
+    if (!clickedPoint) return;
+    const clickedIndex = points.findIndex((point) => point.weekStart === clickedPoint.weekStart);
+    if (clickedIndex < 0) return;
+    if (selectedStartIndex == null || selectedEndIndex != null) {
+      setSelectedStartIndex(clickedIndex);
+      setSelectedEndIndex(null);
+      setSaveError("");
+      setSaveMessage("已选起点，再点一次终点即可。");
+      return;
+    }
+    setSelectedEndIndex(clickedIndex);
+    setSaveError("");
+    setSaveMessage("区间已选好，可以直接看参数并保存。");
+  };
+
+  const applyCurrentSelection = () => {
+    if (!pendingSelection) {
+      setSaveError("请先给出有效的币种和时间范围，结束时间必须晚于开始时间。");
+      setSaveMessage("");
+      return;
+    }
+    let nextRegimes = [...draftRegimes];
+    if (replaceOverlaps) {
+      nextRegimes = nextRegimes.filter((row, index) => index === editingIndex || row.symbol !== pendingSelection.symbol || !hasRegimeOverlap(row, pendingSelection));
+    } else if (overlappingDraftRows.length) {
+      setSaveError(`新区间会和 ${overlappingDraftRows.length} 段已有区间重叠，请先处理，或勾选“用当前新区间覆盖全部重叠区间”。`);
+      setSaveMessage("");
+      return;
+    }
+    if (editingIndex == null) {
+      nextRegimes.push(pendingSelection);
+    } else {
+      nextRegimes[editingIndex] = pendingSelection;
+    }
+    nextRegimes.sort((left, right) => left.start.localeCompare(right.start));
+    setDraftRegimes(nextRegimes);
+    setEditingIndex(null);
+    setSaveError("");
+    setSaveMessage(
+      replaceOverlaps && overlappingDraftRows.length
+        ? `新区间已加入待保存列表，并覆盖了 ${overlappingDraftRows.length} 段重叠区间。`
+        : editingIndex == null
+          ? "新区间已加入待保存列表。"
+          : "区间修改已加入待保存列表。",
+    );
+  };
+
+  const loadRowIntoBrush = (row: EditableResearchRegime, index: number) => {
+    setTargetSymbol(row.symbol);
+    if (row.symbol === symbol) {
+      const startIndex = Math.max(points.findIndex((point) => point.weekStart === row.start), 0);
+      const endIndex = Math.max(points.findIndex((point) => point.weekEnd === row.end), startIndex);
+      setSelectedStartIndex(startIndex);
+      setSelectedEndIndex(endIndex);
+    }
+    setManualStart(row.start);
+    setManualEnd(row.end);
+    setSelectedLabel(row.label);
+    setEditingIndex(index);
+    setSaveError("");
+    setSaveMessage("");
+  };
+
+  const removeRow = (index: number) => {
+    setDraftRegimes(draftRegimes.filter((_, rowIndex) => rowIndex !== index));
+    setEditingIndex((current) => (current === index ? null : current));
+    setSaveMessage("区间已从待保存列表移除。");
+    setSaveError("");
+  };
+
+  const saveRegimes = async () => {
+    setSaveError("");
+    setSaveMessage("");
+    setSaving(true);
+    startTransition(async () => {
+      try {
+        await saveManualResearchRegimes(
+          targetSymbol,
+          draftRegimes.map((row) => ({
+            symbol: targetSymbol,
+            start: row.start,
+            end: row.end,
+            label: row.label,
+          })),
+          { replaceOverlaps },
+        );
+        setSaveMessage("区间已保存，正在刷新研究页。");
+        window.location.reload();
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : "保存失败");
+      } finally {
+        setSaving(false);
+      }
+    });
+  };
+
+  return (
+    <Card title="手动区间编辑器" hint="BTC 改成图上点起点、点终点。选完后先看周数、涨跌、波动，再决定标签。保存后，研究页底色会按标签显示成热力带。">
+      <div className="space-y-4">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+          <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 text-xs text-slate-500">
+              {usesBrushSelection ? `当前正在用 ${symbol} 周线图点选区间。第一次点起点，第二次点终点，第三次会重新开始。` : `当前目标币种是 ${targetSymbol}，请直接用右侧日期框录入区间。`}
+            </div>
+            <div className="h-[180px] w-full">
+              <ResponsiveContainer>
+                <LineChart data={points} onClick={handleChartClick}>
+                  {btcDraftRanges.map((regime) => (
+                    <ReferenceArea key={`draft-range-${regime.symbol}-${regime.start}`} x1={regime.x1} x2={regime.x2} fill={regime.tone} fillOpacity={0.34} strokeOpacity={0} />
+                  ))}
+                  {selectionStart && selectionEnd ? (
+                    <ReferenceArea x1={selectionStart.weekStart} x2={selectionEnd.weekStart} fill={manualRegimeTone(selectedLabel)} fillOpacity={0.44} strokeOpacity={0} />
+                  ) : null}
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={26} tickFormatter={(value) => value.slice(2, 10)} />
+                  <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                  <Tooltip content={() => null} />
+                  <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.2} />
+                  {selectionStart ? <ReferenceLine x={selectionStart.weekStart} stroke="#0f172a" strokeDasharray="4 4" /> : null}
+                  {selectionEnd ? <ReferenceLine x={selectionEnd.weekStart} stroke="#0f172a" strokeDasharray="4 4" /> : null}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="rounded-[20px] border border-slate-200 bg-white p-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-slate-600">
+                目标币种
+                <input
+                  list="research-manual-symbols"
+                  value={targetSymbol}
+                  onChange={(event) => setTargetSymbol(event.target.value.trim().toUpperCase())}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                  placeholder="BTC / SOL"
+                />
+                <datalist id="research-manual-symbols">
+                  {normalizedSymbols.map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+                </datalist>
+              </label>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">录入方式</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{usesBrushSelection ? "图表点选" : "手动日期"}</div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">选中开始</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{previewStart || "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">选中结束</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{previewEnd || "-"}</div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm text-slate-600">
+                区间开始
+                <input
+                  type="date"
+                  value={manualStart}
+                  onChange={(event) => setManualStart(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                />
+              </label>
+              <label className="text-sm text-slate-600">
+                区间结束
+                <input
+                  type="date"
+                  value={manualEnd}
+                  onChange={(event) => setManualEnd(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900"
+                />
+              </label>
+            </div>
+            <div className="mt-4">
+              <label className="text-sm text-slate-600">
+                区间标签
+                <select value={selectedLabel} onChange={(event) => setSelectedLabel(event.target.value as ManualRegimeLabel)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+                  {manualRegimeLabelOptions.map((label) => (
+                    <option key={label} value={label}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">周数</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{selectionMetrics ? `${selectionMetrics.weeks} 周` : "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">区间涨跌</div>
+                <div className={`mt-1 text-sm font-medium ${rateText(selectionMetrics?.cumulativeReturnPct ?? 0)}`}>{selectionMetrics ? fmtPct(selectionMetrics.cumulativeReturnPct) : "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">波动</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">{selectionMetrics ? fmtPct(selectionMetrics.volatilityPct) : "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">最大上冲</div>
+                <div className={`mt-1 text-sm font-medium ${rateText(selectionMetrics?.maxAdvancePct ?? 0)}`}>{selectionMetrics ? fmtPct(selectionMetrics.maxAdvancePct) : "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">最大回撤</div>
+                <div className={`mt-1 text-sm font-medium ${rateText(selectionMetrics?.maxDrawdownPct ?? 0)}`}>{selectionMetrics ? fmtPct(selectionMetrics.maxDrawdownPct) : "-"}</div>
+              </div>
+              <div className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">平均周费率 / 日均成交量</div>
+                <div className="mt-1 text-sm font-medium text-slate-900">
+                  {selectionMetrics ? `${fmtPct(selectionMetrics.avgFundingRatePct)} / ${fmtVol(selectionMetrics.avgVolumeM)}` : "-"}
+                </div>
+              </div>
+            </div>
+            {overlappingDraftRows.length ? (
+              <div className="mt-4 rounded-[16px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="font-medium">新区间会和以下区间重叠</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {overlappingDraftRows.map((row) => (
+                    <button
+                      key={`${row.symbol}-${row.start}-${row.end}`}
+                      type="button"
+                      onClick={() => {
+                        const rowIndex = findDraftRowIndex(row);
+                        if (rowIndex >= 0) loadRowIntoBrush(row, rowIndex);
+                      }}
+                      className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs text-amber-900 hover:bg-amber-100"
+                    >
+                      {row.symbol} {row.label} {row.start} ~ {row.end}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            <label className="mt-4 flex items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" checked={replaceOverlaps} onChange={(event) => setReplaceOverlaps(event.target.checked)} />
+              用当前新区间覆盖全部重叠区间，以最新这段为准
+            </label>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={applyCurrentSelection} className="rounded-full bg-slate-900 px-4 py-2 text-sm text-white">
+                {editingIndex == null ? "加入待保存列表" : "更新当前区间"}
+              </button>
+              {usesBrushSelection ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedStartIndex(points[0] ? 0 : null);
+                    setSelectedEndIndex(null);
+                    setManualStart(points[0]?.weekStart ?? "");
+                    setManualEnd(points[0]?.weekEnd ?? "");
+                    setSaveError("");
+                    setSaveMessage("已清空当前点选区间。");
+                  }}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+                >
+                  重新点选
+                </button>
+              ) : null}
+              {editingIndex != null ? (
+                <button type="button" onClick={() => setEditingIndex(null)} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700">
+                  取消编辑
+                </button>
+              ) : null}
+              <button type="button" onClick={saveRegimes} disabled={saving} className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700 disabled:opacity-60">
+                {saving ? "保存中..." : "保存到本地文件"}
+              </button>
+            </div>
+            {saveMessage ? <div className="mt-3 text-sm text-emerald-700">{saveMessage}</div> : null}
+            {saveError ? <div className="mt-3 text-sm text-rose-600">{saveError}</div> : null}
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3">区间</th>
+                <th className="py-3">币种</th>
+                <th className="py-3">时间范围</th>
+                <th className="py-3">标签</th>
+                <th className="py-3 text-right">周数</th>
+                <th className="py-3 text-right">涨跌</th>
+                <th className="py-3 text-right">波动</th>
+                <th className="py-3 text-right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {draftRegimes.map((row, index) => {
+                const rowPoints = row.symbol === symbol ? points.filter((point) => point.weekStart >= row.start && point.weekStart < row.end) : [];
+                const firstClose = rowPoints[0]?.closePrice ?? 0;
+                const lastClose = rowPoints.at(-1)?.closePrice ?? firstClose;
+                const weeklyReturns = rowPoints.length >= 2
+                  ? rowPoints.slice(1).map((point, rowIndex) => ((point.closePrice / rowPoints[rowIndex].closePrice) - 1) * 100)
+                  : [];
+                const cumulativeReturnPct = firstClose && lastClose ? Number((((lastClose / firstClose) - 1) * 100).toFixed(2)) : 0;
+                const volatilityPct = rowPoints.length >= 2 ? Number(stdDev(weeklyReturns).toFixed(3)) : 0;
+                return (
+                  <tr key={`${row.start}-${row.end}-${index}`} className="border-b border-slate-100">
+                    <td className="py-3 font-medium text-slate-900">#{index + 1}</td>
+                    <td className="py-3 text-slate-600">{row.symbol}</td>
+                    <td className="py-3 text-slate-600">{formatDateSpan(row.start, row.end)}</td>
+                    <td className="py-3">
+                      <span className="inline-flex rounded-full px-3 py-1 text-xs font-medium text-slate-900" style={{ backgroundColor: row.tone }}>
+                        {row.label}
+                      </span>
+                    </td>
+                    <td className="py-3 text-right text-slate-600">{rowPoints.length || "-"}</td>
+                    <td className={`py-3 text-right ${rowPoints.length ? rateText(cumulativeReturnPct) : "text-slate-400"}`}>{rowPoints.length ? fmtPct(cumulativeReturnPct) : "-"}</td>
+                    <td className="py-3 text-right text-slate-600">{rowPoints.length ? fmtPct(volatilityPct) : "-"}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => loadRowIntoBrush(row, index)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700">
+                          载入编辑
+                        </button>
+                        <button type="button" onClick={() => removeRow(index)} className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700">
+                          删除
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }) {
   const points = researchData?.points ?? [];
   const latestPoint = researchData?.points.at(-1) ?? null;
@@ -1813,7 +2333,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
         x2: rangePoints[rangePoints.length - 1].weekStart,
       };
     })
-    .filter((item): item is { label: string; start: string; end: string; tone: string; x1: string; x2: string } => item !== null);
+    .filter((item): item is (typeof researchData.regimes)[number] & { x1: string; x2: string } => item !== null);
   const handleResearchHover = (state?: { activePayload?: Array<{ payload?: BtcWeeklyResearchData["points"][number] }> }) => {
     const point = state?.activePayload?.[0]?.payload;
     if (point) setHoverPoint(point);
@@ -1840,6 +2360,34 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
   const fundingCap = rateAxisCap(fundingValues);
   const volumeFloor = volumeValues.length ? Math.max(Math.min(...volumeValues) * 0.85, 1) : 1;
   const volumeCap = Math.max(volumeAxisCap(volumeValues), volumeFloor * 1.1);
+  const autoRegimePointMap = new Map(researchData.autoRegimePoints.map((point) => [point.weekStart, point]));
+  const autoComparisonRows = points.map((point) => {
+    const autoPoint = autoRegimePointMap.get(point.weekStart);
+    return {
+      ...point,
+      autoHeatScore: autoPoint?.heatScore ?? 0,
+      autoHeatColor: autoPoint?.heatColor ?? "#cbd5e1",
+      autoSegmentIndex: autoPoint?.segmentIndex ?? 0,
+      autoStateLabel: autoPoint?.stateLabel ?? "震荡",
+      autoSource: autoPoint?.source ?? "auto",
+      autoNote: autoPoint?.note,
+    };
+  });
+  const autoRegimeRanges = researchData.autoRegimeSegments
+    .map((segment) => {
+      const segmentPoints = researchData.autoRegimePoints.filter((point) => point.segmentIndex === segment.index);
+      if (!segmentPoints.length) return null;
+      return {
+        ...segment,
+        x1: segmentPoints[0].weekStart,
+        x2: segmentPoints.at(-1)?.weekStart ?? segmentPoints[0].weekStart,
+      };
+    })
+    .filter((segment): segment is (typeof researchData.autoRegimeSegments)[number] & { x1: string; x2: string } => segment !== null);
+  const autoAverageWeeks = researchData.autoRegimeSegments.length
+    ? Number((researchData.autoRegimeSegments.reduce((sum, segment) => sum + segment.weeks, 0) / researchData.autoRegimeSegments.length).toFixed(1))
+    : 0;
+  const strongestAutoSegment = [...researchData.autoRegimeSegments].sort((left, right) => right.heatScore - left.heatScore)[0];
 
   return (
     <div className="space-y-6">
@@ -1852,10 +2400,17 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
             hint={`相关系数 ${stat.correlation >= 0 ? "+" : ""}${stat.correlation.toFixed(3)}，用于先粗看谁更早启动。`}
           />
         ))}
-        <Kpi label="数据源" value="BTC 周线" hint={researchData.sourceLabel} />
+        <Kpi label="数据源" value={`${researchData.symbol} 周线`} hint={researchData.sourceLabel} />
       </div>
 
-      <Card title="BTC 周线联动图" hint="上到下依次看价格、周费率、周成交量和你定义的市场区间，同一时间轴同步联动。价格轴做轻微压缩，费率和成交量轴做封顶，避免少数极值把主体信息洗平。">
+      <ResearchManualRegimeEditor
+        symbol={researchData.symbol}
+        points={points}
+        manualRegimeRows={researchData.manualRegimeRows}
+        editableSymbols={researchData.editableSymbols}
+      />
+
+      <Card title={`${researchData.symbol} 周线联动图`} hint="上到下依次看价格、周费率、周成交量和你定义的市场区间，同一时间轴同步联动。价格轴做轻微压缩，费率和成交量轴做封顶，避免少数极值把主体信息洗平。">
         <div className="mb-4 flex flex-wrap gap-2">
           {researchData.regimes.map((regime) => (
             <span key={`${regime.label}-${regime.start}`} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
@@ -2004,6 +2559,95 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
               </BarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+      </Card>
+
+      <Card title="自动区间热力图" hint="自动段仍先找价格结构变点，但现在会对长周期、低净涨跌、低振幅的区间强制偏向震荡；如果你后面要手修，可直接改 web/lib/btc-weekly-auto-regime-overrides.json。">
+        <div className="mb-4 grid gap-4 md:grid-cols-5">
+          <Kpi label="自动区间数" value={`${researchData.autoRegimeSegments.length}`} hint="每段长度可长可短，边界由价格结构变化自动决定。" />
+          <Kpi label="平均区间长度" value={`${autoAverageWeeks} 周`} hint="这个数越大，说明自动分段更偏稳；越小，说明切换更敏感。" />
+          <Kpi label="手工三态一致率" value={`${researchData.autoRegimeAgreementPct}%`} hint="把自动热度粗分成上行 / 震荡 / 下行后，与上方手工区间逐周比对。" />
+          <Kpi label="手动覆盖周数" value={`${researchData.autoOverrideCount}`} hint="命中覆盖文件中的周数。0 代表当前完全使用自动识别。" />
+          <Kpi
+            label="最强自动段"
+            value={strongestAutoSegment ? `${fmtScore(strongestAutoSegment.heatScore)} / ${fmtPct(strongestAutoSegment.cumulativeReturnPct)}` : "-"}
+            hint={strongestAutoSegment ? formatClosedDateSpan(strongestAutoSegment.start, strongestAutoSegment.end) : "暂无可展示区间。"}
+          />
+        </div>
+
+        <div className="space-y-4">
+          <div className="h-[220px] w-full">
+            <ResponsiveContainer>
+              <LineChart data={autoComparisonRows} syncId="btc-auto-regime" onMouseMove={handleResearchHover}>
+                {autoRegimeRanges.map((segment) => (
+                  <ReferenceArea key={`auto-price-${segment.index}-${segment.x1}`} x1={segment.x1} x2={segment.x2} fill={segment.heatColor} fillOpacity={0.28} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                <Tooltip content={() => null} />
+                <Line type="monotone" dataKey="closePrice" stroke="#0f172a" dot={false} strokeWidth={2.3} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[110px] w-full">
+            <ResponsiveContainer>
+              <BarChart data={autoComparisonRows} syncId="btc-auto-regime" onMouseMove={handleResearchHover}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <YAxis domain={[-1, 1]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => fmtScore(Number(value))} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                <Tooltip content={<AutoRegimeTooltip />} />
+                <Bar dataKey="autoHeatScore" radius={[4, 4, 0, 0]}>
+                  {autoComparisonRows.map((point) => (
+                    <Cell key={`auto-heat-${point.weekStart}`} fill={point.autoHeatColor} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="mt-5 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3">区间</th>
+                <th className="py-3">时间范围</th>
+                <th className="py-3">状态</th>
+                <th className="py-3">来源</th>
+                <th className="py-3 text-right">周数</th>
+                <th className="py-3 text-right">热度分</th>
+                <th className="py-3 text-right">累计涨跌</th>
+                <th className="py-3 text-right">最大上冲</th>
+                <th className="py-3 text-right">最大回撤</th>
+                <th className="py-3 text-right">波动</th>
+                <th className="py-3 text-right">上涨周数</th>
+              </tr>
+            </thead>
+            <tbody>
+              {researchData.autoRegimeSegments.map((segment) => (
+                <tr key={`auto-segment-${segment.index}`} className="border-b border-slate-100">
+                  <td className="py-3 font-medium text-slate-900">#{segment.index + 1}</td>
+                  <td className="py-3 text-slate-500">{formatClosedDateSpan(segment.start, segment.end)}</td>
+                  <td className="py-3 text-slate-700">{segment.stateLabel}</td>
+                  <td className="py-3 text-slate-500">{segment.source === "manual" ? "手动覆盖" : "自动识别"}</td>
+                  <td className="py-3 text-right text-slate-600">{segment.weeks}</td>
+                  <td className="py-3 text-right">
+                    <span className="inline-flex min-w-[64px] justify-center rounded-full px-2 py-1 text-xs font-semibold text-white" style={{ backgroundColor: segment.heatColor }}>
+                      {fmtScore(segment.heatScore)}
+                    </span>
+                  </td>
+                  <td className={`py-3 text-right ${rateText(segment.cumulativeReturnPct)}`}>{fmtPct(segment.cumulativeReturnPct)}</td>
+                  <td className={`py-3 text-right ${rateText(segment.maxAdvancePct)}`}>{fmtPct(segment.maxAdvancePct)}</td>
+                  <td className={`py-3 text-right ${rateText(segment.maxDrawdownPct)}`}>{fmtPct(segment.maxDrawdownPct)}</td>
+                  <td className="py-3 text-right text-slate-600">{fmtPct(segment.volatilityPct)}</td>
+                  <td className="py-3 text-right text-slate-600">{segment.positiveReturnWeeks}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Card>
 
