@@ -90,6 +90,10 @@ function fmtPrice(value: number) {
   return `$${Math.round(value).toLocaleString("en-US")}`;
 }
 
+function fmtCount(value: number) {
+  return value.toLocaleString("en-US");
+}
+
 function parseDateText(dateText: string) {
   return new Date(`${dateText}T00:00:00`);
 }
@@ -120,6 +124,12 @@ function viewTitle(view: ViewKey) {
   if (view === "combined") return "联合筛选";
   if (view === "research") return "BTC 周线研究";
   return "热力图";
+}
+
+function formatDateSpan(startText: string, endText: string) {
+  const endDate = parseDateText(endText);
+  endDate.setDate(endDate.getDate() - 1);
+  return formatRangeLabel(parseDateText(startText), endDate);
 }
 
 function rateText(value: number) {
@@ -592,6 +602,25 @@ function HeatmapNode(props: { depth?: number; x?: number; y?: number; width?: nu
   );
 }
 
+function InsightTile({ label, value, hint, tone = "slate" }: { label: string; value: string; hint: string; tone?: "slate" | "emerald" | "amber" | "rose" }) {
+  const toneClass =
+    tone === "emerald"
+      ? "border-emerald-200 bg-emerald-50"
+      : tone === "amber"
+        ? "border-amber-200 bg-amber-50"
+        : tone === "rose"
+          ? "border-rose-200 bg-rose-50"
+          : "border-slate-200 bg-slate-50";
+
+  return (
+    <div className={`rounded-[22px] border px-5 py-4 ${toneClass}`}>
+      <div className="text-sm text-slate-500">{label}</div>
+      <div className="mt-2 text-lg font-semibold text-slate-900">{value}</div>
+      <div className="mt-2 text-sm text-slate-500">{hint}</div>
+    </div>
+  );
+}
+
 function CombinedScatterTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload?: { symbol?: string; rawVolume?: number; y?: number; score?: number } }> }) {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
@@ -838,6 +867,15 @@ function RateOverview({
       }
       return (((left as number) ?? 0) - ((right as number) ?? 0)) * factor;
     });
+  const liquidPriorityRows = priorityRows.filter(({ row }) => row.avg365dVolumeM >= 5);
+  const focusPool = liquidPriorityRows.slice(0, 5);
+  const reservePool = liquidPriorityRows.slice(5, 10);
+  const highVolumeButWeak = priorityRows
+    .filter(({ row, metrics }) => row.avg365dVolumeM >= 30 && metrics.prev12MonthsYearly <= 0)
+    .slice(0, 3);
+  const thinButStrong = priorityRows
+    .filter(({ row, compositeScore }) => row.avg365dVolumeM < 5 && compositeScore >= 55)
+    .slice(0, 3);
 
   const toggleSort = (key: RateTableSortKey) => {
     if (sortKey === key) {
@@ -850,6 +888,33 @@ function RateOverview({
 
   return (
     <div className="space-y-6">
+      <div className="grid gap-4 xl:grid-cols-4">
+        <InsightTile
+          label="当前主看池"
+          value={focusPool.length ? focusPool.map((entry) => entry.row.symbol).join(" / ") : "-"}
+          hint={focusPool.length ? `按综合分排序，当前第一名 ${focusPool[0].row.symbol} ${focusPool[0].compositeScore} 分。` : "当前没有满足流动性门槛的候选。"}
+          tone="emerald"
+        />
+        <InsightTile
+          label="第二观察池"
+          value={reservePool.length ? reservePool.map((entry) => entry.row.symbol).join(" / ") : "-"}
+          hint="这组不是放弃，只是综合分略低于主看池，通常作为补充观察。"
+          tone="slate"
+        />
+        <InsightTile
+          label="高量但别急"
+          value={highVolumeButWeak.length ? highVolumeButWeak.map((entry) => entry.row.symbol).join(" / ") : "-"}
+          hint={highVolumeButWeak.length ? "量大但上12个月年化仍弱，容量够不代表应该优先做。" : "当前高量币里没有明显的长期弱费率压制。"}
+          tone="amber"
+        />
+        <InsightTile
+          label="分高但偏薄"
+          value={thinButStrong.length ? thinButStrong.map((entry) => entry.row.symbol).join(" / ") : "-"}
+          hint={thinButStrong.length ? "费率表现不错，但年日均成交量还偏薄，先放观察名单。" : "当前没有同时满足高分和低流动性的边缘候选。"}
+          tone="rose"
+        />
+      </div>
+
       <Card title="费率长期对比" hint="日维度默认按上月排名取前 3，周维度默认按上 3 个月排名取前 3，月维度默认按上 12 个月排名取前 3。">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="flex flex-wrap gap-2">
@@ -1721,7 +1786,12 @@ function HeatmapView({ symbols }: { symbols: MarketSymbol[] }) {
 
 function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }) {
   const points = researchData?.points ?? [];
-  const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearchData["points"][number] | null>(points[points.length - 1] ?? null);
+  const latestPoint = researchData?.points.at(-1) ?? null;
+  const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearchData["points"][number] | null>(latestPoint);
+
+  useEffect(() => {
+    setHoverPoint(latestPoint);
+  }, [latestPoint]);
 
   if (!researchData || researchData.loadError) {
     return (
@@ -1752,11 +1822,24 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
   const activeRegimePoints = activeRegime
     ? points.filter((point) => point.weekStart >= activeRegime.start && point.weekStart < activeRegime.end)
     : [];
+  const activeRegimeStat = activeRegime
+    ? researchData.regimeStats.find((row) => row.start === activeRegime.start && row.end === activeRegime.end)
+    : null;
   const activeRegimeWeeks = activeRegimePoints.length;
+  const activeRegimeWeekIndex = hoverPoint ? activeRegimePoints.findIndex((point) => point.weekStart === hoverPoint.weekStart) + 1 : 0;
   const activeRegimeReturn =
     activeRegimePoints.length >= 2
       ? Number((((activeRegimePoints[activeRegimePoints.length - 1].closePrice / activeRegimePoints[0].closePrice) - 1) * 100).toFixed(3))
       : 0;
+  const priceValues = points.map((point) => point.closePrice);
+  const fundingValues = points.map((point) => point.fundingRatePct);
+  const volumeValues = points.map((point) => point.avgVolumeM).filter((value) => value > 0);
+  const priceMin = priceValues.length ? Math.min(...priceValues) : 0;
+  const priceMax = priceValues.length ? Math.max(...priceValues) : 0;
+  const pricePadding = priceMax > priceMin ? (priceMax - priceMin) * 0.08 : priceMax * 0.05;
+  const fundingCap = rateAxisCap(fundingValues);
+  const volumeFloor = volumeValues.length ? Math.max(Math.min(...volumeValues) * 0.85, 1) : 1;
+  const volumeCap = Math.max(volumeAxisCap(volumeValues), volumeFloor * 1.1);
 
   return (
     <div className="space-y-6">
@@ -1772,7 +1855,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
         <Kpi label="数据源" value="BTC 周线" hint={researchData.sourceLabel} />
       </div>
 
-      <Card title="BTC 周线联动图" hint="上到下依次看价格、周费率、周成交量和你定义的市场区间，同一时间轴同步联动。">
+      <Card title="BTC 周线联动图" hint="上到下依次看价格、周费率、周成交量和你定义的市场区间，同一时间轴同步联动。价格轴做轻微压缩，费率和成交量轴做封顶，避免少数极值把主体信息洗平。">
         <div className="mb-4 flex flex-wrap gap-2">
           {researchData.regimes.map((regime) => (
             <span key={`${regime.label}-${regime.start}`} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
@@ -1784,40 +1867,69 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
 
         <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/75 px-4 py-3 shadow-sm backdrop-blur">
           {hoverPoint ? (
-            <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-6">
-              <div>
-                <div className="text-xs text-slate-500">时间</div>
-                <div className="mt-1 font-medium text-slate-900">{hoverPoint.weekStart}</div>
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+              <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">时间</div>
+                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.weekStart}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">区间</div>
+                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.regimeLabel}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">区间进度</div>
+                  <div className="mt-1 font-medium text-slate-900">
+                    第 {fmtCount(activeRegimeWeekIndex)} / {fmtCount(activeRegimeWeeks)} 周
+                  </div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">价格</div>
+                  <div className="mt-1 font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周费率</div>
+                  <div className={`mt-1 font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周日均成交量</div>
+                  <div className="mt-1 font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3 sm:col-span-2 xl:col-span-1">
+                  <div className="text-xs text-slate-500">周涨跌</div>
+                  <div className={`mt-1 font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</div>
+                </div>
               </div>
-              <div>
-                <div className="text-xs text-slate-500">区间</div>
-                <div className="mt-1 font-medium text-slate-900">{hoverPoint.regimeLabel}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">价格</div>
-                <div className="mt-1 font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">周费率</div>
-                <div className={`mt-1 font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">周日均成交量</div>
-                <div className="mt-1 font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</div>
-              </div>
-              <div>
-                <div className="text-xs text-slate-500">周涨跌</div>
-                <div className={`mt-1 font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</div>
-              </div>
-              <div className="md:col-span-6">
-                <div className="grid gap-3 md:grid-cols-6">
-                  <div className="md:col-start-2">
-                    <div className="text-xs text-slate-500">当前区间周数</div>
-                    <div className="mt-1 font-medium text-slate-900">{activeRegimeWeeks}周</div>
+
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs text-slate-500">当前区间摘要</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">{hoverPoint.regimeLabel}</div>
+                    <div className="mt-1 text-xs text-slate-500">{activeRegime ? formatDateSpan(activeRegime.start, activeRegime.end) : "-"}</div>
+                  </div>
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
+                    {fmtCount(activeRegimeWeeks)} 周
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-slate-500">区间总涨跌</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeRegimeReturn)}`}>{fmtPct(activeRegimeReturn)}</div>
                   </div>
                   <div>
-                    <div className="text-xs text-slate-500">当前区间总涨跌</div>
-                    <div className={`mt-1 font-medium ${rateText(activeRegimeReturn)}`}>{fmtPct(activeRegimeReturn)}</div>
+                    <div className="text-xs text-slate-500">区间内最大上冲</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeRegimeStat?.maxAdvancePct ?? 0)}`}>{fmtPct(activeRegimeStat?.maxAdvancePct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">区间内最大回撤</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeRegimeStat?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeRegimeStat?.maxDrawdownPct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">正费率 / 上涨周</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">
+                      {fmtCount(activeRegimeStat?.positiveFundingWeeks ?? 0)} / {fmtCount(activeRegimeStat?.positiveReturnWeeks ?? 0)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1836,7 +1948,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
-                <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                 <Tooltip content={() => null} />
                 <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.5} />
               </LineChart>
@@ -1851,7 +1963,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
-                <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
+                <YAxis domain={[-fundingCap, fundingCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
                 <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
                 <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
@@ -1871,7 +1983,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
-                <YAxis scale="log" domain={["auto", "auto"]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value))}M`} />
+                <YAxis scale="log" domain={[volumeFloor, volumeCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value))}M`} />
                 <Tooltip content={() => null} />
                 <Bar dataKey="avgVolumeM" fill="#7c3aed" radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -1901,22 +2013,30 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="py-3">区间</th>
+                <th className="py-3">时间范围</th>
                 <th className="py-3 text-right">周数</th>
                 <th className="py-3 text-right">平均周费率</th>
                 <th className="py-3 text-right">平均周日均成交量</th>
                 <th className="py-3 text-right">累计涨跌</th>
+                <th className="py-3 text-right">区间上冲</th>
+                <th className="py-3 text-right">区间回撤</th>
                 <th className="py-3 text-right">正费率周数</th>
+                <th className="py-3 text-right">上涨周数</th>
               </tr>
             </thead>
             <tbody>
               {researchData.regimeStats.map((row, index) => (
                 <tr key={`${row.label}-${index}`} className="border-b border-slate-100">
                   <td className="py-3 font-medium text-slate-900">{row.label}</td>
+                  <td className="py-3 text-slate-500">{formatDateSpan(row.start, row.end)}</td>
                   <td className="py-3 text-right text-slate-600">{row.weeks}</td>
                   <td className={`py-3 text-right ${rateText(row.avgFundingRatePct)}`}>{fmtPct(row.avgFundingRatePct)}</td>
                   <td className="py-3 text-right text-slate-600">{fmtVol(row.avgVolumeM)}</td>
                   <td className={`py-3 text-right ${rateText(row.cumulativeReturnPct)}`}>{fmtPct(row.cumulativeReturnPct)}</td>
+                  <td className={`py-3 text-right ${rateText(row.maxAdvancePct)}`}>{fmtPct(row.maxAdvancePct)}</td>
+                  <td className={`py-3 text-right ${rateText(row.maxDrawdownPct)}`}>{fmtPct(row.maxDrawdownPct)}</td>
                   <td className="py-3 text-right text-slate-600">{row.positiveFundingWeeks}</td>
+                  <td className="py-3 text-right text-slate-600">{row.positiveReturnWeeks}</td>
                 </tr>
               ))}
             </tbody>

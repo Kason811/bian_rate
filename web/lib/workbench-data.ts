@@ -83,11 +83,16 @@ export type ResearchLagStat = {
 
 export type ResearchRegimeStat = {
   label: string;
+  start: string;
+  end: string;
   weeks: number;
   avgFundingRatePct: number;
   avgVolumeM: number;
   cumulativeReturnPct: number;
+  maxAdvancePct: number;
+  maxDrawdownPct: number;
   positiveFundingWeeks: number;
+  positiveReturnWeeks: number;
 };
 
 export type BtcWeeklyResearchData = {

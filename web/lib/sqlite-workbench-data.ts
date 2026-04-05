@@ -537,13 +537,21 @@ export async function getBtcWeeklyResearchData(): Promise<BtcWeeklyResearchData>
       const regimePoints = points.filter((point) => point.weekStart >= regime.start && point.weekStart < regime.end);
       const firstClose = regimePoints[0]?.closePrice ?? 0;
       const lastClose = regimePoints.at(-1)?.closePrice ?? 0;
+      const pathReturns = firstClose
+        ? regimePoints.map((point) => ((point.closePrice / firstClose) - 1) * 100)
+        : [];
       return {
         label: regime.label,
+        start: regime.start,
+        end: regime.end,
         weeks: regimePoints.length,
         avgFundingRatePct: Number(avgValues(regimePoints.map((point) => point.fundingRatePct)).toFixed(3)),
         avgVolumeM: Number(avgValues(regimePoints.map((point) => point.avgVolumeM)).toFixed(1)),
         cumulativeReturnPct: firstClose && lastClose ? Number((((lastClose / firstClose) - 1) * 100).toFixed(2)) : 0,
+        maxAdvancePct: pathReturns.length ? Number(Math.max(...pathReturns).toFixed(2)) : 0,
+        maxDrawdownPct: pathReturns.length ? Number(Math.min(...pathReturns).toFixed(2)) : 0,
         positiveFundingWeeks: regimePoints.filter((point) => point.fundingRatePct > 0).length,
+        positiveReturnWeeks: regimePoints.filter((point) => point.weeklyReturnPct > 0).length,
       };
     });
 
