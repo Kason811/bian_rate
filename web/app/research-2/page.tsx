@@ -23,6 +23,7 @@ export default async function Research2Page({
   const params = searchParams ? await searchParams : {};
   const tuning = {
     minSegmentWeeks: parseIntParam(params.minWeeks, 5),
+    latestSegmentMinWeeks: parseIntParam(params.latestMinWeeks, 5),
     splitPenalty: parseFloatParam(params.splitPenalty, 7.8),
     maxSegmentWeeks: parseIntParam(params.maxWeeks, 28),
   };

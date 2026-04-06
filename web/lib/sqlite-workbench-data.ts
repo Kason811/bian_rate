@@ -1137,17 +1137,25 @@ function bestResearch2Split(points: SegmentFeaturePoint[], start: number, endExc
   };
 }
 
-function splitResearch2Segments(points: SegmentFeaturePoint[], minSegmentLength = 5, segmentPenalty = 7.8, maxSegmentLength = 28) {
+function splitResearch2Segments(
+  points: SegmentFeaturePoint[],
+  minSegmentLength = 5,
+  segmentPenalty = 7.8,
+  maxSegmentLength = 28,
+  latestSegmentMinLength = minSegmentLength,
+) {
   const pointCount = points.length;
-  if (pointCount <= minSegmentLength) return [];
+  if (pointCount <= Math.max(minSegmentLength, latestSegmentMinLength)) return [];
 
   const dp = new Array<number>(pointCount + 1).fill(Number.POSITIVE_INFINITY);
   const previous = new Array<number>(pointCount + 1).fill(-1);
   dp[0] = -segmentPenalty;
 
   for (let endExclusive = minSegmentLength; endExclusive <= pointCount; endExclusive += 1) {
+    const requiredMinLength = endExclusive === pointCount ? latestSegmentMinLength : minSegmentLength;
+    if (endExclusive < requiredMinLength) continue;
     const startFloor = Math.max(0, endExclusive - Math.max(maxSegmentLength * 2, minSegmentLength));
-    for (let start = 0; start <= endExclusive - minSegmentLength; start += 1) {
+    for (let start = 0; start <= endExclusive - requiredMinLength; start += 1) {
       if (start < startFloor && endExclusive - start > maxSegmentLength) continue;
       if (!Number.isFinite(dp[start])) continue;
       const segmentLength = endExclusive - start;
@@ -1299,6 +1307,7 @@ function buildResearch2Thresholds(segments: SevenRegimeSegmentDraft[]) {
 function buildResearch2ThresholdSnapshot(thresholds: ReturnType<typeof buildResearch2Thresholds>) {
   return {
     minSegmentWeeks: 5,
+    latestSegmentMinWeeks: 5,
     splitPenalty: 7.8,
     maxSegmentWeeks: 28,
     bullQ65: Number(thresholds.bullQ65.toFixed(3)),
@@ -1326,6 +1335,7 @@ function buildResearch2ThresholdSnapshot(thresholds: ReturnType<typeof buildRese
 
 type Research2Tuning = {
   minSegmentWeeks: number;
+  latestSegmentMinWeeks: number;
   splitPenalty: number;
   maxSegmentWeeks: number;
 };
@@ -1349,8 +1359,10 @@ type Research2IndicatorSettings = {
 };
 
 function normalizeResearch2Tuning(input?: Partial<Research2Tuning>): Research2Tuning {
+  const minSegmentWeeks = clamp(Math.round(input?.minSegmentWeeks ?? 5), 3, 12);
   return {
-    minSegmentWeeks: clamp(Math.round(input?.minSegmentWeeks ?? 5), 3, 12),
+    minSegmentWeeks,
+    latestSegmentMinWeeks: clamp(Math.round(input?.latestSegmentMinWeeks ?? minSegmentWeeks), 1, 20),
     splitPenalty: Number(clamp(input?.splitPenalty ?? 7.8, 2, 20).toFixed(2)),
     maxSegmentWeeks: clamp(Math.round(input?.maxSegmentWeeks ?? 28), 8, 80),
   };
@@ -1380,6 +1392,7 @@ function withResearch2TuningSnapshot(thresholds: ReturnType<typeof buildResearch
   return {
     ...buildResearch2ThresholdSnapshot(thresholds),
     minSegmentWeeks: tuning.minSegmentWeeks,
+    latestSegmentMinWeeks: tuning.latestSegmentMinWeeks,
     splitPenalty: tuning.splitPenalty,
     maxSegmentWeeks: tuning.maxSegmentWeeks,
   };
@@ -1530,10 +1543,12 @@ function mergeResearch2Segments(points: SegmentFeaturePoint[], segments: SevenRe
   return merged;
 }
 
-function validateSevenRegimeSegments(segments: SevenRegimeSegmentDraft[], minWeeks = 5) {
-  for (const segment of segments) {
-    if (segment.weeks < minWeeks) {
-      throw new Error(`Seven-regime segment shorter than ${minWeeks} weeks at ${segment.start}`);
+function validateSevenRegimeSegments(segments: SevenRegimeSegmentDraft[], minWeeks = 5, latestSegmentMinWeeks = minWeeks) {
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+    const requiredMinWeeks = index === segments.length - 1 ? latestSegmentMinWeeks : minWeeks;
+    if (segment.weeks < requiredMinWeeks) {
+      throw new Error(`Seven-regime segment shorter than ${requiredMinWeeks} weeks at ${segment.start}`);
     }
   }
 }
@@ -1631,7 +1646,13 @@ function buildBtcSevenRegimeResearch(
   });
 
   const scoredPoints = buildResearch2Scores(provisionalPoints);
-  const breakpoints = splitResearch2Segments(scoredPoints, tuning.minSegmentWeeks, tuning.splitPenalty, tuning.maxSegmentWeeks);
+  const breakpoints = splitResearch2Segments(
+    scoredPoints,
+    tuning.minSegmentWeeks,
+    tuning.splitPenalty,
+    tuning.maxSegmentWeeks,
+    tuning.latestSegmentMinWeeks,
+  );
   let segmentDrafts = buildResearch2SegmentDrafts(scoredPoints, breakpoints);
   let thresholds = buildResearch2Thresholds(segmentDrafts);
   for (const segment of segmentDrafts) {
@@ -1658,7 +1679,7 @@ function buildBtcSevenRegimeResearch(
   }
   segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
   thresholds = buildResearch2Thresholds(segmentDrafts);
-  validateSevenRegimeSegments(segmentDrafts, tuning.minSegmentWeeks);
+  validateSevenRegimeSegments(segmentDrafts, tuning.minSegmentWeeks, tuning.latestSegmentMinWeeks);
 
   const points: BtcWeeklyResearch2Point[] = scoredPoints.map((point, index) => {
     const segment = segmentDrafts.find((item) => index >= item.startIndex && index <= item.endIndex);
@@ -2166,6 +2187,10 @@ export async function getBtcWeeklyResearch2Data(
   options?: {
     tuning?: Partial<Research2Tuning>;
     indicatorSettings?: Partial<Research2IndicatorSettings>;
+    range?: {
+      startWeek?: string;
+      endWeek?: string;
+    };
   },
 ): Promise<BtcWeeklyResearch2Data> {
   const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
@@ -2174,7 +2199,9 @@ export async function getBtcWeeklyResearch2Data(
   const klineMtimeMs = fs.statSync(klinePath).mtimeMs;
   const tuning = normalizeResearch2Tuning(options?.tuning);
   const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
-  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${tuning.minSegmentWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.adxTrendLevel}:${indicatorSettings.rsiPeriod}:${indicatorSettings.rsiUpper}:${indicatorSettings.rsiLower}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.returnUpper}:${indicatorSettings.returnLower}:${indicatorSettings.bbwPercentileWindow}:${indicatorSettings.bbwHigh}:${indicatorSettings.bbwLow}`;
+  const rangeStart = options?.range?.startWeek ?? "";
+  const rangeEnd = options?.range?.endWeek ?? "";
+  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${rangeStart}:${rangeEnd}:${tuning.minSegmentWeeks}:${tuning.latestSegmentMinWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.adxTrendLevel}:${indicatorSettings.rsiPeriod}:${indicatorSettings.rsiUpper}:${indicatorSettings.rsiLower}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.returnUpper}:${indicatorSettings.returnLower}:${indicatorSettings.bbwPercentileWindow}:${indicatorSettings.bbwHigh}:${indicatorSettings.bbwLow}`;
   if (cachedBtcWeeklyResearch2Data && cachedBtcWeeklyResearch2CacheKey === cacheKey) {
     return cachedBtcWeeklyResearch2Data;
   }
@@ -2206,7 +2233,11 @@ export async function getBtcWeeklyResearch2Data(
       };
     }
 
-    const candles = loadBtcWeeklyCandles();
+    const candles = loadBtcWeeklyCandles().filter((candle) => {
+      if (rangeStart && candle.weekStart < rangeStart) return false;
+      if (rangeEnd && candle.weekStart > rangeEnd) return false;
+      return true;
+    });
     const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(`${symbol}USD_PERP`) as { latest_date: string | null }).latest_date;
     const latestVolumeDate = dailyVolumes.at(-1)?.metric_date ?? null;
     const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";

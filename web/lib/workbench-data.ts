@@ -213,6 +213,7 @@ export type BtcWeeklyResearch2Summary = {
 
 export type BtcWeeklyResearch2Thresholds = {
   minSegmentWeeks: number;
+  latestSegmentMinWeeks: number;
   splitPenalty: number;
   maxSegmentWeeks: number;
   bullQ65: number;

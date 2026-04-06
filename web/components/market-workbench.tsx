@@ -65,6 +65,58 @@ const timeframeItems: { key: Timeframe; label: string }[] = [
 ];
 
 const chartPalette = ["#2563eb", "#0f766e", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
+const emptyResearch2Data: BtcWeeklyResearch2Data = {
+  symbol: "BTC",
+  timeframe: "week",
+  points: [],
+  segments: [],
+  summaries: [],
+  thresholds: {
+    minSegmentWeeks: 5,
+    latestSegmentMinWeeks: 5,
+    splitPenalty: 7.8,
+    maxSegmentWeeks: 28,
+    bullQ65: 0,
+    bullQ70: 0,
+    bullQ80: 0,
+    bullQ90: 0,
+    bearQ30: 0,
+    bearQ20: 0,
+    maxAdvanceQ80: 0,
+    maxAdvanceQ90: 0,
+    maxDrawQ20: 0,
+    maxDrawQ10: 0,
+    peakToEndQ20: 0,
+    adxLowQ35: 0,
+    adxHighQ70: 0,
+    bbwLowQ35: 0,
+    bbwHighQ70: 0,
+    trendQ30: 0,
+    trendQ70: 0,
+    directionBandRule: "-",
+    neutralBandRule: "-",
+    crashBearRule: "-",
+  },
+  indicatorSettings: {
+    emaPeriod: 21,
+    smaPeriod: 200,
+    adxPeriod: 14,
+    adxTrendLevel: 25,
+    rsiPeriod: 14,
+    rsiUpper: 80,
+    rsiLower: 20,
+    bbPeriod: 20,
+    bbStdDev: 2,
+    returnZPeriod: 52,
+    returnUpper: 2,
+    returnLower: -2,
+    bbwPercentileWindow: 104,
+    bbwHigh: 70,
+    bbwLow: 30,
+  },
+  latestObservedDate: "-",
+  sourceLabel: "-",
+};
 const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "rates", label: "费率总览", href: "/" },
   { key: "monthly", label: "月费率明细", href: "/monthly" },
@@ -2711,10 +2763,14 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const research2SummaryOrder = ["大牛", "小牛", "震荡牛", "震荡灰", "震荡熊", "小熊", "大熊"];
-  const points = research2Data?.points ?? [];
+  const baseResearch2Data = research2Data ?? emptyResearch2Data;
+  const points = useMemo(() => baseResearch2Data.points, [baseResearch2Data.points]);
   const latestPoint = points.at(-1) ?? null;
   const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearch2Data["points"][number] | null>(latestPoint);
   const [visibleRange, setVisibleRange] = useState(() => buildResearchWindowRange(points.length));
+  const [realtimeRebuild, setRealtimeRebuild] = useState(false);
+  const [previewData, setPreviewData] = useState<BtcWeeklyResearch2Data | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
   const [indicatorVisibility, setIndicatorVisibility] = useState({
     rsi: true,
@@ -2726,6 +2782,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     returnZ: true,
   });
   const [minSegmentWeeksInput, setMinSegmentWeeksInput] = useState(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
+  const [latestSegmentMinWeeksInput, setLatestSegmentMinWeeksInput] = useState(String(research2Data?.thresholds.latestSegmentMinWeeks ?? 5));
   const [splitPenaltyInput, setSplitPenaltyInput] = useState(String(research2Data?.thresholds.splitPenalty ?? 7.8));
   const [maxSegmentWeeksInput, setMaxSegmentWeeksInput] = useState(String(research2Data?.thresholds.maxSegmentWeeks ?? 28));
   const [emaPeriodInput, setEmaPeriodInput] = useState(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
@@ -2754,9 +2811,10 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
   useEffect(() => {
     setMinSegmentWeeksInput(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
+    setLatestSegmentMinWeeksInput(String(research2Data?.thresholds.latestSegmentMinWeeks ?? 5));
     setSplitPenaltyInput(String(research2Data?.thresholds.splitPenalty ?? 7.8));
     setMaxSegmentWeeksInput(String(research2Data?.thresholds.maxSegmentWeeks ?? 28));
-  }, [research2Data?.thresholds.maxSegmentWeeks, research2Data?.thresholds.minSegmentWeeks, research2Data?.thresholds.splitPenalty]);
+  }, [research2Data?.thresholds.latestSegmentMinWeeks, research2Data?.thresholds.maxSegmentWeeks, research2Data?.thresholds.minSegmentWeeks, research2Data?.thresholds.splitPenalty]);
   useEffect(() => {
     setEmaPeriodInput(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
     setSmaPeriodInput(String(research2Data?.indicatorSettings.smaPeriod ?? 200));
@@ -2775,16 +2833,6 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     setBbwLowInput(String(research2Data?.indicatorSettings.bbwLow ?? 30));
   }, [research2Data?.indicatorSettings]);
 
-  if (!research2Data || research2Data.loadError) {
-    return (
-      <Card title="BTC 周线研究" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
-        <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-          {research2Data?.loadError ?? "周线研究数据暂不可用。"}
-        </div>
-      </Card>
-    );
-  }
-
   const normalizedRange = {
     startIndex: Math.max(0, Math.min(visibleRange.startIndex, Math.max(points.length - 1, 0))),
     endIndex: Math.max(0, Math.min(visibleRange.endIndex, Math.max(points.length - 1, 0))),
@@ -2792,13 +2840,60 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   if (normalizedRange.startIndex > normalizedRange.endIndex) {
     normalizedRange.startIndex = normalizedRange.endIndex;
   }
-  const visiblePoints = points.slice(normalizedRange.startIndex, normalizedRange.endIndex + 1);
-  const visibleStartWeek = visiblePoints[0]?.weekStart ?? points[0]?.weekStart ?? "";
-  const visibleEndWeek = visiblePoints.at(-1)?.weekStart ?? points.at(-1)?.weekStart ?? "";
-  const regimeRanges = research2Data.segments.map((segment) => ({
+  const selectedPoints = useMemo(
+    () => points.slice(normalizedRange.startIndex, normalizedRange.endIndex + 1),
+    [normalizedRange.endIndex, normalizedRange.startIndex, points],
+  );
+  const visibleStartWeek = selectedPoints[0]?.weekStart ?? points[0]?.weekStart ?? "";
+  const visibleEndWeek = selectedPoints.at(-1)?.weekStart ?? points.at(-1)?.weekStart ?? "";
+  const selectedStartWeek = selectedPoints[0]?.weekStart ?? "";
+  const selectedEndWeek = selectedPoints.at(-1)?.weekStart ?? "";
+  const searchParamString = searchParams.toString();
+
+  useEffect(() => {
+    if (!realtimeRebuild || !selectedPoints.length) {
+      setPreviewData(null);
+      setPreviewLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const requestUrl = new URL(`${window.location.origin}/api/research-2-preview`);
+    for (const [key, value] of searchParams.entries()) {
+      requestUrl.searchParams.set(key, value);
+    }
+    requestUrl.searchParams.set("startWeek", selectedStartWeek);
+    requestUrl.searchParams.set("endWeek", selectedEndWeek);
+    setPreviewLoading(true);
+    fetch(requestUrl.toString(), { signal: controller.signal })
+      .then((response) => response.json())
+      .then((data: BtcWeeklyResearch2Data) => {
+        setPreviewData(data);
+      })
+      .catch((error) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          console.error("research-2 preview fetch failed", error);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setPreviewLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [realtimeRebuild, searchParamString, searchParams, selectedEndWeek, selectedStartWeek, selectedPoints.length]);
+
+  const displayData: BtcWeeklyResearch2Data = realtimeRebuild ? (previewData ?? research2Data ?? emptyResearch2Data) : (research2Data ?? emptyResearch2Data);
+  const visiblePoints = displayData.points;
+  const displayLatestPoint = visiblePoints.at(-1) ?? null;
+
+  useEffect(() => {
+    setHoverPoint(displayLatestPoint);
+  }, [displayLatestPoint]);
+
+  const regimeRanges = displayData.segments.map((segment) => ({
     ...segment,
     x1: segment.start,
-    x2: points.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
+    x2: visiblePoints.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
   }));
   const visibleRegimeRanges = regimeRanges
     .filter((segment) => !visibleStartWeek || !visibleEndWeek || (segment.x2 >= visibleStartWeek && segment.x1 <= visibleEndWeek))
@@ -2812,7 +2907,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     if (point) setHoverPoint(point);
   };
   const activeSegment = hoverPoint
-    ? research2Data.segments.find((segment) => hoverPoint.weekStart >= segment.start && hoverPoint.weekEnd <= segment.end)
+    ? displayData.segments.find((segment) => hoverPoint.weekStart >= segment.start && hoverPoint.weekEnd <= segment.end)
     : null;
   const priceValues = visiblePoints.map((point) => point.closePrice);
   const fundingValues = visiblePoints.map((point) => point.fundingRatePct);
@@ -2823,10 +2918,10 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const fundingCap = rateAxisCap(fundingValues);
   const volumeFloor = volumeValues.length ? Math.max(Math.min(...volumeValues) * 0.85, 1) : 1;
   const volumeCap = Math.max(volumeAxisCap(volumeValues), volumeFloor * 1.1);
-  const averageSegmentWeeks = research2Data.segments.length
-    ? Number((research2Data.segments.reduce((sum, segment) => sum + segment.weeks, 0) / research2Data.segments.length).toFixed(1))
+  const averageSegmentWeeks = displayData.segments.length
+    ? Number((displayData.segments.reduce((sum, segment) => sum + segment.weeks, 0) / displayData.segments.length).toFixed(1))
     : 0;
-  const orderedSummaries = [...research2Data.summaries].sort((left, right) => {
+  const orderedSummaries = [...displayData.summaries].sort((left, right) => {
     const leftIndex = research2SummaryOrder.indexOf(left.label);
     const rightIndex = research2SummaryOrder.indexOf(right.label);
     const normalizedLeft = leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex;
@@ -2841,19 +2936,22 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     .reduce((sum, summary) => sum + summary.sharePct, 0);
   const applyResearch2Tuning = () => {
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("minWeeks", minSegmentWeeksInput.trim() || String(research2Data.thresholds.minSegmentWeeks));
-    nextParams.set("splitPenalty", splitPenaltyInput.trim() || String(research2Data.thresholds.splitPenalty));
-    nextParams.set("maxWeeks", maxSegmentWeeksInput.trim() || String(research2Data.thresholds.maxSegmentWeeks));
+    nextParams.set("minWeeks", minSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.minSegmentWeeks));
+    nextParams.set("latestMinWeeks", latestSegmentMinWeeksInput.trim() || String(baseResearch2Data.thresholds.latestSegmentMinWeeks));
+    nextParams.set("splitPenalty", splitPenaltyInput.trim() || String(baseResearch2Data.thresholds.splitPenalty));
+    nextParams.set("maxWeeks", maxSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.maxSegmentWeeks));
     startTransition(() => {
       router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
     });
   };
   const resetResearch2Tuning = () => {
     setMinSegmentWeeksInput("5");
+    setLatestSegmentMinWeeksInput("5");
     setSplitPenaltyInput("7.8");
     setMaxSegmentWeeksInput("28");
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("minWeeks");
+    nextParams.delete("latestMinWeeks");
     nextParams.delete("splitPenalty");
     nextParams.delete("maxWeeks");
     startTransition(() => {
@@ -2864,23 +2962,32 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const toggleIndicatorVisibility = (key: keyof typeof indicatorVisibility) => {
     setIndicatorVisibility((current) => ({ ...current, [key]: !current[key] }));
   };
+  const stepVisibleRange = (delta: -1 | 1) => {
+    setVisibleRange((current) => {
+      const nextEndIndex = Math.max(current.startIndex, Math.min(points.length - 1, current.endIndex + delta));
+      return {
+        startIndex: current.startIndex,
+        endIndex: nextEndIndex,
+      };
+    });
+  };
   const applyIndicatorSettings = () => {
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("emaPeriod", emaPeriodInput.trim() || String(research2Data.indicatorSettings.emaPeriod));
-    nextParams.set("smaPeriod", smaPeriodInput.trim() || String(research2Data.indicatorSettings.smaPeriod));
-    nextParams.set("adxPeriod", adxPeriodInput.trim() || String(research2Data.indicatorSettings.adxPeriod));
-    nextParams.set("adxTrendLevel", adxTrendLevelInput.trim() || String(research2Data.indicatorSettings.adxTrendLevel));
-    nextParams.set("rsiPeriod", rsiPeriodInput.trim() || String(research2Data.indicatorSettings.rsiPeriod));
-    nextParams.set("rsiUpper", rsiUpperInput.trim() || String(research2Data.indicatorSettings.rsiUpper));
-    nextParams.set("rsiLower", rsiLowerInput.trim() || String(research2Data.indicatorSettings.rsiLower));
-    nextParams.set("bbPeriod", bbPeriodInput.trim() || String(research2Data.indicatorSettings.bbPeriod));
-    nextParams.set("bbStdDev", bbStdDevInput.trim() || String(research2Data.indicatorSettings.bbStdDev));
-    nextParams.set("returnZPeriod", returnZPeriodInput.trim() || String(research2Data.indicatorSettings.returnZPeriod));
-    nextParams.set("returnUpper", returnUpperInput.trim() || String(research2Data.indicatorSettings.returnUpper));
-    nextParams.set("returnLower", returnLowerInput.trim() || String(research2Data.indicatorSettings.returnLower));
-    nextParams.set("bbwWindow", bbwWindowInput.trim() || String(research2Data.indicatorSettings.bbwPercentileWindow));
-    nextParams.set("bbwHigh", bbwHighInput.trim() || String(research2Data.indicatorSettings.bbwHigh));
-    nextParams.set("bbwLow", bbwLowInput.trim() || String(research2Data.indicatorSettings.bbwLow));
+    nextParams.set("emaPeriod", emaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.emaPeriod));
+    nextParams.set("smaPeriod", smaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.smaPeriod));
+    nextParams.set("adxPeriod", adxPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.adxPeriod));
+    nextParams.set("adxTrendLevel", adxTrendLevelInput.trim() || String(baseResearch2Data.indicatorSettings.adxTrendLevel));
+    nextParams.set("rsiPeriod", rsiPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.rsiPeriod));
+    nextParams.set("rsiUpper", rsiUpperInput.trim() || String(baseResearch2Data.indicatorSettings.rsiUpper));
+    nextParams.set("rsiLower", rsiLowerInput.trim() || String(baseResearch2Data.indicatorSettings.rsiLower));
+    nextParams.set("bbPeriod", bbPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.bbPeriod));
+    nextParams.set("bbStdDev", bbStdDevInput.trim() || String(baseResearch2Data.indicatorSettings.bbStdDev));
+    nextParams.set("returnZPeriod", returnZPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.returnZPeriod));
+    nextParams.set("returnUpper", returnUpperInput.trim() || String(baseResearch2Data.indicatorSettings.returnUpper));
+    nextParams.set("returnLower", returnLowerInput.trim() || String(baseResearch2Data.indicatorSettings.returnLower));
+    nextParams.set("bbwWindow", bbwWindowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwPercentileWindow));
+    nextParams.set("bbwHigh", bbwHighInput.trim() || String(baseResearch2Data.indicatorSettings.bbwHigh));
+    nextParams.set("bbwLow", bbwLowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwLow));
     startTransition(() => {
       router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
     });
@@ -2911,13 +3018,23 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     });
   };
 
+  if (!research2Data || research2Data.loadError) {
+    return (
+      <Card title="BTC 周线研究" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
+        <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+          {research2Data?.loadError ?? "周线研究数据暂不可用。"}
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-5">
-        <Kpi label="自动区间数" value={`${research2Data.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
+        <Kpi label="自动区间数" value={`${displayData.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
         <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
-        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近已完成周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}，家族 ${latestPoint.family}` : "暂无已完成周线。"} />
-        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={latestPoint ? `当前研究分段最新完成周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}` : "暂无最新观测数据。"} />
+        <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}，家族 ${displayLatestPoint.family}` : "暂无已完成周线。"} />
+        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={displayLatestPoint ? `当前研究分段最新完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}` : "暂无最新观测数据。"} />
         <Kpi label="数据源" value={`${research2Data.symbol} 周线`} hint={research2Data.sourceLabel} />
       </div>
 
@@ -2978,10 +3095,25 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           )}
         </div>
 
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div>当前展示窗: <span className="font-medium text-slate-900">{visiblePoints[0]?.weekStart ?? "-"} ~ {visiblePoints.at(-1)?.weekEnd ?? "-"}</span></div>
+          <div>展示周数: <span className="font-medium text-slate-900">{visiblePoints.length}</span></div>
+          <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700">
+            <span>实时重构图表</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={realtimeRebuild}
+              onClick={() => setRealtimeRebuild((current) => !current)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${realtimeRebuild ? "bg-slate-900" : "bg-slate-300"}`}
+            >
+              <span className={`inline-block h-5 w-5 rounded-full bg-white transition ${realtimeRebuild ? "translate-x-5" : "translate-x-1"}`} />
+            </button>
+          </label>
+          {realtimeRebuild ? (
+            <div className="text-xs text-slate-500">{previewLoading ? "按当前可见窗口重构中..." : "当前按可见 K 线实时重构区间"}</div>
+          ) : null}
           <div className="flex items-center gap-3">
-            <div>展示周数: <span className="font-medium text-slate-900">{visiblePoints.length}</span></div>
             <button
               type="button"
               onClick={() => setShowIndicatorSettings((current) => !current)}
@@ -3116,8 +3248,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
                 <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
-                <ReferenceLine y={research2Data.indicatorSettings.rsiUpper} stroke="#f97316" strokeDasharray="4 4" />
-                <ReferenceLine y={research2Data.indicatorSettings.rsiLower} stroke="#f97316" strokeDasharray="4 4" />
+                <ReferenceLine y={displayData.indicatorSettings.rsiUpper} stroke="#f97316" strokeDasharray="4 4" />
+                <ReferenceLine y={displayData.indicatorSettings.rsiLower} stroke="#f97316" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
                 {indicatorVisibility.rsi ? <Line type="monotone" dataKey="rsi" stroke="#ef4444" dot={false} strokeWidth={1.8} /> : null}
               </LineChart>
@@ -3139,11 +3271,11 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <XAxis dataKey="weekStart" hide />
                 <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
                 <YAxis yAxisId="right" orientation="right" domain={[-4, 4]} tick={{ fill: "#64748b", fontSize: 12 }} />
-                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.adxTrendLevel} stroke="#334155" strokeDasharray="4 4" />
-                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.bbwHigh} stroke="#f59e0b" strokeDasharray="4 4" />
-                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.bbwLow} stroke="#f59e0b" strokeDasharray="4 4" />
-                <ReferenceLine yAxisId="right" y={research2Data.indicatorSettings.returnUpper} stroke="#2563eb" strokeDasharray="4 4" />
-                <ReferenceLine yAxisId="right" y={research2Data.indicatorSettings.returnLower} stroke="#2563eb" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="left" y={displayData.indicatorSettings.adxTrendLevel} stroke="#334155" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="left" y={displayData.indicatorSettings.bbwHigh} stroke="#f59e0b" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="left" y={displayData.indicatorSettings.bbwLow} stroke="#f59e0b" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="right" y={displayData.indicatorSettings.returnUpper} stroke="#2563eb" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="right" y={displayData.indicatorSettings.returnLower} stroke="#2563eb" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
                 {indicatorVisibility.adx ? <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} /> : null}
                 {indicatorVisibility.bbw ? <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} /> : null}
@@ -3186,7 +3318,27 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           </div>
 
           <div className="h-[90px] w-full rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="mb-2 text-xs text-slate-500">时间截断控制</div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-xs text-slate-500">时间截断控制</div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => stepVisibleRange(-1)}
+                  disabled={normalizedRange.endIndex <= normalizedRange.startIndex}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  onClick={() => stepVisibleRange(1)}
+                  disabled={normalizedRange.endIndex >= points.length - 1}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+                >
+                  +
+                </button>
+              </div>
+            </div>
             <ResponsiveContainer>
               <LineChart data={points}>
                 <XAxis dataKey="weekStart" hide />
@@ -3232,7 +3384,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 </tr>
               </thead>
               <tbody>
-                {research2Data.segments.map((segment) => (
+                {displayData.segments.map((segment) => (
                   <tr key={`research2-segment-${segment.index}`} className="border-b border-slate-100">
                     <td className="py-3 font-medium text-slate-900">#{segment.index + 1}</td>
                     <td className="py-3">
@@ -3279,13 +3431,21 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           <div className="space-y-4 text-sm text-slate-600">
             <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-4">
               <div className="mb-3 text-sm font-semibold text-slate-900">参数编辑</div>
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+              <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
                 <label className="space-y-1">
                   <div className="text-xs text-slate-500">最短区间</div>
                   <input
                     className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
                     value={minSegmentWeeksInput}
                     onChange={(event) => setMinSegmentWeeksInput(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-xs text-slate-500">最新区块最短区间</div>
+                  <input
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                    value={latestSegmentMinWeeksInput}
+                    onChange={(event) => setLatestSegmentMinWeeksInput(event.target.value)}
                   />
                 </label>
                 <label className="space-y-1">
@@ -3349,22 +3509,23 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-xs text-slate-500">分段约束</div>
                 <div className="mt-2 space-y-1">
-                  <div>最短区间: <span className="font-medium text-slate-900">{research2Data.thresholds.minSegmentWeeks} 周</span></div>
-                  <div>分段惩罚: <span className="font-medium text-slate-900">{fmtPlainNumber(research2Data.thresholds.splitPenalty)}</span></div>
-                  <div>最长区间: <span className="font-medium text-slate-900">{research2Data.thresholds.maxSegmentWeeks} 周</span></div>
+                  <div>最短区间: <span className="font-medium text-slate-900">{displayData.thresholds.minSegmentWeeks} 周</span></div>
+                  <div>最新区块最短区间: <span className="font-medium text-slate-900">{displayData.thresholds.latestSegmentMinWeeks} 周</span></div>
+                  <div>分段惩罚: <span className="font-medium text-slate-900">{fmtPlainNumber(displayData.thresholds.splitPenalty)}</span></div>
+                  <div>最长区间: <span className="font-medium text-slate-900">{displayData.thresholds.maxSegmentWeeks} 周</span></div>
                 </div>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-xs text-slate-500">方向带规则</div>
                 <div className="mt-2 space-y-1">
-                  <div>directionBand: <span className="font-medium text-slate-900">{research2Data.thresholds.directionBandRule}</span></div>
-                  <div>neutralBand: <span className="font-medium text-slate-900">{research2Data.thresholds.neutralBandRule}</span></div>
+                  <div>directionBand: <span className="font-medium text-slate-900">{displayData.thresholds.directionBandRule}</span></div>
+                  <div>neutralBand: <span className="font-medium text-slate-900">{displayData.thresholds.neutralBandRule}</span></div>
                 </div>
               </div>
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
                 <div className="text-xs text-slate-500">极端空头规则</div>
                 <div className="mt-2">
-                  <div>{research2Data.thresholds.crashBearRule}</div>
+                  <div>{displayData.thresholds.crashBearRule}</div>
                 </div>
               </div>
             </div>
@@ -3380,23 +3541,23 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 </thead>
                 <tbody>
                   {[
-                    ["bullQ65", research2Data.thresholds.bullQ65, "多头方向带基准"],
-                    ["bullQ70", research2Data.thresholds.bullQ70, "小牛起始净涨幅阈值"],
-                    ["bullQ80", research2Data.thresholds.bullQ80, "大牛升级净涨幅参考"],
-                    ["bullQ90", research2Data.thresholds.bullQ90, "极端多头参考"],
-                    ["bearQ30", research2Data.thresholds.bearQ30, "小熊起始净跌幅阈值"],
-                    ["bearQ20", research2Data.thresholds.bearQ20, "大熊/急杀熊净跌幅参考"],
-                    ["maxAdvanceQ80", research2Data.thresholds.maxAdvanceQ80, "上冲强度参考"],
-                    ["maxAdvanceQ90", research2Data.thresholds.maxAdvanceQ90, "大牛推进参考"],
-                    ["maxDrawQ20", research2Data.thresholds.maxDrawQ20, "风险强度参考"],
-                    ["maxDrawQ10", research2Data.thresholds.maxDrawQ10, "大熊/急杀熊回撤参考"],
-                    ["peakToEndQ20", research2Data.thresholds.peakToEndQ20, "高位回落纠偏参考"],
-                    ["adxLowQ35", research2Data.thresholds.adxLowQ35, "平缓震荡低趋势阈值"],
-                    ["adxHighQ70", research2Data.thresholds.adxHighQ70, "强趋势阈值"],
-                    ["bbwLowQ35", research2Data.thresholds.bbwLowQ35, "窄波动阈值"],
-                    ["bbwHighQ70", research2Data.thresholds.bbwHighQ70, "宽波动阈值"],
-                    ["trendQ30", research2Data.thresholds.trendQ30, "低趋势斜率阈值"],
-                    ["trendQ70", research2Data.thresholds.trendQ70, "高趋势斜率阈值"],
+                    ["bullQ65", displayData.thresholds.bullQ65, "多头方向带基准"],
+                    ["bullQ70", displayData.thresholds.bullQ70, "小牛起始净涨幅阈值"],
+                    ["bullQ80", displayData.thresholds.bullQ80, "大牛升级净涨幅参考"],
+                    ["bullQ90", displayData.thresholds.bullQ90, "极端多头参考"],
+                    ["bearQ30", displayData.thresholds.bearQ30, "小熊起始净跌幅阈值"],
+                    ["bearQ20", displayData.thresholds.bearQ20, "大熊/急杀熊净跌幅参考"],
+                    ["maxAdvanceQ80", displayData.thresholds.maxAdvanceQ80, "上冲强度参考"],
+                    ["maxAdvanceQ90", displayData.thresholds.maxAdvanceQ90, "大牛推进参考"],
+                    ["maxDrawQ20", displayData.thresholds.maxDrawQ20, "风险强度参考"],
+                    ["maxDrawQ10", displayData.thresholds.maxDrawQ10, "大熊/急杀熊回撤参考"],
+                    ["peakToEndQ20", displayData.thresholds.peakToEndQ20, "高位回落纠偏参考"],
+                    ["adxLowQ35", displayData.thresholds.adxLowQ35, "平缓震荡低趋势阈值"],
+                    ["adxHighQ70", displayData.thresholds.adxHighQ70, "强趋势阈值"],
+                    ["bbwLowQ35", displayData.thresholds.bbwLowQ35, "窄波动阈值"],
+                    ["bbwHighQ70", displayData.thresholds.bbwHighQ70, "宽波动阈值"],
+                    ["trendQ30", displayData.thresholds.trendQ30, "低趋势斜率阈值"],
+                    ["trendQ70", displayData.thresholds.trendQ70, "高趋势斜率阈值"],
                   ].map(([name, value, note]) => (
                     <tr key={`threshold-${name}`} className="border-b border-slate-100">
                       <td className="py-3 font-medium text-slate-900">{name}</td>
