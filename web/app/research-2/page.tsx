@@ -3,7 +3,39 @@ import { getBtcWeeklyResearch2Data, getWorkbenchData } from "@/lib/sqlite-workbe
 
 export const dynamic = "force-dynamic";
 
-export default async function Research2Page() {
-  const [data, research2Data] = await Promise.all([Promise.resolve(getWorkbenchData()), getBtcWeeklyResearch2Data()]);
+function parseIntParam(value: string | string[] | undefined, fallback: number) {
+  const text = Array.isArray(value) ? value[0] : value;
+  const parsed = Number.parseInt(text ?? "", 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function parseFloatParam(value: string | string[] | undefined, fallback: number) {
+  const text = Array.isArray(value) ? value[0] : value;
+  const parsed = Number.parseFloat(text ?? "");
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+export default async function Research2Page({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = searchParams ? await searchParams : {};
+  const tuning = {
+    minSegmentWeeks: parseIntParam(params.minWeeks, 5),
+    splitPenalty: parseFloatParam(params.splitPenalty, 7.8),
+    maxSegmentWeeks: parseIntParam(params.maxWeeks, 28),
+  };
+  const indicatorSettings = {
+    emaPeriod: parseIntParam(params.emaPeriod, 21),
+    smaPeriod: parseIntParam(params.smaPeriod, 200),
+    adxPeriod: parseIntParam(params.adxPeriod, 14),
+    rsiPeriod: parseIntParam(params.rsiPeriod, 14),
+    bbPeriod: parseIntParam(params.bbPeriod, 20),
+    bbStdDev: parseFloatParam(params.bbStdDev, 2),
+    returnZPeriod: parseIntParam(params.returnZPeriod, 52),
+    bbwPercentileWindow: parseIntParam(params.bbwWindow, 104),
+  };
+  const [data, research2Data] = await Promise.all([Promise.resolve(getWorkbenchData()), getBtcWeeklyResearch2Data({ tuning, indicatorSettings })]);
   return <MarketWorkbench data={data} initialView="research2" research2Data={research2Data} />;
 }

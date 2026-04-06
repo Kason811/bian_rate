@@ -818,6 +818,7 @@ function buildAutoRegimes(points: BtcWeeklyResearchPoint[], overrides: AutoRegim
 function loadBtcWeeklyCloses() {
   const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
   const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
+  const todayUtc = new Date().toISOString().slice(0, 10);
   return rows.map((row) => {
     const weekStart = new Date(row[0]).toISOString().slice(0, 10);
     const weekEndDate = new Date(row[0]);
@@ -827,7 +828,7 @@ function loadBtcWeeklyCloses() {
       weekEnd: weekEndDate.toISOString().slice(0, 10),
       closePrice: Number(row[4]),
     };
-  });
+  }).filter((row) => row.weekEnd < todayUtc);
 }
 
 type BtcWeeklyCandle = {
@@ -864,6 +865,7 @@ const SEVEN_REGIME_FAMILY: Record<string, SevenRegimeFamily> = {
 function loadBtcWeeklyCandles() {
   const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
   const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
+  const todayUtc = new Date().toISOString().slice(0, 10);
   return rows.map((row) => {
     const weekStart = new Date(row[0]).toISOString().slice(0, 10);
     const weekEndDate = new Date(row[0]);
@@ -876,7 +878,7 @@ function loadBtcWeeklyCandles() {
       lowPrice: Number(row[3]),
       closePrice: Number(row[4]),
     };
-  });
+  }).filter((row) => row.weekEnd < todayUtc);
 }
 
 function rollingMean(values: number[], window: number) {
@@ -929,7 +931,7 @@ function wilderSmooth(values: number[], period: number) {
   return result;
 }
 
-function computeAdx14(candles: BtcWeeklyCandle[]) {
+function computeAdx(candles: BtcWeeklyCandle[], period: number) {
   const highs = candles.map((item) => item.highPrice);
   const lows = candles.map((item) => item.lowPrice);
   const closes = candles.map((item) => item.closePrice);
@@ -948,9 +950,9 @@ function computeAdx14(candles: BtcWeeklyCandle[]) {
     minusDm.push(downMove > upMove && downMove > 0 ? downMove : 0);
   }
 
-  const smoothedTr = wilderSmooth(trueRanges, 14);
-  const smoothedPlusDm = wilderSmooth(plusDm, 14);
-  const smoothedMinusDm = wilderSmooth(minusDm, 14);
+  const smoothedTr = wilderSmooth(trueRanges, period);
+  const smoothedPlusDm = wilderSmooth(plusDm, period);
+  const smoothedMinusDm = wilderSmooth(minusDm, period);
   const dx: number[] = [];
 
   for (let index = 0; index < candles.length; index += 1) {
@@ -969,18 +971,38 @@ function computeAdx14(candles: BtcWeeklyCandle[]) {
   if (!dx.length) return adx;
   let seed = 0;
   for (let index = 0; index < dx.length; index += 1) {
-    if (index < 14) {
+    if (index < period) {
       seed += dx[index];
       adx[index] = 25;
       continue;
     }
-    if (index === 14) {
-      adx[index] = seed / 14;
+    if (index === period) {
+      adx[index] = seed / period;
       continue;
     }
-    adx[index] = ((adx[index - 1] * 13) + dx[index]) / 14;
+    adx[index] = ((adx[index - 1] * (period - 1)) + dx[index]) / period;
   }
   return adx.map((value) => Number((Number.isFinite(value) ? value : 25).toFixed(3)));
+}
+
+function computeRsi(values: number[], period: number) {
+  if (!values.length) return [];
+  const gains = new Array<number>(values.length).fill(0);
+  const losses = new Array<number>(values.length).fill(0);
+  for (let index = 1; index < values.length; index += 1) {
+    const change = values[index] - values[index - 1];
+    gains[index] = change > 0 ? change : 0;
+    losses[index] = change < 0 ? Math.abs(change) : 0;
+  }
+  const avgGains = wilderSmooth(gains, period).map((value) => value / period);
+  const avgLosses = wilderSmooth(losses, period).map((value) => value / period);
+  return values.map((_, index) => {
+    if (index < period) return 50;
+    const avgLoss = avgLosses[index];
+    if (!avgLoss) return 100;
+    const rs = avgGains[index] / avgLoss;
+    return Number((100 - (100 / (1 + rs))).toFixed(3));
+  });
 }
 
 function rollingPercentRank(values: number[], window: number) {
@@ -1274,6 +1296,81 @@ function buildResearch2Thresholds(segments: SevenRegimeSegmentDraft[]) {
   };
 }
 
+function buildResearch2ThresholdSnapshot(thresholds: ReturnType<typeof buildResearch2Thresholds>) {
+  return {
+    minSegmentWeeks: 5,
+    splitPenalty: 7.8,
+    maxSegmentWeeks: 28,
+    bullQ65: Number(thresholds.bullQ65.toFixed(3)),
+    bullQ70: Number(thresholds.bullQ70.toFixed(3)),
+    bullQ80: Number(thresholds.bullQ80.toFixed(3)),
+    bullQ90: Number(thresholds.bullQ90.toFixed(3)),
+    bearQ30: Number(thresholds.bearQ30.toFixed(3)),
+    bearQ20: Number(thresholds.bearQ20.toFixed(3)),
+    maxAdvanceQ80: Number(thresholds.maxAdvanceQ80.toFixed(3)),
+    maxAdvanceQ90: Number(thresholds.maxAdvanceQ90.toFixed(3)),
+    maxDrawQ20: Number(thresholds.maxDrawQ20.toFixed(3)),
+    maxDrawQ10: Number(thresholds.maxDrawQ10.toFixed(3)),
+    peakToEndQ20: Number(thresholds.peakToEndQ20.toFixed(3)),
+    adxLowQ35: Number(thresholds.adxLowQ35.toFixed(3)),
+    adxHighQ70: Number(thresholds.adxHighQ70.toFixed(3)),
+    bbwLowQ35: Number(thresholds.bbwLowQ35.toFixed(3)),
+    bbwHighQ70: Number(thresholds.bbwHighQ70.toFixed(3)),
+    trendQ30: Number(thresholds.trendQ30.toFixed(3)),
+    trendQ70: Number(thresholds.trendQ70.toFixed(3)),
+    directionBandRule: "max(3.5, |bullQ65|*0.18, 周波动*sqrt(weeks)*0.28)",
+    neutralBandRule: "max(directionBand*1.35, |bullQ65|*0.32, 4.2)",
+    crashBearRule: "5-7周且净跌<=bearQ20、回撤<=maxDrawQ10、下跌速度>=3.8、平均周收益<=-4、上涨周占比<=20%",
+  };
+}
+
+type Research2Tuning = {
+  minSegmentWeeks: number;
+  splitPenalty: number;
+  maxSegmentWeeks: number;
+};
+
+type Research2IndicatorSettings = {
+  emaPeriod: number;
+  smaPeriod: number;
+  adxPeriod: number;
+  rsiPeriod: number;
+  bbPeriod: number;
+  bbStdDev: number;
+  returnZPeriod: number;
+  bbwPercentileWindow: number;
+};
+
+function normalizeResearch2Tuning(input?: Partial<Research2Tuning>): Research2Tuning {
+  return {
+    minSegmentWeeks: clamp(Math.round(input?.minSegmentWeeks ?? 5), 3, 12),
+    splitPenalty: Number(clamp(input?.splitPenalty ?? 7.8, 2, 20).toFixed(2)),
+    maxSegmentWeeks: clamp(Math.round(input?.maxSegmentWeeks ?? 28), 8, 80),
+  };
+}
+
+function normalizeResearch2IndicatorSettings(input?: Partial<Research2IndicatorSettings>): Research2IndicatorSettings {
+  return {
+    emaPeriod: clamp(Math.round(input?.emaPeriod ?? 21), 3, 120),
+    smaPeriod: clamp(Math.round(input?.smaPeriod ?? 200), 20, 300),
+    adxPeriod: clamp(Math.round(input?.adxPeriod ?? 14), 5, 60),
+    rsiPeriod: clamp(Math.round(input?.rsiPeriod ?? 14), 5, 60),
+    bbPeriod: clamp(Math.round(input?.bbPeriod ?? 20), 5, 120),
+    bbStdDev: Number(clamp(input?.bbStdDev ?? 2, 0.5, 4).toFixed(2)),
+    returnZPeriod: clamp(Math.round(input?.returnZPeriod ?? 52), 10, 156),
+    bbwPercentileWindow: clamp(Math.round(input?.bbwPercentileWindow ?? 104), 20, 260),
+  };
+}
+
+function withResearch2TuningSnapshot(thresholds: ReturnType<typeof buildResearch2Thresholds>, tuning: Research2Tuning) {
+  return {
+    ...buildResearch2ThresholdSnapshot(thresholds),
+    minSegmentWeeks: tuning.minSegmentWeeks,
+    splitPenalty: tuning.splitPenalty,
+    maxSegmentWeeks: tuning.maxSegmentWeeks,
+  };
+}
+
 function research2DirectionBand(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
   return Math.max(3.5, Math.abs(thresholds.bullQ65) * 0.18, segment.weeklyVolatilityPct * Math.sqrt(segment.weeks) * 0.28);
 }
@@ -1431,7 +1528,13 @@ function buildBtcSevenRegimeResearch(
   candles: BtcWeeklyCandle[],
   weeklyFunding: Array<{ metric_week: string; weekly_funding_rate: number }>,
   dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
+  options?: {
+    tuning?: Partial<Research2Tuning>;
+    indicatorSettings?: Partial<Research2IndicatorSettings>;
+  },
 ) {
+  const tuning = normalizeResearch2Tuning(options?.tuning);
+  const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
   const volumeByWeek = new Map<string, number[]>();
   for (const row of dailyVolumes) {
     const key = weekRangeLabel(row.metric_date);
@@ -1447,25 +1550,39 @@ function buildBtcSevenRegimeResearch(
     }),
   );
 
-  const scopedCandles = candles.filter((row) => row.weekStart >= "2023-10-16" && row.weekStart < "2026-03-30");
+  const scopedCandles = candles.filter((row) => {
+    if (!fundingByWeekStart.has(row.weekStart)) return false;
+    const metricWeek = `${row.weekStart}/${row.weekEnd}`;
+    return (volumeByWeek.get(metricWeek)?.length ?? 0) > 0;
+  });
+  if (!scopedCandles.length) {
+    return {
+      points: [] as BtcWeeklyResearch2Point[],
+      segments: [] as BtcWeeklyResearch2Segment[],
+      summaries: [] as BtcWeeklyResearch2Summary[],
+      thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
+      indicatorSettings,
+    };
+  }
   const closes = scopedCandles.map((item) => item.closePrice);
   const opens = scopedCandles.map((item) => item.openPrice);
-  const ema21Values = ema(closes, 21);
-  const sma200Values = rollingMean(closes, 200);
-  const adx14Values = computeAdx14(scopedCandles);
-  const bbBasisValues = rollingMean(closes, 20);
-  const bbStdValues = rollingStd(closes, 20);
+  const ema21Values = ema(closes, indicatorSettings.emaPeriod);
+  const sma200Values = rollingMean(closes, indicatorSettings.smaPeriod);
+  const adx14Values = computeAdx(scopedCandles, indicatorSettings.adxPeriod);
+  const rsiValues = computeRsi(closes, indicatorSettings.rsiPeriod);
+  const bbBasisValues = rollingMean(closes, indicatorSettings.bbPeriod);
+  const bbStdValues = rollingStd(closes, indicatorSettings.bbPeriod);
   const bbwValues = closes.map((_, index) => {
     const middle = bbBasisValues[index];
     if (!middle) return 0;
-    const upper = middle + (bbStdValues[index] * 2);
-    const lower = middle - (bbStdValues[index] * 2);
+    const upper = middle + (bbStdValues[index] * indicatorSettings.bbStdDev);
+    const lower = middle - (bbStdValues[index] * indicatorSettings.bbStdDev);
     return Number((((upper - lower) / middle) || 0).toFixed(6));
   });
-  const bbwPercentileValues = rollingPercentRank(bbwValues, 104);
+  const bbwPercentileValues = rollingPercentRank(bbwValues, indicatorSettings.bbwPercentileWindow);
   const rawWeeklyReturns = closes.map((close, index) => (opens[index] ? (close - opens[index]) / opens[index] : 0));
-  const returnMeanValues = rollingMean(rawWeeklyReturns, 52);
-  const returnStdValues = rollingStd(rawWeeklyReturns, 52);
+  const returnMeanValues = rollingMean(rawWeeklyReturns, indicatorSettings.returnZPeriod);
+  const returnStdValues = rollingStd(rawWeeklyReturns, indicatorSettings.returnZPeriod);
   const returnZValues = rawWeeklyReturns.map((value, index) => {
     const std = returnStdValues[index];
     if (!std) return 0;
@@ -1488,6 +1605,10 @@ function buildBtcSevenRegimeResearch(
       weeklyReturnPct: index > 0 ? Number((((candle.closePrice / scopedCandles[index - 1].closePrice) - 1) * 100).toFixed(3)) : 0,
       ema21: Number(ema21Values[index].toFixed(2)),
       sma200: Number(sma200Values[index].toFixed(2)),
+      bbBasis: Number(bbBasisValues[index].toFixed(2)),
+      bbUpper: Number((bbBasisValues[index] + (bbStdValues[index] * indicatorSettings.bbStdDev)).toFixed(2)),
+      bbLower: Number((bbBasisValues[index] - (bbStdValues[index] * indicatorSettings.bbStdDev)).toFixed(2)),
+      rsi: Number((Number.isFinite(rsiValues[index]) ? rsiValues[index] : 50).toFixed(3)),
       adx14: Number((Number.isFinite(adx14Values[index]) ? adx14Values[index] : 25).toFixed(3)),
       bbw: Number((bbwValues[index] * 100).toFixed(3)),
       bbwPercentile104: bbwPercentileValues[index],
@@ -1496,7 +1617,7 @@ function buildBtcSevenRegimeResearch(
   });
 
   const scoredPoints = buildResearch2Scores(provisionalPoints);
-  const breakpoints = splitResearch2Segments(scoredPoints, 5, 7.8, 28);
+  const breakpoints = splitResearch2Segments(scoredPoints, tuning.minSegmentWeeks, tuning.splitPenalty, tuning.maxSegmentWeeks);
   let segmentDrafts = buildResearch2SegmentDrafts(scoredPoints, breakpoints);
   let thresholds = buildResearch2Thresholds(segmentDrafts);
   for (const segment of segmentDrafts) {
@@ -1515,7 +1636,15 @@ function buildBtcSevenRegimeResearch(
     segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
     segment.label = validateResearch2SegmentLabel(segment, thresholds);
   }
-  validateSevenRegimeSegments(segmentDrafts, 5);
+  segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
+  thresholds = buildResearch2Thresholds(segmentDrafts);
+  for (const segment of segmentDrafts) {
+    segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
+    segment.label = validateResearch2SegmentLabel(segment, thresholds);
+  }
+  segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
+  thresholds = buildResearch2Thresholds(segmentDrafts);
+  validateSevenRegimeSegments(segmentDrafts, tuning.minSegmentWeeks);
 
   const points: BtcWeeklyResearch2Point[] = scoredPoints.map((point, index) => {
     const segment = segmentDrafts.find((item) => index >= item.startIndex && index <= item.endIndex);
@@ -1563,7 +1692,7 @@ function buildBtcSevenRegimeResearch(
     };
   });
 
-  return { points, segments, summaries };
+  return { points, segments, summaries, thresholds: withResearch2TuningSnapshot(thresholds, tuning), indicatorSettings };
 }
 
 function buildMonthlyRateRow(symbol: string, monthlyRates: MonthlyFundingRow[], allMonths: string[]): MonthlyRateRow {
@@ -2019,12 +2148,19 @@ export async function getBtcWeeklyResearchData(): Promise<BtcWeeklyResearchData>
   }
 }
 
-export async function getBtcWeeklyResearch2Data(): Promise<BtcWeeklyResearch2Data> {
+export async function getBtcWeeklyResearch2Data(
+  options?: {
+    tuning?: Partial<Research2Tuning>;
+    indicatorSettings?: Partial<Research2IndicatorSettings>;
+  },
+): Promise<BtcWeeklyResearch2Data> {
   const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
   const databaseMtimeMs = fs.statSync(databasePath).mtimeMs;
   const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
   const klineMtimeMs = fs.statSync(klinePath).mtimeMs;
-  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}`;
+  const tuning = normalizeResearch2Tuning(options?.tuning);
+  const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
+  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${tuning.minSegmentWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.rsiPeriod}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.bbwPercentileWindow}`;
   if (cachedBtcWeeklyResearch2Data && cachedBtcWeeklyResearch2CacheKey === cacheKey) {
     return cachedBtcWeeklyResearch2Data;
   }
@@ -2048,17 +2184,24 @@ export async function getBtcWeeklyResearch2Data(): Promise<BtcWeeklyResearch2Dat
         points: [],
         segments: [],
         summaries: [],
+        thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
+        indicatorSettings,
+        latestObservedDate: "-",
         sourceLabel: "SQLite 无 BTC 周线研究页2数据",
         loadError: "BTC 周费率或成交量数据缺失。",
       };
     }
 
     const candles = loadBtcWeeklyCandles();
+    const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(`${symbol}USD_PERP`) as { latest_date: string | null }).latest_date;
+    const latestVolumeDate = dailyVolumes.at(-1)?.metric_date ?? null;
+    const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
     const result = {
       symbol,
       timeframe: "week" as const,
-      ...buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes),
-      sourceLabel: "SQLite 周费率/周成交量 + 本地 BTC 周线 OHLC 缓存 + 七态自动体制规则",
+      ...buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings }),
+      latestObservedDate,
+      sourceLabel: "SQLite 周费率/周成交量 + 本地 BTC 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则",
     };
     cachedBtcWeeklyResearch2Data = result;
     cachedBtcWeeklyResearch2CacheKey = cacheKey;
@@ -2070,6 +2213,9 @@ export async function getBtcWeeklyResearch2Data(): Promise<BtcWeeklyResearch2Dat
       points: [],
       segments: [],
       summaries: [],
+      thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
+      indicatorSettings,
+      latestObservedDate: "-",
       sourceLabel: "BTC 周线研究页2数据读取失败",
       loadError: error instanceof Error ? error.message : "unknown error",
     };

@@ -166,6 +166,10 @@ export type BtcWeeklyResearch2Point = {
   weeklyReturnPct: number;
   ema21: number;
   sma200: number;
+  bbBasis: number;
+  bbUpper: number;
+  bbLower: number;
+  rsi: number;
   adx14: number;
   bbw: number;
   bbwPercentile104: number;
@@ -207,12 +211,52 @@ export type BtcWeeklyResearch2Summary = {
   avgBbwPercentile104: number;
 };
 
+export type BtcWeeklyResearch2Thresholds = {
+  minSegmentWeeks: number;
+  splitPenalty: number;
+  maxSegmentWeeks: number;
+  bullQ65: number;
+  bullQ70: number;
+  bullQ80: number;
+  bullQ90: number;
+  bearQ30: number;
+  bearQ20: number;
+  maxAdvanceQ80: number;
+  maxAdvanceQ90: number;
+  maxDrawQ20: number;
+  maxDrawQ10: number;
+  peakToEndQ20: number;
+  adxLowQ35: number;
+  adxHighQ70: number;
+  bbwLowQ35: number;
+  bbwHighQ70: number;
+  trendQ30: number;
+  trendQ70: number;
+  directionBandRule: string;
+  neutralBandRule: string;
+  crashBearRule: string;
+};
+
+export type BtcWeeklyResearch2IndicatorSettings = {
+  emaPeriod: number;
+  smaPeriod: number;
+  adxPeriod: number;
+  rsiPeriod: number;
+  bbPeriod: number;
+  bbStdDev: number;
+  returnZPeriod: number;
+  bbwPercentileWindow: number;
+};
+
 export type BtcWeeklyResearch2Data = {
   symbol: string;
   timeframe: "week";
   points: BtcWeeklyResearch2Point[];
   segments: BtcWeeklyResearch2Segment[];
   summaries: BtcWeeklyResearch2Summary[];
+  thresholds: BtcWeeklyResearch2Thresholds;
+  indicatorSettings: BtcWeeklyResearch2IndicatorSettings;
+  latestObservedDate: string;
   sourceLabel: string;
   loadError?: string;
 };

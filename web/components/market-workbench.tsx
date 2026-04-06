@@ -1,8 +1,10 @@
 "use client";
 import { startTransition, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Bar,
   BarChart,
+  Brush,
   CartesianGrid,
   Cell,
   Line,
@@ -67,11 +69,9 @@ const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "rates", label: "费率总览", href: "/" },
   { key: "monthly", label: "月费率明细", href: "/monthly" },
   { key: "audit", label: "数据审计", href: "/audit" },
-  { key: "volume", label: "成交量观察", href: "/volume" },
   { key: "combined", label: "联合筛选", href: "/combined" },
   { key: "heatmap", label: "热力图", href: "/heatmap" },
-  { key: "research", label: "研究页", href: "/research" },
-  { key: "research2", label: "研究页2", href: "/research-2" },
+  { key: "research2", label: "周线研究", href: "/research-2" },
 ];
 const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "currentMonth", label: "本月维度", hint: "本月累计费率" },
@@ -109,6 +109,10 @@ function fmtScore(value: number) {
   return `${value >= 0 ? "+" : ""}${value.toFixed(2)}`;
 }
 
+function fmtPlainNumber(value: number) {
+  return Number.isFinite(value) ? value.toFixed(3) : "-";
+}
+
 function parseDateText(dateText: string) {
   return new Date(`${dateText}T00:00:00`);
 }
@@ -138,8 +142,18 @@ function viewTitle(view: ViewKey) {
   if (view === "volume") return "成交量观察";
   if (view === "combined") return "联合筛选";
   if (view === "research") return "BTC 周线研究";
-  if (view === "research2") return "BTC 周线研究2";
+  if (view === "research2") return "BTC 周线研究";
   return "热力图";
+}
+
+function buildResearchWindowRange(total: number, defaultWindowSize = 156) {
+  if (!total) {
+    return { startIndex: 0, endIndex: 0 };
+  }
+  if (total <= defaultWindowSize) {
+    return { startIndex: 0, endIndex: total - 1 };
+  }
+  return { startIndex: total - defaultWindowSize, endIndex: total - 1 };
 }
 
 function formatDateSpan(startText: string, endText: string) {
@@ -2522,7 +2536,6 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
                 <YAxis domain={[-fundingCap, fundingCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
-                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
                 <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
                   {points.map((point) => (
@@ -2600,7 +2613,6 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
                 <YAxis domain={[-1, 1]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => fmtScore(Number(value))} />
-                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
                 <Tooltip content={<AutoRegimeTooltip />} />
                 <Bar dataKey="autoHeatScore" radius={[4, 4, 0, 0]}>
                   {autoComparisonRows.map((point) => (
@@ -2695,30 +2707,92 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
 }
 
 function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Data }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const research2SummaryOrder = ["大牛", "小牛", "震荡牛", "震荡灰", "震荡熊", "小熊", "大熊"];
   const points = research2Data?.points ?? [];
   const latestPoint = points.at(-1) ?? null;
   const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearch2Data["points"][number] | null>(latestPoint);
+  const [visibleRange, setVisibleRange] = useState(() => buildResearchWindowRange(points.length));
+  const [showIndicatorSettings, setShowIndicatorSettings] = useState(false);
+  const [indicatorVisibility, setIndicatorVisibility] = useState({
+    rsi: true,
+    bollinger: true,
+    ema: true,
+    sma: true,
+    adx: true,
+    bbw: true,
+    returnZ: true,
+  });
+  const [minSegmentWeeksInput, setMinSegmentWeeksInput] = useState(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
+  const [splitPenaltyInput, setSplitPenaltyInput] = useState(String(research2Data?.thresholds.splitPenalty ?? 7.8));
+  const [maxSegmentWeeksInput, setMaxSegmentWeeksInput] = useState(String(research2Data?.thresholds.maxSegmentWeeks ?? 28));
+  const [emaPeriodInput, setEmaPeriodInput] = useState(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
+  const [smaPeriodInput, setSmaPeriodInput] = useState(String(research2Data?.indicatorSettings.smaPeriod ?? 200));
+  const [adxPeriodInput, setAdxPeriodInput] = useState(String(research2Data?.indicatorSettings.adxPeriod ?? 14));
+  const [rsiPeriodInput, setRsiPeriodInput] = useState(String(research2Data?.indicatorSettings.rsiPeriod ?? 14));
+  const [bbPeriodInput, setBbPeriodInput] = useState(String(research2Data?.indicatorSettings.bbPeriod ?? 20));
+  const [bbStdDevInput, setBbStdDevInput] = useState(String(research2Data?.indicatorSettings.bbStdDev ?? 2));
+  const [returnZPeriodInput, setReturnZPeriodInput] = useState(String(research2Data?.indicatorSettings.returnZPeriod ?? 52));
+  const [bbwWindowInput, setBbwWindowInput] = useState(String(research2Data?.indicatorSettings.bbwPercentileWindow ?? 104));
 
   useEffect(() => {
     setHoverPoint(latestPoint);
   }, [latestPoint]);
 
+  useEffect(() => {
+    setVisibleRange(buildResearchWindowRange(points.length));
+  }, [points.length]);
+
+  useEffect(() => {
+    setMinSegmentWeeksInput(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
+    setSplitPenaltyInput(String(research2Data?.thresholds.splitPenalty ?? 7.8));
+    setMaxSegmentWeeksInput(String(research2Data?.thresholds.maxSegmentWeeks ?? 28));
+  }, [research2Data?.thresholds.maxSegmentWeeks, research2Data?.thresholds.minSegmentWeeks, research2Data?.thresholds.splitPenalty]);
+  useEffect(() => {
+    setEmaPeriodInput(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
+    setSmaPeriodInput(String(research2Data?.indicatorSettings.smaPeriod ?? 200));
+    setAdxPeriodInput(String(research2Data?.indicatorSettings.adxPeriod ?? 14));
+    setRsiPeriodInput(String(research2Data?.indicatorSettings.rsiPeriod ?? 14));
+    setBbPeriodInput(String(research2Data?.indicatorSettings.bbPeriod ?? 20));
+    setBbStdDevInput(String(research2Data?.indicatorSettings.bbStdDev ?? 2));
+    setReturnZPeriodInput(String(research2Data?.indicatorSettings.returnZPeriod ?? 52));
+    setBbwWindowInput(String(research2Data?.indicatorSettings.bbwPercentileWindow ?? 104));
+  }, [research2Data?.indicatorSettings]);
+
   if (!research2Data || research2Data.loadError) {
     return (
-      <Card title="BTC 周线研究2" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
+      <Card title="BTC 周线研究" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
         <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-          {research2Data?.loadError ?? "研究页2数据暂不可用。"}
+          {research2Data?.loadError ?? "周线研究数据暂不可用。"}
         </div>
       </Card>
     );
   }
 
+  const normalizedRange = {
+    startIndex: Math.max(0, Math.min(visibleRange.startIndex, Math.max(points.length - 1, 0))),
+    endIndex: Math.max(0, Math.min(visibleRange.endIndex, Math.max(points.length - 1, 0))),
+  };
+  if (normalizedRange.startIndex > normalizedRange.endIndex) {
+    normalizedRange.startIndex = normalizedRange.endIndex;
+  }
+  const visiblePoints = points.slice(normalizedRange.startIndex, normalizedRange.endIndex + 1);
+  const visibleStartWeek = visiblePoints[0]?.weekStart ?? points[0]?.weekStart ?? "";
+  const visibleEndWeek = visiblePoints.at(-1)?.weekStart ?? points.at(-1)?.weekStart ?? "";
   const regimeRanges = research2Data.segments.map((segment) => ({
     ...segment,
     x1: segment.start,
     x2: points.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
   }));
+  const visibleRegimeRanges = regimeRanges
+    .filter((segment) => !visibleStartWeek || !visibleEndWeek || (segment.x2 >= visibleStartWeek && segment.x1 <= visibleEndWeek))
+    .map((segment) => ({
+      ...segment,
+      x1: segment.x1 < visibleStartWeek ? visibleStartWeek : segment.x1,
+      x2: segment.x2 > visibleEndWeek ? visibleEndWeek : segment.x2,
+    }));
   const handleHover = (state?: { activePayload?: Array<{ payload?: BtcWeeklyResearch2Data["points"][number] }> }) => {
     const point = state?.activePayload?.[0]?.payload;
     if (point) setHoverPoint(point);
@@ -2726,9 +2800,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const activeSegment = hoverPoint
     ? research2Data.segments.find((segment) => hoverPoint.weekStart >= segment.start && hoverPoint.weekEnd <= segment.end)
     : null;
-  const priceValues = points.map((point) => point.closePrice);
-  const fundingValues = points.map((point) => point.fundingRatePct);
-  const volumeValues = points.map((point) => point.avgVolumeM).filter((value) => value > 0);
+  const priceValues = visiblePoints.map((point) => point.closePrice);
+  const fundingValues = visiblePoints.map((point) => point.fundingRatePct);
+  const volumeValues = visiblePoints.map((point) => point.avgVolumeM).filter((value) => value > 0);
   const priceMin = priceValues.length ? Math.min(...priceValues) : 0;
   const priceMax = priceValues.length ? Math.max(...priceValues) : 0;
   const pricePadding = priceMax > priceMin ? (priceMax - priceMin) * 0.08 : priceMax * 0.05;
@@ -2745,18 +2819,81 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     const normalizedRight = rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex;
     return normalizedLeft - normalizedRight;
   });
+  const bullSharePct = orderedSummaries
+    .filter((summary) => ["大牛", "小牛", "震荡牛"].includes(summary.label))
+    .reduce((sum, summary) => sum + summary.sharePct, 0);
+  const bearSharePct = orderedSummaries
+    .filter((summary) => ["大熊", "小熊", "震荡熊"].includes(summary.label))
+    .reduce((sum, summary) => sum + summary.sharePct, 0);
+  const applyResearch2Tuning = () => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("minWeeks", minSegmentWeeksInput.trim() || String(research2Data.thresholds.minSegmentWeeks));
+    nextParams.set("splitPenalty", splitPenaltyInput.trim() || String(research2Data.thresholds.splitPenalty));
+    nextParams.set("maxWeeks", maxSegmentWeeksInput.trim() || String(research2Data.thresholds.maxSegmentWeeks));
+    startTransition(() => {
+      router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    });
+  };
+  const resetResearch2Tuning = () => {
+    setMinSegmentWeeksInput("5");
+    setSplitPenaltyInput("7.8");
+    setMaxSegmentWeeksInput("28");
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("minWeeks");
+    nextParams.delete("splitPenalty");
+    nextParams.delete("maxWeeks");
+    startTransition(() => {
+      const query = nextParams.toString();
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    });
+  };
+  const toggleIndicatorVisibility = (key: keyof typeof indicatorVisibility) => {
+    setIndicatorVisibility((current) => ({ ...current, [key]: !current[key] }));
+  };
+  const applyIndicatorSettings = () => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("emaPeriod", emaPeriodInput.trim() || String(research2Data.indicatorSettings.emaPeriod));
+    nextParams.set("smaPeriod", smaPeriodInput.trim() || String(research2Data.indicatorSettings.smaPeriod));
+    nextParams.set("adxPeriod", adxPeriodInput.trim() || String(research2Data.indicatorSettings.adxPeriod));
+    nextParams.set("rsiPeriod", rsiPeriodInput.trim() || String(research2Data.indicatorSettings.rsiPeriod));
+    nextParams.set("bbPeriod", bbPeriodInput.trim() || String(research2Data.indicatorSettings.bbPeriod));
+    nextParams.set("bbStdDev", bbStdDevInput.trim() || String(research2Data.indicatorSettings.bbStdDev));
+    nextParams.set("returnZPeriod", returnZPeriodInput.trim() || String(research2Data.indicatorSettings.returnZPeriod));
+    nextParams.set("bbwWindow", bbwWindowInput.trim() || String(research2Data.indicatorSettings.bbwPercentileWindow));
+    startTransition(() => {
+      router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    });
+  };
+  const resetIndicatorSettings = () => {
+    setEmaPeriodInput("21");
+    setSmaPeriodInput("200");
+    setAdxPeriodInput("14");
+    setRsiPeriodInput("14");
+    setBbPeriodInput("20");
+    setBbStdDevInput("2");
+    setReturnZPeriodInput("52");
+    setBbwWindowInput("104");
+    const nextParams = new URLSearchParams(searchParams.toString());
+    for (const key of ["emaPeriod", "smaPeriod", "adxPeriod", "rsiPeriod", "bbPeriod", "bbStdDev", "returnZPeriod", "bbwWindow"]) {
+      nextParams.delete(key);
+    }
+    startTransition(() => {
+      const query = nextParams.toString();
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    });
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-5">
         <Kpi label="自动区间数" value={`${research2Data.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
         <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
-        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近一周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}，家族 ${latestPoint.family}` : "暂无最新周线。"} />
-        <Kpi label="最新数据日期" value={latestPoint?.weekEnd ?? "-"} hint={latestPoint ? `当前周线区间 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}` : "暂无最新周线。"} />
+        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近已完成周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}，家族 ${latestPoint.family}` : "暂无已完成周线。"} />
+        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={latestPoint ? `当前研究分段最新完成周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}` : "暂无最新观测数据。"} />
         <Kpi label="数据源" value={`${research2Data.symbol} 周线`} hint={research2Data.sourceLabel} />
       </div>
 
-      <Card title={`${research2Data.symbol} 七态自动分区图`}>
+      <Card title={`${research2Data.symbol} 七态自动分区图`} hint="底部时间窗可左右拖拽，默认先看最近 156 周。">
         <div className="mb-4 flex flex-wrap gap-2">
           {orderedSummaries.map((summary) => (
             <span key={summary.label} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
@@ -2764,6 +2901,15 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               {summary.label} {summary.sharePct}%
             </span>
           ))}
+          <span className="inline-flex items-center px-1 text-slate-300">|</span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            牛总 {bullSharePct.toFixed(1)}%
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
+            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+            熊总 {bearSharePct.toFixed(1)}%
+          </span>
         </div>
 
         <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/75 px-4 py-3 shadow-sm backdrop-blur">
@@ -2779,16 +2925,23 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               </div>
 
               <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-                <div className="grid gap-x-4 gap-y-2 text-sm text-slate-600 md:grid-cols-4">
-                  <div>区间: <span className="font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</span></div>
-                  <div>时间范围: <span className="font-medium text-slate-900">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</span></div>
-                  <div>周数: <span className="font-medium text-slate-900">{activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}</span></div>
-                  <div>区间累计涨跌: <span className={`font-medium ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</span></div>
-                  <div>平均周收益: <span className={`font-medium ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</span></div>
-                  <div>区间内最大上冲: <span className={`font-medium ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</span></div>
-                  <div>区间内最大回撤: <span className={`font-medium ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</span></div>
-                  <div>峰值到段末回撤: <span className={`font-medium ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</span></div>
-                  <div className="md:col-span-4">趋势分: <span className="font-medium text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</span></div>
+                <div className="grid gap-x-4 gap-y-2 text-sm text-slate-600">
+                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-4">
+                    <div>区间: <span className="font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</span></div>
+                    <div>当前区块: <span className="font-medium text-slate-900">#{activeSegment ? activeSegment.index + 1 : "-"}</span></div>
+                    <div>时间范围: <span className="font-medium text-slate-900">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</span></div>
+                    <div>周数: <span className="font-medium text-slate-900">{activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}</span></div>
+                  </div>
+                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-4">
+                    <div>区间累计涨跌: <span className={`font-medium ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</span></div>
+                    <div>平均周收益: <span className={`font-medium ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</span></div>
+                    <div>区间内最大上冲: <span className={`font-medium ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</span></div>
+                    <div>区间内最大回撤: <span className={`font-medium ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</span></div>
+                  </div>
+                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-2">
+                    <div>峰值到段末回撤: <span className={`font-medium ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</span></div>
+                    <div>趋势分: <span className="font-medium text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</span></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2797,16 +2950,80 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           )}
         </div>
 
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <div>当前展示窗: <span className="font-medium text-slate-900">{visiblePoints[0]?.weekStart ?? "-"} ~ {visiblePoints.at(-1)?.weekEnd ?? "-"}</span></div>
+          <div className="flex items-center gap-3">
+            <div>展示周数: <span className="font-medium text-slate-900">{visiblePoints.length}</span></div>
+            <button
+              type="button"
+              onClick={() => setShowIndicatorSettings((current) => !current)}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+            >
+              指标设置
+            </button>
+          </div>
+        </div>
+
+        {showIndicatorSettings ? (
+          <div className="mb-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4">
+            <div className="mb-3 text-sm font-semibold text-slate-900">指标参数设置</div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">EMA</div>
+                <div className="mt-2 text-xs text-slate-500">周期</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={emaPeriodInput} onChange={(event) => setEmaPeriodInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">SMA</div>
+                <div className="mt-2 text-xs text-slate-500">周期</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={smaPeriodInput} onChange={(event) => setSmaPeriodInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">ADX</div>
+                <div className="mt-2 text-xs text-slate-500">周期</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={adxPeriodInput} onChange={(event) => setAdxPeriodInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">RSI</div>
+                <div className="mt-2 text-xs text-slate-500">周期</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={rsiPeriodInput} onChange={(event) => setRsiPeriodInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">布林线</div>
+                <div className="mt-2 text-xs text-slate-500">周期</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbPeriodInput} onChange={(event) => setBbPeriodInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">标准差倍数</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbStdDevInput} onChange={(event) => setBbStdDevInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">BBW 分位</div>
+                <div className="mt-2 text-xs text-slate-500">分位窗口</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbwWindowInput} onChange={(event) => setBbwWindowInput(event.target.value)} />
+              </label>
+              <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
+                <div className="text-xs text-slate-500">Return Z</div>
+                <div className="mt-2 text-xs text-slate-500">Z 分数窗口</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={returnZPeriodInput} onChange={(event) => setReturnZPeriodInput(event.target.value)} />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" onClick={applyIndicatorSettings} className="inline-flex h-10 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700">应用指标参数</button>
+              <button type="button" onClick={resetIndicatorSettings} className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">恢复默认指标</button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="space-y-4">
           <div className="h-[220px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#0f766e]" />EMA21</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />SMA200</span>
+              <button type="button" onClick={() => toggleIndicatorVisibility("bollinger")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bollinger ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />布林线 {hoverPoint ? `${fmtPrice(hoverPoint.bbUpper)} / ${fmtPrice(hoverPoint.bbBasis)} / ${fmtPrice(hoverPoint.bbLower)}` : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("ema")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.ema ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#0f766e]" />EMA {hoverPoint ? fmtPrice(hoverPoint.ema21) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("sma")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.sma ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />SMA {hoverPoint ? fmtPrice(hoverPoint.sma200) : "-"}</button>
+              <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价 {hoverPoint ? fmtPrice(hoverPoint.closePrice) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <LineChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
-                {regimeRanges.map((segment) => (
+              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-price-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -2814,29 +3031,30 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                 <Tooltip content={() => null} />
                 <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.4} />
-                <Line type="monotone" dataKey="ema21" stroke="#0f766e" dot={false} strokeWidth={1.5} />
-                <Line type="monotone" dataKey="sma200" stroke="#7c3aed" dot={false} strokeWidth={1.2} />
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbUpper" stroke="#f59e0b" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbBasis" stroke="#fbbf24" dot={false} strokeWidth={1.1} /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbLower" stroke="#f59e0b" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.ema ? <Line type="monotone" dataKey="ema21" stroke="#0f766e" dot={false} strokeWidth={1.5} /> : null}
+                {indicatorVisibility.sma ? <Line type="monotone" dataKey="sma200" stroke="#7c3aed" dot={false} strokeWidth={1.2} /> : null}
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="h-[170px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />周费率柱</span>
-              <span className="inline-flex items-center gap-2"><span className="h-4 w-px bg-slate-400" />0% 基准线</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />周费率柱 {hoverPoint ? fmtPct(hoverPoint.fundingRatePct) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
-                {regimeRanges.map((segment) => (
+              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-funding-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
                 <YAxis domain={[-fundingCap, fundingCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
-                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
                 <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
-                  {points.map((point) => (
+                  {visiblePoints.map((point) => (
                     <Cell key={`research2-funding-bar-${point.weekStart}`} fill={point.fundingRatePct >= 0 ? "#059669" : "#dc2626"} />
                   ))}
                 </Bar>
@@ -2846,13 +3064,14 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
           <div className="h-[170px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#0f172a]" />ADX14</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#d97706]" />BBW 分位</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Return Z52</span>
+              <button type="button" onClick={() => toggleIndicatorVisibility("rsi")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.rsi ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#ef4444]" />RSI {hoverPoint ? hoverPoint.rsi.toFixed(1) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("adx")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.adx ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#0f172a]" />ADX {hoverPoint ? hoverPoint.adx14.toFixed(1) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("bbw")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bbw ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#d97706]" />BBW {hoverPoint ? hoverPoint.bbwPercentile104.toFixed(1) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("returnZ")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.returnZ ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Return {hoverPoint ? hoverPoint.returnZ52.toFixed(2) : "-"}</button>
             </div>
             <ResponsiveContainer>
-              <LineChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
-                {regimeRanges.map((segment) => (
+              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-indicator-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.25} strokeOpacity={0} />
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -2860,20 +3079,21 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
                 <YAxis yAxisId="right" orientation="right" domain={[-4, 4]} tick={{ fill: "#64748b", fontSize: 12 }} />
                 <Tooltip content={() => null} />
-                <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} />
-                <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} />
-                <Line yAxisId="right" type="monotone" dataKey="returnZ52" stroke="#2563eb" dot={false} strokeWidth={1.6} />
+                {indicatorVisibility.rsi ? <Line yAxisId="left" type="monotone" dataKey="rsi" stroke="#ef4444" dot={false} strokeWidth={1.6} /> : null}
+                {indicatorVisibility.adx ? <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} /> : null}
+                {indicatorVisibility.bbw ? <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} /> : null}
+                {indicatorVisibility.returnZ ? <Line yAxisId="right" type="monotone" dataKey="returnZ52" stroke="#2563eb" dot={false} strokeWidth={1.6} /> : null}
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           <div className="h-[170px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />日均成交量</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />日均成交量 {hoverPoint ? fmtVol(hoverPoint.avgVolumeM) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
-                {regimeRanges.map((segment) => (
+              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-volume-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -2887,16 +3107,41 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
           <div className="h-[90px] w-full">
             <ResponsiveContainer>
-              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
                 <YAxis hide domain={[0, 1]} />
                 <Tooltip content={() => null} />
                 <Bar dataKey={() => 1} isAnimationActive={false}>
-                  {points.map((point) => (
+                  {visiblePoints.map((point) => (
                     <Cell key={`research2-band-${point.weekStart}`} fill={point.confirmedTone} />
                   ))}
                 </Bar>
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[90px] w-full rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="mb-2 text-xs text-slate-500">时间截断控制</div>
+            <ResponsiveContainer>
+              <LineChart data={points}>
+                <XAxis dataKey="weekStart" hide />
+                <YAxis hide domain={["dataMin", "dataMax"]} />
+                <Line type="monotone" dataKey="closePrice" stroke="#94a3b8" dot={false} strokeWidth={1.2} isAnimationActive={false} />
+                <Brush
+                  dataKey="weekStart"
+                  height={28}
+                  stroke="#2563eb"
+                  startIndex={normalizedRange.startIndex}
+                  endIndex={normalizedRange.endIndex}
+                  travellerWidth={12}
+                  tickFormatter={(value) => value.slice(2, 10)}
+                  onChange={(range) => {
+                    const startIndex = typeof range?.startIndex === "number" ? range.startIndex : normalizedRange.startIndex;
+                    const endIndex = typeof range?.endIndex === "number" ? range.endIndex : normalizedRange.endIndex;
+                    setVisibleRange({ startIndex, endIndex });
+                  }}
+                />
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -2962,6 +3207,141 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 </div>
               </div>
             ))}
+          </div>
+        </Card>
+
+        <Card title="七态边界参数" hint="这里展示当前这次分段实际用到的动态阈值和固定规则，所有分位数都来自当前样本段分布。">
+          <div className="space-y-4 text-sm text-slate-600">
+            <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-4">
+              <div className="mb-3 text-sm font-semibold text-slate-900">参数编辑</div>
+              <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                <label className="space-y-1">
+                  <div className="text-xs text-slate-500">最短区间</div>
+                  <input
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                    value={minSegmentWeeksInput}
+                    onChange={(event) => setMinSegmentWeeksInput(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-xs text-slate-500">分段惩罚</div>
+                  <input
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                    value={splitPenaltyInput}
+                    onChange={(event) => setSplitPenaltyInput(event.target.value)}
+                  />
+                </label>
+                <label className="space-y-1">
+                  <div className="text-xs text-slate-500">最长区间</div>
+                  <input
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                    value={maxSegmentWeeksInput}
+                    onChange={(event) => setMaxSegmentWeeksInput(event.target.value)}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <div className="flex w-full gap-2">
+                    <button
+                      type="button"
+                      onClick={applyResearch2Tuning}
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700"
+                    >
+                      应用参数
+                    </button>
+                    <button
+                      type="button"
+                      onClick={resetResearch2Tuning}
+                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                    >
+                      恢复默认值
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-3 text-xs text-slate-500">点击“应用参数”后，页面会按新参数重新分段并自动更新图表、区间统计和七态画像。</div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">这 3 个参数是什么意思</div>
+                <div className="mt-2 space-y-2">
+                  <div><span className="font-medium text-slate-900">最短区间</span>：允许切出来的最短段长。越小越容易切碎，越大越稳。</div>
+                  <div><span className="font-medium text-slate-900">分段惩罚</span>：切一刀要付出的成本。越大越不容易新增区间，越小越敏感。</div>
+                  <div><span className="font-medium text-slate-900">最长区间</span>：单段允许拖多长。越小越容易把长趋势拆开，越大越容易出现超长段。</div>
+                </div>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">动态阈值怎么看</div>
+                <div className="mt-2 space-y-2">
+                  <div><span className="font-medium text-slate-900">bull / bear</span>：按当前区间样本的累计涨跌分布算出来，决定牛熊起始边界。</div>
+                  <div><span className="font-medium text-slate-900">maxAdvance / maxDraw</span>：看段内推进和回撤强度，决定大牛、大熊和风险纠偏。</div>
+                  <div><span className="font-medium text-slate-900">adx / bbw / trend</span>：看趋势强弱、波动宽窄和斜率，决定震荡灰、震荡牛、震荡熊的边界。</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">分段约束</div>
+                <div className="mt-2 space-y-1">
+                  <div>最短区间: <span className="font-medium text-slate-900">{research2Data.thresholds.minSegmentWeeks} 周</span></div>
+                  <div>分段惩罚: <span className="font-medium text-slate-900">{fmtPlainNumber(research2Data.thresholds.splitPenalty)}</span></div>
+                  <div>最长区间: <span className="font-medium text-slate-900">{research2Data.thresholds.maxSegmentWeeks} 周</span></div>
+                </div>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">方向带规则</div>
+                <div className="mt-2 space-y-1">
+                  <div>directionBand: <span className="font-medium text-slate-900">{research2Data.thresholds.directionBandRule}</span></div>
+                  <div>neutralBand: <span className="font-medium text-slate-900">{research2Data.thresholds.neutralBandRule}</span></div>
+                </div>
+              </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="text-xs text-slate-500">极端空头规则</div>
+                <div className="mt-2">
+                  <div>{research2Data.thresholds.crashBearRule}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500">
+                    <th className="py-3">参数</th>
+                    <th className="py-3 text-right">当前值</th>
+                    <th className="py-3">用途</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["bullQ65", research2Data.thresholds.bullQ65, "多头方向带基准"],
+                    ["bullQ70", research2Data.thresholds.bullQ70, "小牛起始净涨幅阈值"],
+                    ["bullQ80", research2Data.thresholds.bullQ80, "大牛升级净涨幅参考"],
+                    ["bullQ90", research2Data.thresholds.bullQ90, "极端多头参考"],
+                    ["bearQ30", research2Data.thresholds.bearQ30, "小熊起始净跌幅阈值"],
+                    ["bearQ20", research2Data.thresholds.bearQ20, "大熊/急杀熊净跌幅参考"],
+                    ["maxAdvanceQ80", research2Data.thresholds.maxAdvanceQ80, "上冲强度参考"],
+                    ["maxAdvanceQ90", research2Data.thresholds.maxAdvanceQ90, "大牛推进参考"],
+                    ["maxDrawQ20", research2Data.thresholds.maxDrawQ20, "风险强度参考"],
+                    ["maxDrawQ10", research2Data.thresholds.maxDrawQ10, "大熊/急杀熊回撤参考"],
+                    ["peakToEndQ20", research2Data.thresholds.peakToEndQ20, "高位回落纠偏参考"],
+                    ["adxLowQ35", research2Data.thresholds.adxLowQ35, "平缓震荡低趋势阈值"],
+                    ["adxHighQ70", research2Data.thresholds.adxHighQ70, "强趋势阈值"],
+                    ["bbwLowQ35", research2Data.thresholds.bbwLowQ35, "窄波动阈值"],
+                    ["bbwHighQ70", research2Data.thresholds.bbwHighQ70, "宽波动阈值"],
+                    ["trendQ30", research2Data.thresholds.trendQ30, "低趋势斜率阈值"],
+                    ["trendQ70", research2Data.thresholds.trendQ70, "高趋势斜率阈值"],
+                  ].map(([name, value, note]) => (
+                    <tr key={`threshold-${name}`} className="border-b border-slate-100">
+                      <td className="py-3 font-medium text-slate-900">{name}</td>
+                      <td className="py-3 text-right text-slate-600">{fmtPlainNumber(Number(value))}</td>
+                      <td className="py-3 text-slate-600">{note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </Card>
       </div>
