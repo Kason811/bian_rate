@@ -153,6 +153,73 @@ export type BtcWeeklyResearchData = {
   loadError?: string;
 };
 
+export type BtcWeeklyResearch2Point = {
+  weekStart: string;
+  weekEnd: string;
+  weekLabel: string;
+  openPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  closePrice: number;
+  fundingRatePct: number;
+  avgVolumeM: number;
+  weeklyReturnPct: number;
+  ema21: number;
+  sma200: number;
+  adx14: number;
+  bbw: number;
+  bbwPercentile104: number;
+  returnZ52: number;
+  baseRegime: string;
+  confirmedRegime: string;
+  confirmedTone: string;
+  family: "Bull" | "Sideways" | "Bear";
+};
+
+export type BtcWeeklyResearch2Segment = {
+  index: number;
+  label: string;
+  family: "Bull" | "Sideways" | "Bear";
+  tone: string;
+  start: string;
+  end: string;
+  weeks: number;
+  cumulativeReturnPct: number;
+  maxAdvancePct: number;
+  maxDrawdownPct: number;
+  avgFundingRatePct: number;
+  avgVolumeM: number;
+  avgAdx14: number;
+  avgBbwPercentile104: number;
+  avgWeeklyReturnPct: number;
+  peakToEndDrawdownPct: number;
+  positiveReturnSharePct: number;
+  priceSlope: number;
+  trendScore: number;
+  classificationNote?: string;
+  validatorNote?: string;
+};
+
+export type BtcWeeklyResearch2Summary = {
+  label: string;
+  weeks: number;
+  sharePct: number;
+  avgWeeklyReturnPct: number;
+  avgFundingRatePct: number;
+  avgAdx14: number;
+  avgBbwPercentile104: number;
+};
+
+export type BtcWeeklyResearch2Data = {
+  symbol: string;
+  timeframe: "week";
+  points: BtcWeeklyResearch2Point[];
+  segments: BtcWeeklyResearch2Segment[];
+  summaries: BtcWeeklyResearch2Summary[];
+  sourceLabel: string;
+  loadError?: string;
+};
+
 export type MonthlyRateRow = {
   symbol: string;
   months: Record<string, number>;

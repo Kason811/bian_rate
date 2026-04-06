@@ -22,6 +22,7 @@ import { saveManualResearchRegimes } from "@/app/research/actions";
 import {
   type AuditRow,
   type BtcWeeklyResearchData,
+  type BtcWeeklyResearch2Data,
   getRateTrend,
   getRateValue,
   getVolumeTrend,
@@ -32,7 +33,7 @@ import {
   type WorkbenchData,
 } from "@/lib/workbench-data";
 
-type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap" | "research";
+type ViewKey = "rates" | "monthly" | "audit" | "volume" | "combined" | "heatmap" | "research" | "research2";
 type RateWindowKey = "currentMonth" | "previousMonth" | "previous3Months" | "previous6Months" | "previous12Months";
 type MonthlySortKey = "symbol" | "lastMonth" | "last3Months" | "total" | "average" | "bestMonth" | "worstMonth" | "volatility" | "positiveMonths";
 type RateTableSortKey =
@@ -70,6 +71,7 @@ const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "combined", label: "联合筛选", href: "/combined" },
   { key: "heatmap", label: "热力图", href: "/heatmap" },
   { key: "research", label: "研究页", href: "/research" },
+  { key: "research2", label: "研究页2", href: "/research-2" },
 ];
 const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "currentMonth", label: "本月维度", hint: "本月累计费率" },
@@ -136,6 +138,7 @@ function viewTitle(view: ViewKey) {
   if (view === "volume") return "成交量观察";
   if (view === "combined") return "联合筛选";
   if (view === "research") return "BTC 周线研究";
+  if (view === "research2") return "BTC 周线研究2";
   return "热力图";
 }
 
@@ -795,7 +798,7 @@ function WorkbenchShell({
           </aside>
 
           <main className="relative z-0 min-w-0 overflow-x-hidden">
-            {initialView === "rates" || initialView === "audit" || initialView === "monthly" || initialView === "combined" || initialView === "heatmap" || initialView === "research" ? (
+            {initialView === "rates" || initialView === "audit" || initialView === "monthly" || initialView === "combined" || initialView === "heatmap" || initialView === "research" || initialView === "research2" ? (
               <header className="mb-6 rounded-[30px] border border-slate-200 bg-white/92 p-6 shadow-sm backdrop-blur">
                 <div className="flex flex-col gap-6">
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -2691,7 +2694,361 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
   );
 }
 
-export default function MarketWorkbench({ data, initialView, researchData }: { data: WorkbenchData; initialView: ViewKey; researchData?: BtcWeeklyResearchData }) {
+function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Data }) {
+  const research2SummaryOrder = ["大牛", "小牛", "震荡牛", "震荡灰", "震荡熊", "小熊", "大熊"];
+  const points = research2Data?.points ?? [];
+  const latestPoint = points.at(-1) ?? null;
+  const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearch2Data["points"][number] | null>(latestPoint);
+
+  useEffect(() => {
+    setHoverPoint(latestPoint);
+  }, [latestPoint]);
+
+  if (!research2Data || research2Data.loadError) {
+    return (
+      <Card title="BTC 周线研究2" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
+        <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+          {research2Data?.loadError ?? "研究页2数据暂不可用。"}
+        </div>
+      </Card>
+    );
+  }
+
+  const regimeRanges = research2Data.segments.map((segment) => ({
+    ...segment,
+    x1: segment.start,
+    x2: points.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
+  }));
+  const handleHover = (state?: { activePayload?: Array<{ payload?: BtcWeeklyResearch2Data["points"][number] }> }) => {
+    const point = state?.activePayload?.[0]?.payload;
+    if (point) setHoverPoint(point);
+  };
+  const activeSegment = hoverPoint
+    ? research2Data.segments.find((segment) => hoverPoint.weekStart >= segment.start && hoverPoint.weekEnd <= segment.end)
+    : null;
+  const priceValues = points.map((point) => point.closePrice);
+  const fundingValues = points.map((point) => point.fundingRatePct);
+  const volumeValues = points.map((point) => point.avgVolumeM).filter((value) => value > 0);
+  const priceMin = priceValues.length ? Math.min(...priceValues) : 0;
+  const priceMax = priceValues.length ? Math.max(...priceValues) : 0;
+  const pricePadding = priceMax > priceMin ? (priceMax - priceMin) * 0.08 : priceMax * 0.05;
+  const fundingCap = rateAxisCap(fundingValues);
+  const volumeFloor = volumeValues.length ? Math.max(Math.min(...volumeValues) * 0.85, 1) : 1;
+  const volumeCap = Math.max(volumeAxisCap(volumeValues), volumeFloor * 1.1);
+  const averageSegmentWeeks = research2Data.segments.length
+    ? Number((research2Data.segments.reduce((sum, segment) => sum + segment.weeks, 0) / research2Data.segments.length).toFixed(1))
+    : 0;
+  const strongestBull = [...research2Data.segments]
+    .filter((segment) => segment.family === "Bull")
+    .sort((left, right) => right.cumulativeReturnPct - left.cumulativeReturnPct)[0];
+  const strongestBear = [...research2Data.segments]
+    .filter((segment) => segment.family === "Bear")
+    .sort((left, right) => left.cumulativeReturnPct - right.cumulativeReturnPct)[0];
+  const orderedSummaries = [...research2Data.summaries].sort((left, right) => {
+    const leftIndex = research2SummaryOrder.indexOf(left.label);
+    const rightIndex = research2SummaryOrder.indexOf(right.label);
+    const normalizedLeft = leftIndex < 0 ? Number.MAX_SAFE_INTEGER : leftIndex;
+    const normalizedRight = rightIndex < 0 ? Number.MAX_SAFE_INTEGER : rightIndex;
+    return normalizedLeft - normalizedRight;
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-4">
+        <Kpi label="自动区间数" value={`${research2Data.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
+        <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
+        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近一周 ${latestPoint.weekStart}，家族 ${latestPoint.family}` : "暂无最新周线。"} />
+        <Kpi label="数据源" value={`${research2Data.symbol} 周线`} hint={research2Data.sourceLabel} />
+      </div>
+
+      <Card title={`${research2Data.symbol} 七态自动分区图`} hint="规则来自 deep-research-report2.md：先在连续特征空间分段，再按段级收益、推进、回撤、趋势强度、费率和量能做七态命名。">
+        <div className="mb-4 flex flex-wrap gap-2">
+          {research2Data.summaries.map((summary) => (
+            <span key={summary.label} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: points.find((point) => point.confirmedRegime === summary.label)?.confirmedTone ?? "#cbd5e1" }} />
+              {summary.label} {summary.sharePct}%
+            </span>
+          ))}
+        </div>
+
+        <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/75 px-4 py-3 shadow-sm backdrop-blur">
+          {hoverPoint ? (
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+              <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">时间</div>
+                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.weekStart}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">Confirmed</div>
+                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.confirmedRegime}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周级初判</div>
+                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.baseRegime}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周涨跌</div>
+                  <div className={`mt-1 font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">价格</div>
+                  <div className="mt-1 font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周费率</div>
+                  <div className={`mt-1 font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                  <div className="text-xs text-slate-500">周日均成交量</div>
+                  <div className="mt-1 font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</div>
+                </div>
+                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
+                    <div className="text-xs text-slate-500">ADX / BBW分位</div>
+                    <div className="mt-1 font-medium text-slate-900">{hoverPoint.adx14.toFixed(1)} / {hoverPoint.bbwPercentile104.toFixed(1)}</div>
+                  </div>
+                </div>
+
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-xs text-slate-500">当前区间摘要</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</div>
+                    <div className="mt-1 text-xs text-slate-500">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</div>
+                  </div>
+                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
+                    {activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs text-slate-500">区间累计涨跌</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">平均周收益</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">区间内最大上冲</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">区间内最大回撤</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">峰值到段末回撤</div>
+                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-slate-500">趋势分</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-slate-500">移动到图表上查看当前周的七态判定和指标。</div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="h-[220px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#0f766e]" />EMA21</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />SMA200</span>
+            </div>
+            <ResponsiveContainer>
+              <LineChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {regimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-price-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                <Tooltip content={() => null} />
+                <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.4} />
+                <Line type="monotone" dataKey="ema21" stroke="#0f766e" dot={false} strokeWidth={1.5} />
+                <Line type="monotone" dataKey="sma200" stroke="#7c3aed" dot={false} strokeWidth={1.2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[170px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />周费率柱</span>
+              <span className="inline-flex items-center gap-2"><span className="h-4 w-px bg-slate-400" />0% 基准线</span>
+            </div>
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {regimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-funding-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis domain={[-fundingCap, fundingCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                <Tooltip content={() => null} />
+                <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
+                  {points.map((point) => (
+                    <Cell key={`research2-funding-bar-${point.weekStart}`} fill={point.fundingRatePct >= 0 ? "#059669" : "#dc2626"} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[170px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#0f172a]" />ADX14</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#d97706]" />BBW 分位</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Return Z52</span>
+            </div>
+            <ResponsiveContainer>
+              <LineChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {regimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-indicator-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.25} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <YAxis yAxisId="right" orientation="right" domain={[-4, 4]} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <Tooltip content={() => null} />
+                <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} />
+                <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} />
+                <Line yAxisId="right" type="monotone" dataKey="returnZ52" stroke="#2563eb" dot={false} strokeWidth={1.6} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[170px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />日均成交量</span>
+            </div>
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {regimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-volume-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis scale="log" domain={[volumeFloor, volumeCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value))}M`} />
+                <Tooltip content={() => null} />
+                <Bar dataKey="avgVolumeM" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[90px] w-full">
+            <ResponsiveContainer>
+              <BarChart data={points} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <YAxis hide domain={[0, 1]} />
+                <Tooltip content={() => null} />
+                <Bar dataKey={() => 1} isAnimationActive={false}>
+                  {points.map((point) => (
+                    <Cell key={`research2-band-${point.weekStart}`} fill={point.confirmedTone} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <Card title="七态区间统计" hint="这里展示的是段级输出，不再等于周级标签多数表决。">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="py-3">区间</th>
+                  <th className="py-3">状态</th>
+                  <th className="py-3">时间范围</th>
+                  <th className="py-3 text-right">周数</th>
+                  <th className="py-3 text-right">累计涨跌</th>
+                  <th className="py-3 text-right">平均周收益</th>
+                  <th className="py-3 text-right">平均周费率</th>
+                  <th className="py-3 text-right">平均 ADX</th>
+                  <th className="py-3 text-right">平均 BBW分位</th>
+                  <th className="py-3 text-right">峰值到段末回撤</th>
+                  <th className="py-3 text-right">上涨周占比</th>
+                </tr>
+              </thead>
+              <tbody>
+                {research2Data.segments.map((segment) => (
+                  <tr key={`research2-segment-${segment.index}`} className="border-b border-slate-100">
+                    <td className="py-3 font-medium text-slate-900">#{segment.index + 1}</td>
+                    <td className="py-3">
+                      <span className="inline-flex rounded-full px-2 py-1 text-xs font-semibold text-white" style={{ backgroundColor: segment.tone }}>
+                        {segment.label}
+                      </span>
+                    </td>
+                    <td className="py-3 text-slate-500">{formatClosedDateSpan(segment.start, segment.end)}</td>
+                    <td className="py-3 text-right text-slate-600">{segment.weeks}</td>
+                    <td className={`py-3 text-right ${rateText(segment.cumulativeReturnPct)}`}>{fmtPct(segment.cumulativeReturnPct)}</td>
+                    <td className={`py-3 text-right ${rateText(segment.avgWeeklyReturnPct)}`}>{fmtPct(segment.avgWeeklyReturnPct)}</td>
+                    <td className={`py-3 text-right ${rateText(segment.avgFundingRatePct)}`}>{fmtPct(segment.avgFundingRatePct)}</td>
+                    <td className="py-3 text-right text-slate-600">{segment.avgAdx14.toFixed(1)}</td>
+                    <td className="py-3 text-right text-slate-600">{segment.avgBbwPercentile104.toFixed(1)}</td>
+                    <td className={`py-3 text-right ${rateText(segment.peakToEndDrawdownPct)}`}>{fmtPct(segment.peakToEndDrawdownPct)}</td>
+                    <td className="py-3 text-right text-slate-600">{segment.positiveReturnSharePct.toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
+        <Card title="七态均值画像" hint="这里把所有周按最终状态汇总，方便对比每一类状态的平均收益、费率和趋势强度。">
+          <div className="space-y-3">
+            {orderedSummaries.map((summary) => (
+              <div key={`research2-summary-${summary.label}`} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-slate-900">{summary.label}</div>
+                  <div className="text-xs text-slate-500">{summary.weeks} 周 / {summary.sharePct}%</div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
+                  <div>平均周收益：<span className={rateText(summary.avgWeeklyReturnPct)}>{fmtPct(summary.avgWeeklyReturnPct)}</span></div>
+                  <div>平均周费率：<span className={rateText(summary.avgFundingRatePct)}>{fmtPct(summary.avgFundingRatePct)}</span></div>
+                  <div>平均 ADX：<span className="text-slate-900">{summary.avgAdx14.toFixed(1)}</span></div>
+                  <div>平均 BBW分位：<span className="text-slate-900">{summary.avgBbwPercentile104.toFixed(1)}</span></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Kpi
+          label="最强牛段"
+          value={strongestBull ? `${strongestBull.label} ${fmtPct(strongestBull.cumulativeReturnPct)}` : "-"}
+          hint={strongestBull ? formatClosedDateSpan(strongestBull.start, strongestBull.end) : "当前没有牛家族段。"}
+        />
+        <Kpi
+          label="最深熊段"
+          value={strongestBear ? `${strongestBear.label} ${fmtPct(strongestBear.cumulativeReturnPct)}` : "-"}
+          hint={strongestBear ? formatClosedDateSpan(strongestBear.start, strongestBear.end) : "当前没有熊家族段。"}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function MarketWorkbench({
+  data,
+  initialView,
+  researchData,
+  research2Data,
+}: {
+  data: WorkbenchData;
+  initialView: ViewKey;
+  researchData?: BtcWeeklyResearchData;
+  research2Data?: BtcWeeklyResearch2Data;
+}) {
   const [timeframe, setTimeframe] = useState<Timeframe>("month");
 
   return (
@@ -2703,6 +3060,7 @@ export default function MarketWorkbench({ data, initialView, researchData }: { d
       {initialView === "combined" ? <CombinedView symbols={data.symbols} /> : null}
       {initialView === "heatmap" ? <HeatmapView symbols={data.symbols} /> : null}
       {initialView === "research" ? <ResearchView researchData={researchData} /> : null}
+      {initialView === "research2" ? <Research2View research2Data={research2Data} /> : null}
     </WorkbenchShell>
   );
 }

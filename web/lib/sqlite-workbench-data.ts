@@ -6,6 +6,10 @@ import { DatabaseSync } from "node:sqlite";
 import {
   type AuditRow,
   type BtcWeeklyResearchData,
+  type BtcWeeklyResearch2Data,
+  type BtcWeeklyResearch2Point,
+  type BtcWeeklyResearch2Segment,
+  type BtcWeeklyResearch2Summary,
   type BtcWeeklyResearchPoint,
   type ManualResearchRegimeRow,
   type MarketSymbol,
@@ -31,6 +35,8 @@ let cachedWorkbenchData: WorkbenchData | null = null;
 let cachedDbMtimeMs: number | null = null;
 let cachedBtcWeeklyResearchData: BtcWeeklyResearchData | null = null;
 let cachedBtcWeeklyResearchCacheKey: string | null = null;
+let cachedBtcWeeklyResearch2Data: BtcWeeklyResearch2Data | null = null;
+let cachedBtcWeeklyResearch2CacheKey: string | null = null;
 
 type ManualResearchRegimeFileRow = {
   symbol: string;
@@ -135,6 +141,17 @@ function stdDev(values: number[]) {
   const avg = avgValues(values);
   const variance = values.reduce((sum, value) => sum + (value - avg) ** 2, 0) / values.length;
   return Math.sqrt(variance);
+}
+
+function percentile(values: number[], p: number) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const position = (sorted.length - 1) * p;
+  const lower = Math.floor(position);
+  const upper = Math.ceil(position);
+  if (lower === upper) return sorted[lower];
+  const weight = position - lower;
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
 }
 
 function correlation(left: number[], right: number[]) {
@@ -813,6 +830,822 @@ function loadBtcWeeklyCloses() {
   });
 }
 
+type BtcWeeklyCandle = {
+  weekStart: string;
+  weekEnd: string;
+  openPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  closePrice: number;
+};
+
+type SevenRegimeFamily = "Bull" | "Sideways" | "Bear";
+
+const SEVEN_REGIME_TONE: Record<string, string> = {
+  大牛: "#16a34a",
+  小牛: "#22c55e",
+  震荡牛: "#bbf7d0",
+  震荡灰: "#cbd5e1",
+  震荡熊: "#fecdd3",
+  小熊: "#fca5a5",
+  大熊: "#991b1b",
+};
+
+const SEVEN_REGIME_FAMILY: Record<string, SevenRegimeFamily> = {
+  大牛: "Bull",
+  小牛: "Bull",
+  震荡牛: "Sideways",
+  震荡灰: "Sideways",
+  震荡熊: "Sideways",
+  小熊: "Bear",
+  大熊: "Bear",
+};
+
+function loadBtcWeeklyCandles() {
+  const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+  const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
+  return rows.map((row) => {
+    const weekStart = new Date(row[0]).toISOString().slice(0, 10);
+    const weekEndDate = new Date(row[0]);
+    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+    return {
+      weekStart,
+      weekEnd: weekEndDate.toISOString().slice(0, 10),
+      openPrice: Number(row[1]),
+      highPrice: Number(row[2]),
+      lowPrice: Number(row[3]),
+      closePrice: Number(row[4]),
+    };
+  });
+}
+
+function rollingMean(values: number[], window: number) {
+  const result: number[] = [];
+  let sum = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    sum += values[index];
+    if (index >= window) sum -= values[index - window];
+    const length = Math.min(index + 1, window);
+    result.push(sum / length);
+  }
+  return result;
+}
+
+function rollingStd(values: number[], window: number) {
+  const result: number[] = [];
+  for (let index = 0; index < values.length; index += 1) {
+    const start = Math.max(0, index - window + 1);
+    const slice = values.slice(start, index + 1);
+    result.push(stdDev(slice));
+  }
+  return result;
+}
+
+function ema(values: number[], period: number) {
+  const alpha = 2 / (period + 1);
+  const result: number[] = [];
+  for (let index = 0; index < values.length; index += 1) {
+    if (index === 0) {
+      result.push(values[index]);
+      continue;
+    }
+    result.push(alpha * values[index] + (1 - alpha) * result[index - 1]);
+  }
+  return result;
+}
+
+function wilderSmooth(values: number[], period: number) {
+  const result = new Array<number>(values.length).fill(0);
+  if (!values.length) return result;
+  let seed = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    if (index < period) {
+      seed += values[index];
+      result[index] = seed;
+      continue;
+    }
+    result[index] = result[index - 1] - result[index - 1] / period + values[index];
+  }
+  return result;
+}
+
+function computeAdx14(candles: BtcWeeklyCandle[]) {
+  const highs = candles.map((item) => item.highPrice);
+  const lows = candles.map((item) => item.lowPrice);
+  const closes = candles.map((item) => item.closePrice);
+  const trueRanges: number[] = [];
+  const plusDm: number[] = [];
+  const minusDm: number[] = [];
+
+  for (let index = 0; index < candles.length; index += 1) {
+    const prevClose = index > 0 ? closes[index - 1] : closes[index];
+    const prevHigh = index > 0 ? highs[index - 1] : highs[index];
+    const prevLow = index > 0 ? lows[index - 1] : lows[index];
+    trueRanges.push(Math.max(highs[index] - lows[index], Math.abs(highs[index] - prevClose), Math.abs(lows[index] - prevClose)));
+    const upMove = highs[index] - prevHigh;
+    const downMove = prevLow - lows[index];
+    plusDm.push(upMove > downMove && upMove > 0 ? upMove : 0);
+    minusDm.push(downMove > upMove && downMove > 0 ? downMove : 0);
+  }
+
+  const smoothedTr = wilderSmooth(trueRanges, 14);
+  const smoothedPlusDm = wilderSmooth(plusDm, 14);
+  const smoothedMinusDm = wilderSmooth(minusDm, 14);
+  const dx: number[] = [];
+
+  for (let index = 0; index < candles.length; index += 1) {
+    const tr = smoothedTr[index];
+    if (!tr) {
+      dx.push(0);
+      continue;
+    }
+    const plusDi = (smoothedPlusDm[index] / tr) * 100;
+    const minusDi = (smoothedMinusDm[index] / tr) * 100;
+    const denominator = plusDi + minusDi;
+    dx.push(denominator ? (Math.abs(plusDi - minusDi) / denominator) * 100 : 0);
+  }
+
+  const adx = new Array<number>(candles.length).fill(25);
+  if (!dx.length) return adx;
+  let seed = 0;
+  for (let index = 0; index < dx.length; index += 1) {
+    if (index < 14) {
+      seed += dx[index];
+      adx[index] = 25;
+      continue;
+    }
+    if (index === 14) {
+      adx[index] = seed / 14;
+      continue;
+    }
+    adx[index] = ((adx[index - 1] * 13) + dx[index]) / 14;
+  }
+  return adx.map((value) => Number((Number.isFinite(value) ? value : 25).toFixed(3)));
+}
+
+function rollingPercentRank(values: number[], window: number) {
+  return values.map((current, index) => {
+    const slice = values.slice(Math.max(0, index - window + 1), index + 1).filter((value) => Number.isFinite(value));
+    if (!slice.length) return 50;
+    const count = slice.filter((value) => value <= current).length;
+    return Number(((count / slice.length) * 100).toFixed(3));
+  });
+}
+
+function computeSevenRegimeBase(point: {
+  closePrice: number;
+  ema21: number;
+  sma200: number;
+  adx14: number;
+  bbw: number;
+  bbwPercentile104: number;
+  returnZ52: number;
+  bbwExpanding: boolean;
+}) {
+  let label = point.closePrice >= point.ema21 ? "小牛" : "小熊";
+  if (point.returnZ52 > 2 && point.closePrice > point.ema21 && point.bbwExpanding) label = "大牛";
+  else if (point.returnZ52 < -2 && point.closePrice < point.ema21 && point.bbwExpanding) label = "大熊";
+  else if (point.bbwPercentile104 < 20 && point.adx14 < 20) label = "震荡灰";
+  else if (point.adx14 < 25 || point.bbwPercentile104 < 40) label = point.closePrice >= point.ema21 ? "震荡牛" : "震荡熊";
+
+  if (point.closePrice < point.sma200) {
+    if (label === "大牛") label = "小牛";
+    else if (label === "小牛") label = "震荡牛";
+  }
+  if (point.closePrice > point.sma200) {
+    if (label === "大熊") label = "小熊";
+    else if (label === "小熊") label = "震荡熊";
+  }
+  return label;
+}
+
+type Research2BasePoint = Omit<BtcWeeklyResearch2Point, "baseRegime" | "confirmedRegime" | "confirmedTone" | "family">;
+
+type SegmentFeaturePoint = Research2BasePoint & {
+  trendScore: number;
+  volScore: number;
+  leverageScore: number;
+  participationScore: number;
+};
+
+type SevenRegimeSegmentDraft = {
+  startIndex: number;
+  endIndex: number;
+  start: string;
+  end: string;
+  weeks: number;
+  cumulativeReturnPct: number;
+  maxAdvancePct: number;
+  maxDrawdownPct: number;
+  peakToEndDrawdownPct: number;
+  avgFundingRatePct: number;
+  avgVolumeM: number;
+  avgAdx14: number;
+  avgBbwPercentile104: number;
+  avgWeeklyReturnPct: number;
+  weeklyVolatilityPct: number;
+  positiveReturnSharePct: number;
+  priceSlope: number;
+  emaSlope: number;
+  smaSlope: number;
+  trendScore: number;
+  volScore: number;
+  leverageScore: number;
+  participationScore: number;
+  breakoutScore: number;
+  riskScore: number;
+  peakToTroughDrawdownPct: number;
+  peakToTroughWeeks: number;
+  label: string;
+  classificationNote?: string;
+  validatorNote?: string;
+};
+
+function zscoreSeries(values: number[]) {
+  const mean = avgValues(values);
+  const deviation = stdDev(values);
+  if (!deviation) return values.map(() => 0);
+  return values.map((value) => Number(((value - mean) / deviation).toFixed(4)));
+}
+
+function linearSlope(values: number[]) {
+  if (values.length <= 1) return 0;
+  return lineFit(values, 0, values.length).slope;
+}
+
+function buildResearch2Scores(points: Research2BasePoint[]) {
+  const priceSlope13 = points.map((_, index) => {
+    const start = Math.max(0, index - 12);
+    return linearSlope(points.slice(start, index + 1).map((item) => Math.log(Math.max(item.closePrice, 1))));
+  });
+  const emaSlope13 = points.map((_, index) => {
+    const start = Math.max(0, index - 12);
+    return linearSlope(points.slice(start, index + 1).map((item) => item.ema21));
+  });
+  const closeToSma200 = points.map((item) => item.sma200 ? (item.closePrice - item.sma200) / item.sma200 : 0);
+  const bbwPctCentered = points.map((item) => (item.bbwPercentile104 - 50) / 50);
+  const fundingZ = zscoreSeries(points.map((item) => item.fundingRatePct));
+  const volumeZ = zscoreSeries(points.map((item) => item.avgVolumeM));
+  const adxZ = zscoreSeries(points.map((item) => item.adx14));
+  const retZZ = zscoreSeries(points.map((item) => item.returnZ52));
+  const trendZ = zscoreSeries(priceSlope13.map((value, index) => value + (emaSlope13[index] * 0.25) + (closeToSma200[index] * 0.8)));
+  const bbwZ = zscoreSeries(bbwPctCentered);
+
+  return points.map((point, index) => ({
+    ...point,
+    trendScore: Number(((trendZ[index] * 0.55) + (retZZ[index] * 0.25) + (adxZ[index] * 0.2)).toFixed(3)),
+    volScore: Number(((bbwZ[index] * 0.7) + (adxZ[index] * 0.3)).toFixed(3)),
+    leverageScore: Number(((fundingZ[index] * 0.65) + (retZZ[index] * 0.35)).toFixed(3)),
+    participationScore: Number(((volumeZ[index] * 0.7) + (adxZ[index] * 0.3)).toFixed(3)),
+  }));
+}
+
+function segmentFeatureCost(points: SegmentFeaturePoint[], start: number, endExclusive: number) {
+  if (endExclusive - start <= 1) return 0;
+  const segmentPoints = points.slice(start, endExclusive);
+  const logPrices = segmentPoints.map((point) => Math.log(Math.max(point.closePrice, 1)));
+  const emaValues = segmentPoints.map((point) => point.ema21);
+  const featureKeys: Array<keyof Pick<SegmentFeaturePoint, "trendScore" | "volScore" | "leverageScore" | "participationScore">> = [
+    "trendScore",
+    "volScore",
+    "leverageScore",
+    "participationScore",
+  ];
+
+  const featureVarianceCost = featureKeys.reduce((sum, key) => {
+    const values = segmentPoints.map((point) => point[key]);
+    const mean = avgValues(values);
+    return sum + values.reduce((inner, value) => inner + (value - mean) ** 2, 0);
+  }, 0);
+
+  const priceLinearCost = lineFit(logPrices, 0, logPrices.length).sse * 18;
+  const emaLinearCost = lineFit(emaValues, 0, emaValues.length).sse / 5000;
+  const returnDriftCost = stdDev(segmentPoints.map((point) => point.weeklyReturnPct)) * segmentPoints.length * 0.12;
+
+  return featureVarianceCost + priceLinearCost + emaLinearCost + returnDriftCost;
+}
+
+function bestResearch2Split(points: SegmentFeaturePoint[], start: number, endExclusive: number, minSegmentLength = 5) {
+  const parentCost = segmentFeatureCost(points, start, endExclusive);
+  let bestSplit = -1;
+  let bestCost = Number.POSITIVE_INFINITY;
+  for (let split = start + minSegmentLength; split <= endExclusive - minSegmentLength; split += 1) {
+    const candidateCost = segmentFeatureCost(points, start, split) + segmentFeatureCost(points, split, endExclusive);
+    if (candidateCost < bestCost) {
+      bestCost = candidateCost;
+      bestSplit = split;
+    }
+  }
+  return {
+    bestSplit,
+    parentCost,
+    bestCost,
+    improvementRatio: parentCost > 0 && bestCost < Number.POSITIVE_INFINITY ? (parentCost - bestCost) / parentCost : 0,
+  };
+}
+
+function splitResearch2Segments(points: SegmentFeaturePoint[], minSegmentLength = 5, segmentPenalty = 7.8, maxSegmentLength = 28) {
+  const pointCount = points.length;
+  if (pointCount <= minSegmentLength) return [];
+
+  const dp = new Array<number>(pointCount + 1).fill(Number.POSITIVE_INFINITY);
+  const previous = new Array<number>(pointCount + 1).fill(-1);
+  dp[0] = -segmentPenalty;
+
+  for (let endExclusive = minSegmentLength; endExclusive <= pointCount; endExclusive += 1) {
+    const startFloor = Math.max(0, endExclusive - Math.max(maxSegmentLength * 2, minSegmentLength));
+    for (let start = 0; start <= endExclusive - minSegmentLength; start += 1) {
+      if (start < startFloor && endExclusive - start > maxSegmentLength) continue;
+      if (!Number.isFinite(dp[start])) continue;
+      const segmentLength = endExclusive - start;
+      const overflowPenalty = segmentLength > maxSegmentLength ? (segmentLength - maxSegmentLength) ** 2 * 0.7 : 0;
+      const candidate = dp[start] + segmentFeatureCost(points, start, endExclusive) + segmentPenalty + overflowPenalty;
+      if (candidate < dp[endExclusive]) {
+        dp[endExclusive] = candidate;
+        previous[endExclusive] = start;
+      }
+    }
+  }
+
+  const boundaries: number[] = [];
+  let cursor = pointCount;
+  while (cursor > 0 && previous[cursor] >= 0) {
+    boundaries.push(cursor);
+    cursor = previous[cursor];
+  }
+  boundaries.push(0);
+  const ordered = boundaries.reverse();
+  const splitPoints = ordered.slice(1, -1);
+
+  const refined = new Set<number>(splitPoints);
+  const allBoundaries = [0, ...splitPoints, pointCount];
+  for (let index = 1; index < allBoundaries.length; index += 1) {
+    const start = allBoundaries[index - 1];
+    const endExclusive = allBoundaries[index];
+    const length = endExclusive - start;
+    if (length <= maxSegmentLength) continue;
+    const candidate = bestResearch2Split(points, start, endExclusive, minSegmentLength);
+    if (candidate.bestSplit > 0 && candidate.improvementRatio >= 0.08) {
+      refined.add(candidate.bestSplit);
+    }
+  }
+
+  return [...refined].sort((left, right) => left - right);
+}
+
+function buildResearch2SegmentDraft(points: SegmentFeaturePoint[], startIndex: number, endIndex: number): SevenRegimeSegmentDraft {
+  const segmentPoints = points.slice(startIndex, endIndex + 1);
+  const firstClose = segmentPoints[0].closePrice;
+  const lastClose = segmentPoints.at(-1)?.closePrice ?? firstClose;
+  const highestPrice = Math.max(...segmentPoints.map((point) => point.highPrice));
+  const pricePath = segmentPoints.map((point) => ((point.closePrice / firstClose) - 1) * 100);
+  const weeklyReturns = segmentPoints.map((point) => point.weeklyReturnPct);
+  const positiveReturnSharePct = segmentPoints.length ? (segmentPoints.filter((point) => point.weeklyReturnPct > 0).length / segmentPoints.length) * 100 : 0;
+  const secondHalf = segmentPoints.slice(Math.floor(segmentPoints.length / 2));
+  const secondHalfFirstClose = secondHalf[0]?.closePrice ?? firstClose;
+  const secondHalfLastClose = secondHalf.at(-1)?.closePrice ?? secondHalfFirstClose;
+  const secondHalfReturnPct = secondHalfFirstClose ? ((secondHalfLastClose / secondHalfFirstClose) - 1) * 100 : 0;
+  const logPrices = segmentPoints.map((point) => Math.log(Math.max(point.closePrice, 1)));
+  const emaValues = segmentPoints.map((point) => point.ema21);
+  const smaValues = segmentPoints.map((point) => point.sma200);
+  const trendScore = avgValues(segmentPoints.map((point) => point.trendScore));
+  const breakoutScore = (Number((((highestPrice / firstClose) - 1) * 100).toFixed(3)) * 0.6) + (secondHalfReturnPct * 0.4);
+  const riskScore = (Math.abs(Math.min(...pricePath)) * 0.65) + (Math.abs(Number((((lastClose / highestPrice) - 1) * 100).toFixed(3))) * 0.35);
+  let runningPeak = segmentPoints[0].closePrice;
+  let runningPeakIndex = 0;
+  let peakToTroughDrawdownPct = 0;
+  let peakToTroughWeeks = 1;
+  for (let index = 0; index < segmentPoints.length; index += 1) {
+    const close = segmentPoints[index].closePrice;
+    if (close >= runningPeak) {
+      runningPeak = close;
+      runningPeakIndex = index;
+    }
+    const drawdownPct = ((close / runningPeak) - 1) * 100;
+    if (drawdownPct <= peakToTroughDrawdownPct) {
+      peakToTroughDrawdownPct = drawdownPct;
+      peakToTroughWeeks = Math.max(1, index - runningPeakIndex + 1);
+    }
+  }
+
+  return {
+    startIndex,
+    endIndex,
+    start: segmentPoints[0].weekStart,
+    end: segmentPoints.at(-1)?.weekEnd ?? segmentPoints[0].weekEnd,
+    weeks: segmentPoints.length,
+    cumulativeReturnPct: Number((((lastClose / firstClose) - 1) * 100).toFixed(2)),
+    maxAdvancePct: Number(Math.max(...pricePath).toFixed(2)),
+    maxDrawdownPct: Number(Math.min(...pricePath).toFixed(2)),
+    peakToEndDrawdownPct: Number((((lastClose / highestPrice) - 1) * 100).toFixed(2)),
+    avgFundingRatePct: Number(avgValues(segmentPoints.map((point) => point.fundingRatePct)).toFixed(3)),
+    avgVolumeM: Number(avgValues(segmentPoints.map((point) => point.avgVolumeM)).toFixed(1)),
+    avgAdx14: Number(avgValues(segmentPoints.map((point) => point.adx14)).toFixed(2)),
+    avgBbwPercentile104: Number(avgValues(segmentPoints.map((point) => point.bbwPercentile104)).toFixed(1)),
+    avgWeeklyReturnPct: Number(avgValues(weeklyReturns).toFixed(3)),
+    weeklyVolatilityPct: Number(stdDev(weeklyReturns).toFixed(3)),
+    positiveReturnSharePct: Number(positiveReturnSharePct.toFixed(1)),
+    priceSlope: Number(linearSlope(logPrices).toFixed(4)),
+    emaSlope: Number(linearSlope(emaValues).toFixed(3)),
+    smaSlope: Number(linearSlope(smaValues).toFixed(3)),
+    trendScore: Number(trendScore.toFixed(3)),
+    volScore: Number(avgValues(segmentPoints.map((point) => point.volScore)).toFixed(3)),
+    leverageScore: Number(avgValues(segmentPoints.map((point) => point.leverageScore)).toFixed(3)),
+    participationScore: Number(avgValues(segmentPoints.map((point) => point.participationScore)).toFixed(3)),
+    breakoutScore: Number(breakoutScore.toFixed(2)),
+    riskScore: Number(riskScore.toFixed(2)),
+    peakToTroughDrawdownPct: Number(peakToTroughDrawdownPct.toFixed(2)),
+    peakToTroughWeeks,
+    label: "震荡灰",
+  };
+}
+
+function buildResearch2SegmentDrafts(points: SegmentFeaturePoint[], breakpoints: number[]) {
+  const boundaries = [0, ...breakpoints, points.length];
+  const segments: SevenRegimeSegmentDraft[] = [];
+
+  for (let index = 1; index < boundaries.length; index += 1) {
+    const startIndex = boundaries[index - 1];
+    const endIndex = boundaries[index] - 1;
+    if (endIndex < startIndex) continue;
+    segments.push(buildResearch2SegmentDraft(points, startIndex, endIndex));
+  }
+  return segments;
+}
+
+function buildResearch2Thresholds(segments: SevenRegimeSegmentDraft[]) {
+  const cumReturns = segments.map((segment) => segment.cumulativeReturnPct);
+  const maxAdvances = segments.map((segment) => segment.maxAdvancePct);
+  const maxDrawdowns = segments.map((segment) => segment.maxDrawdownPct);
+  const peakToEndDrawdowns = segments.map((segment) => segment.peakToEndDrawdownPct);
+  const avgAdx = segments.map((segment) => segment.avgAdx14);
+  const avgBbwPct = segments.map((segment) => segment.avgBbwPercentile104);
+  const trendScores = segments.map((segment) => segment.trendScore);
+
+  return {
+    bullQ65: percentile(cumReturns, 0.65),
+    bullQ70: percentile(cumReturns, 0.7),
+    bullQ80: percentile(cumReturns, 0.8),
+    bullQ90: percentile(cumReturns, 0.9),
+    bearQ30: percentile(cumReturns, 0.3),
+    bearQ20: percentile(cumReturns, 0.2),
+    maxAdvanceQ80: percentile(maxAdvances, 0.8),
+    maxAdvanceQ90: percentile(maxAdvances, 0.9),
+    maxDrawQ20: percentile(maxDrawdowns, 0.2),
+    maxDrawQ10: percentile(maxDrawdowns, 0.1),
+    peakToEndQ20: percentile(peakToEndDrawdowns, 0.2),
+    adxLowQ35: percentile(avgAdx, 0.35),
+    adxHighQ70: percentile(avgAdx, 0.7),
+    bbwLowQ35: percentile(avgBbwPct, 0.35),
+    bbwHighQ70: percentile(avgBbwPct, 0.7),
+    trendQ30: percentile(trendScores, 0.3),
+    trendQ70: percentile(trendScores, 0.7),
+  };
+}
+
+function research2DirectionBand(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
+  return Math.max(3.5, Math.abs(thresholds.bullQ65) * 0.18, segment.weeklyVolatilityPct * Math.sqrt(segment.weeks) * 0.28);
+}
+
+function isResearch2CrashBear(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
+  const drawdownSpeed = Math.abs(segment.peakToTroughDrawdownPct) / Math.max(segment.peakToTroughWeeks, 1);
+  return (
+    segment.weeks >= 5 &&
+    segment.weeks <= 7 &&
+    segment.cumulativeReturnPct <= thresholds.bearQ20 &&
+    segment.maxDrawdownPct <= thresholds.maxDrawQ10 &&
+    segment.peakToTroughDrawdownPct <= thresholds.maxDrawQ10 &&
+    drawdownSpeed >= 3.8 &&
+    segment.avgWeeklyReturnPct <= -4 &&
+    segment.positiveReturnSharePct <= 20 &&
+    segment.trendScore <= thresholds.trendQ30 * 1.35
+  );
+}
+
+function classifyResearch2BigBearFlavor(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
+  if (isResearch2CrashBear(segment, thresholds)) return "急杀型大熊";
+  if (
+    segment.weeks >= 8 &&
+    segment.maxDrawdownPct <= thresholds.maxDrawQ10 &&
+    segment.cumulativeReturnPct <= thresholds.bearQ20 &&
+    segment.peakToEndDrawdownPct <= thresholds.peakToEndQ20
+  ) {
+    return "长周期大熊";
+  }
+  return undefined;
+}
+
+function labelResearch2Segment(
+  segment: SevenRegimeSegmentDraft,
+  thresholds: ReturnType<typeof buildResearch2Thresholds>,
+  options?: { allowCrashBear?: boolean },
+) {
+  const directionBand = research2DirectionBand(segment, thresholds);
+  const isStrongBull = segment.cumulativeReturnPct >= thresholds.bullQ70 && segment.priceSlope > 0;
+  const isStrongBear = segment.cumulativeReturnPct <= thresholds.bearQ30 && segment.priceSlope < 0;
+  const madBullScore = (segment.cumulativeReturnPct * 0.35) + (segment.maxAdvancePct * 0.25) + (segment.avgAdx14 * 0.2) + (segment.avgFundingRatePct * 14) + (segment.participationScore * 8);
+  const madBearScore = (Math.abs(segment.cumulativeReturnPct) * 0.35) + (Math.abs(segment.maxDrawdownPct) * 0.25) + (segment.avgAdx14 * 0.2) + (Math.abs(segment.peakToEndDrawdownPct) * 0.12) + (Math.abs(segment.leverageScore) * 6);
+  const neutralBand = Math.max(directionBand * 1.35, Math.abs(thresholds.bullQ65) * 0.32, 4.2);
+  const calmTrend = Math.abs(segment.priceSlope) <= Math.abs(thresholds.trendQ30) * 1.2;
+  const calmVolatility = segment.avgAdx14 <= thresholds.adxLowQ35 * 1.08 && segment.avgBbwPercentile104 <= thresholds.bbwLowQ35 * 1.18;
+  const secondHalfBiasBull = segment.breakoutScore >= thresholds.maxAdvanceQ80 || (segment.priceSlope > 0 && segment.avgWeeklyReturnPct > 0 && segment.positiveReturnSharePct >= 54);
+  const secondHalfBiasBear = segment.riskScore >= Math.abs(thresholds.maxDrawQ20) || (segment.priceSlope < 0 && segment.avgWeeklyReturnPct < 0 && segment.positiveReturnSharePct <= 46);
+
+  if (isStrongBull) {
+    if (segment.maxAdvancePct >= thresholds.maxAdvanceQ90 && madBullScore >= (thresholds.bullQ80 * 0.7 + thresholds.maxAdvanceQ90 * 0.3) && segment.weeks >= 8) {
+      return "大牛";
+    }
+    return "小牛";
+  }
+
+  if (isStrongBear) {
+    const longBear = segment.maxDrawdownPct <= thresholds.maxDrawQ10 && madBearScore >= (Math.abs(thresholds.bearQ20) * 0.7 + Math.abs(thresholds.maxDrawQ10) * 0.3) && segment.weeks >= 8;
+    const crashBear = options?.allowCrashBear ? isResearch2CrashBear(segment, thresholds) : false;
+    if (longBear || crashBear) {
+      return "大熊";
+    }
+    return "小熊";
+  }
+
+  if (
+    Math.abs(segment.cumulativeReturnPct) <= neutralBand &&
+    calmTrend &&
+    calmVolatility &&
+    segment.positiveReturnSharePct >= 38 &&
+    segment.positiveReturnSharePct <= 62
+  ) {
+    return "震荡灰";
+  }
+
+  if (secondHalfBiasBull && segment.cumulativeReturnPct >= directionBand) return "震荡牛";
+  if (secondHalfBiasBear && segment.cumulativeReturnPct <= -directionBand) return "震荡熊";
+  return segment.cumulativeReturnPct >= 0 ? "震荡牛" : "震荡熊";
+}
+
+function validateResearch2SegmentLabel(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
+  let label = segment.label;
+  const notes: string[] = [];
+  const bullFamily = new Set(["大牛", "小牛", "震荡牛"]);
+  const bearFamily = new Set(["大熊", "小熊", "震荡熊"]);
+  const strongTrend = segment.avgAdx14 >= thresholds.adxHighQ70 || Math.abs(segment.trendScore) >= Math.max(Math.abs(thresholds.trendQ30), Math.abs(thresholds.trendQ70));
+  const directionBand = research2DirectionBand(segment, thresholds);
+
+  if (segment.cumulativeReturnPct >= directionBand && bearFamily.has(label)) {
+    label = strongTrend ? "小牛" : "震荡牛";
+    notes.push("上涨段禁止输出 Bear 家族");
+  }
+
+  if (segment.cumulativeReturnPct <= -directionBand && bullFamily.has(label)) {
+    label = strongTrend ? "小熊" : "震荡熊";
+    notes.push("下跌段禁止输出 Bull 家族");
+  }
+
+  if (label === "大牛" || label === "小牛") {
+    if (segment.cumulativeReturnPct < directionBand) {
+      label = segment.cumulativeReturnPct <= -directionBand ? (strongTrend ? "小熊" : "震荡熊") : "震荡牛";
+      notes.push("牛系标签要求段首到段尾净涨");
+    }
+  }
+
+  if (label === "大熊" || label === "小熊") {
+    if (segment.cumulativeReturnPct > -directionBand) {
+      label = segment.cumulativeReturnPct >= directionBand ? (strongTrend ? "小牛" : "震荡牛") : "震荡熊";
+      notes.push("熊系标签要求段首到段尾净跌");
+    }
+  }
+
+  if (label === "震荡灰" && Math.abs(segment.cumulativeReturnPct) > directionBand) {
+    label = segment.cumulativeReturnPct > 0 ? "震荡牛" : "震荡熊";
+    notes.push("震荡灰要求净涨跌接近 0");
+  }
+
+  if (label === "震荡牛" && segment.cumulativeReturnPct < directionBand) {
+    label = Math.abs(segment.cumulativeReturnPct) <= directionBand ? "震荡灰" : "震荡熊";
+    notes.push("震荡牛要求段首到段尾净涨");
+  }
+
+  if (label === "震荡熊" && segment.cumulativeReturnPct > -directionBand) {
+    label = Math.abs(segment.cumulativeReturnPct) <= directionBand ? "震荡灰" : "震荡牛";
+    notes.push("震荡熊要求段首到段尾净跌");
+  }
+
+  if (segment.maxAdvancePct >= thresholds.maxAdvanceQ90 && segment.cumulativeReturnPct >= thresholds.bullQ80 && segment.weeks >= 10 && label === "小牛") {
+    label = "大牛";
+    notes.push("超级推进段升格为大牛");
+  }
+
+  if (segment.peakToEndDrawdownPct <= thresholds.peakToEndQ20 && segment.cumulativeReturnPct < 0 && bullFamily.has(label)) {
+    label = strongTrend ? "小熊" : "震荡熊";
+    notes.push("高位回落净跌段禁止输出 Bull 家族");
+  }
+
+  if (label === "震荡熊" && segment.breakoutScore >= thresholds.maxAdvanceQ80 && segment.priceSlope > 0 && segment.cumulativeReturnPct >= directionBand) {
+    label = strongTrend ? "小牛" : "震荡牛";
+    notes.push("后半段明显转强，纠偏为偏多");
+  }
+
+  if (label === "震荡牛" && segment.riskScore >= Math.abs(thresholds.maxDrawQ20) && segment.priceSlope < 0 && segment.cumulativeReturnPct <= -directionBand) {
+    label = strongTrend ? "小熊" : "震荡熊";
+    notes.push("后半段明显转弱，纠偏为偏空");
+  }
+
+  return { label, note: notes.join("；") || undefined };
+}
+
+function mergeResearch2Segments(points: SegmentFeaturePoint[], segments: SevenRegimeSegmentDraft[]) {
+  if (!segments.length) return segments;
+  const merged: SevenRegimeSegmentDraft[] = [];
+  let current = segments[0];
+
+  for (let index = 1; index < segments.length; index += 1) {
+    const candidate = segments[index];
+    if (candidate.label === current.label) {
+      current = {
+        ...buildResearch2SegmentDraft(points, current.startIndex, candidate.endIndex),
+        label: current.label,
+        classificationNote: [current.classificationNote, candidate.classificationNote].filter(Boolean).join("；") || undefined,
+        validatorNote: [current.validatorNote, candidate.validatorNote].filter(Boolean).join("；") || undefined,
+      };
+      continue;
+    }
+    merged.push(current);
+    current = candidate;
+  }
+  merged.push(current);
+  return merged;
+}
+
+function validateSevenRegimeSegments(segments: SevenRegimeSegmentDraft[], minWeeks = 5) {
+  for (const segment of segments) {
+    if (segment.weeks < minWeeks) {
+      throw new Error(`Seven-regime segment shorter than ${minWeeks} weeks at ${segment.start}`);
+    }
+  }
+}
+
+function buildBtcSevenRegimeResearch(
+  candles: BtcWeeklyCandle[],
+  weeklyFunding: Array<{ metric_week: string; weekly_funding_rate: number }>,
+  dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
+) {
+  const volumeByWeek = new Map<string, number[]>();
+  for (const row of dailyVolumes) {
+    const key = weekRangeLabel(row.metric_date);
+    const bucket = volumeByWeek.get(key) ?? [];
+    bucket.push(row.usd_volume);
+    volumeByWeek.set(key, bucket);
+  }
+
+  const fundingByWeekStart = new Map(
+    weeklyFunding.map((row) => {
+      const { start } = parseWeekRange(row.metric_week);
+      return [start, row.weekly_funding_rate] as const;
+    }),
+  );
+
+  const scopedCandles = candles.filter((row) => row.weekStart >= "2023-10-16" && row.weekStart < "2026-03-30");
+  const closes = scopedCandles.map((item) => item.closePrice);
+  const opens = scopedCandles.map((item) => item.openPrice);
+  const ema21Values = ema(closes, 21);
+  const sma200Values = rollingMean(closes, 200);
+  const adx14Values = computeAdx14(scopedCandles);
+  const bbBasisValues = rollingMean(closes, 20);
+  const bbStdValues = rollingStd(closes, 20);
+  const bbwValues = closes.map((_, index) => {
+    const middle = bbBasisValues[index];
+    if (!middle) return 0;
+    const upper = middle + (bbStdValues[index] * 2);
+    const lower = middle - (bbStdValues[index] * 2);
+    return Number((((upper - lower) / middle) || 0).toFixed(6));
+  });
+  const bbwPercentileValues = rollingPercentRank(bbwValues, 104);
+  const rawWeeklyReturns = closes.map((close, index) => (opens[index] ? (close - opens[index]) / opens[index] : 0));
+  const returnMeanValues = rollingMean(rawWeeklyReturns, 52);
+  const returnStdValues = rollingStd(rawWeeklyReturns, 52);
+  const returnZValues = rawWeeklyReturns.map((value, index) => {
+    const std = returnStdValues[index];
+    if (!std) return 0;
+    return Number(((value - returnMeanValues[index]) / std).toFixed(3));
+  });
+
+  const provisionalPoints: Array<Omit<BtcWeeklyResearch2Point, "baseRegime" | "confirmedRegime" | "confirmedTone" | "family">> = scopedCandles.map((candle, index) => {
+    const metricWeek = `${candle.weekStart}/${candle.weekEnd}`;
+    const volumes = volumeByWeek.get(metricWeek) ?? [];
+    return {
+      weekStart: candle.weekStart,
+      weekEnd: candle.weekEnd,
+      weekLabel: candle.weekStart.slice(5),
+      openPrice: candle.openPrice,
+      highPrice: candle.highPrice,
+      lowPrice: candle.lowPrice,
+      closePrice: Number(candle.closePrice.toFixed(2)),
+      fundingRatePct: toPct(fundingByWeekStart.get(candle.weekStart) ?? 0),
+      avgVolumeM: toMillion(avgValues(volumes)),
+      weeklyReturnPct: index > 0 ? Number((((candle.closePrice / scopedCandles[index - 1].closePrice) - 1) * 100).toFixed(3)) : 0,
+      ema21: Number(ema21Values[index].toFixed(2)),
+      sma200: Number(sma200Values[index].toFixed(2)),
+      adx14: Number((Number.isFinite(adx14Values[index]) ? adx14Values[index] : 25).toFixed(3)),
+      bbw: Number((bbwValues[index] * 100).toFixed(3)),
+      bbwPercentile104: bbwPercentileValues[index],
+      returnZ52: returnZValues[index],
+    };
+  });
+
+  const baseLabels = provisionalPoints.map((point, index) =>
+    computeSevenRegimeBase({
+      closePrice: point.closePrice,
+      ema21: point.ema21,
+      sma200: point.sma200,
+      adx14: point.adx14,
+      bbw: bbwValues[index],
+      bbwPercentile104: point.bbwPercentile104,
+      returnZ52: point.returnZ52,
+      bbwExpanding: index === 0 ? false : bbwValues[index] > bbwValues[index - 1],
+    }),
+  );
+  const scoredPoints = buildResearch2Scores(provisionalPoints);
+  const breakpoints = splitResearch2Segments(scoredPoints, 5, 7.8, 28);
+  let segmentDrafts = buildResearch2SegmentDrafts(scoredPoints, breakpoints);
+  let thresholds = buildResearch2Thresholds(segmentDrafts);
+  for (const segment of segmentDrafts) {
+    segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: false });
+    const validated = validateResearch2SegmentLabel(segment, thresholds);
+    segment.label = validated.label;
+    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
+    segment.validatorNote = validated.note;
+  }
+  segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
+  thresholds = buildResearch2Thresholds(segmentDrafts);
+  for (const segment of segmentDrafts) {
+    segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
+    const validated = validateResearch2SegmentLabel(segment, thresholds);
+    segment.label = validated.label;
+    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
+    segment.validatorNote = validated.note;
+  }
+  segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
+  thresholds = buildResearch2Thresholds(segmentDrafts);
+  for (const segment of segmentDrafts) {
+    segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
+    const validated = validateResearch2SegmentLabel(segment, thresholds);
+    segment.label = validated.label;
+    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
+    segment.validatorNote = validated.note;
+  }
+  validateSevenRegimeSegments(segmentDrafts, 5);
+
+  const points: BtcWeeklyResearch2Point[] = scoredPoints.map((point, index) => {
+    const segment = segmentDrafts.find((item) => index >= item.startIndex && index <= item.endIndex);
+    const confirmedRegime = segment?.label ?? "震荡灰";
+    return {
+      ...point,
+      baseRegime: baseLabels[index],
+      confirmedRegime,
+      confirmedTone: SEVEN_REGIME_TONE[confirmedRegime],
+      family: SEVEN_REGIME_FAMILY[confirmedRegime],
+    };
+  });
+
+  const segments: BtcWeeklyResearch2Segment[] = segmentDrafts.map((segment, index) => ({
+    index,
+    label: segment.label,
+    family: SEVEN_REGIME_FAMILY[segment.label],
+    tone: SEVEN_REGIME_TONE[segment.label],
+    start: segment.start,
+    end: segment.end,
+    weeks: segment.weeks,
+    cumulativeReturnPct: segment.cumulativeReturnPct,
+    maxAdvancePct: segment.maxAdvancePct,
+    maxDrawdownPct: segment.maxDrawdownPct,
+    avgFundingRatePct: segment.avgFundingRatePct,
+    avgVolumeM: segment.avgVolumeM,
+    avgAdx14: segment.avgAdx14,
+    avgBbwPercentile104: segment.avgBbwPercentile104,
+    avgWeeklyReturnPct: segment.avgWeeklyReturnPct,
+    peakToEndDrawdownPct: segment.peakToEndDrawdownPct,
+    positiveReturnSharePct: segment.positiveReturnSharePct,
+    priceSlope: segment.priceSlope,
+    trendScore: segment.trendScore,
+    classificationNote: segment.classificationNote,
+    validatorNote: segment.validatorNote,
+  }));
+
+  const summaries: BtcWeeklyResearch2Summary[] = [...new Set(points.map((point) => point.confirmedRegime))].map((label) => {
+    const rows = points.filter((point) => point.confirmedRegime === label);
+    return {
+      label,
+      weeks: rows.length,
+      sharePct: Number(((rows.length / points.length) * 100).toFixed(1)),
+      avgWeeklyReturnPct: Number(avgValues(rows.map((point) => point.weeklyReturnPct)).toFixed(3)),
+      avgFundingRatePct: Number(avgValues(rows.map((point) => point.fundingRatePct)).toFixed(3)),
+      avgAdx14: Number(avgValues(rows.map((point) => point.adx14)).toFixed(2)),
+      avgBbwPercentile104: Number(avgValues(rows.map((point) => point.bbwPercentile104)).toFixed(1)),
+    };
+  });
+
+  return { points, segments, summaries };
+}
+
 function buildMonthlyRateRow(symbol: string, monthlyRates: MonthlyFundingRow[], allMonths: string[]): MonthlyRateRow {
   const valuesByMonth: Record<string, number> = {};
   for (const row of monthlyRates) {
@@ -1259,6 +2092,65 @@ export async function getBtcWeeklyResearchData(): Promise<BtcWeeklyResearchData>
       autoOverrideCount: 0,
       editableSymbols: [...new Set(loadManualResearchRegimes().rows.map((row) => row.symbol))],
       sourceLabel: "BTC 周线研究数据读取失败",
+      loadError: error instanceof Error ? error.message : "unknown error",
+    };
+  } finally {
+    db?.close();
+  }
+}
+
+export async function getBtcWeeklyResearch2Data(): Promise<BtcWeeklyResearch2Data> {
+  const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
+  const databaseMtimeMs = fs.statSync(databasePath).mtimeMs;
+  const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+  const klineMtimeMs = fs.statSync(klinePath).mtimeMs;
+  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}`;
+  if (cachedBtcWeeklyResearch2Data && cachedBtcWeeklyResearch2CacheKey === cacheKey) {
+    return cachedBtcWeeklyResearch2Data;
+  }
+
+  let db: DatabaseSync | null = null;
+
+  try {
+    db = new DatabaseSync(databasePath, { open: true, readOnly: true });
+    const symbol = "BTC";
+    const weeklyFunding = db
+      .prepare("SELECT metric_week, weekly_funding_rate FROM weekly_funding_metrics WHERE symbol = ? ORDER BY metric_week")
+      .all(`${symbol}USD_PERP`) as Array<{ metric_week: string; weekly_funding_rate: number }>;
+    const dailyVolumes = db
+      .prepare("SELECT metric_date, usd_volume FROM daily_volume_metrics WHERE symbol = ? ORDER BY metric_date")
+      .all(`${symbol}USD_PERP`) as Array<{ metric_date: string; usd_volume: number }>;
+
+    if (!weeklyFunding.length || !dailyVolumes.length) {
+      return {
+        symbol,
+        timeframe: "week",
+        points: [],
+        segments: [],
+        summaries: [],
+        sourceLabel: "SQLite 无 BTC 周线研究页2数据",
+        loadError: "BTC 周费率或成交量数据缺失。",
+      };
+    }
+
+    const candles = loadBtcWeeklyCandles();
+    const result = {
+      symbol,
+      timeframe: "week" as const,
+      ...buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes),
+      sourceLabel: "SQLite 周费率/周成交量 + 本地 BTC 周线 OHLC 缓存 + 七态自动体制规则",
+    };
+    cachedBtcWeeklyResearch2Data = result;
+    cachedBtcWeeklyResearch2CacheKey = cacheKey;
+    return result;
+  } catch (error) {
+    return {
+      symbol: "BTC",
+      timeframe: "week",
+      points: [],
+      segments: [],
+      summaries: [],
+      sourceLabel: "BTC 周线研究页2数据读取失败",
       loadError: error instanceof Error ? error.message : "unknown error",
     };
   } finally {
