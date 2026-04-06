@@ -992,34 +992,7 @@ function rollingPercentRank(values: number[], window: number) {
   });
 }
 
-function computeSevenRegimeBase(point: {
-  closePrice: number;
-  ema21: number;
-  sma200: number;
-  adx14: number;
-  bbw: number;
-  bbwPercentile104: number;
-  returnZ52: number;
-  bbwExpanding: boolean;
-}) {
-  let label = point.closePrice >= point.ema21 ? "小牛" : "小熊";
-  if (point.returnZ52 > 2 && point.closePrice > point.ema21 && point.bbwExpanding) label = "大牛";
-  else if (point.returnZ52 < -2 && point.closePrice < point.ema21 && point.bbwExpanding) label = "大熊";
-  else if (point.bbwPercentile104 < 20 && point.adx14 < 20) label = "震荡灰";
-  else if (point.adx14 < 25 || point.bbwPercentile104 < 40) label = point.closePrice >= point.ema21 ? "震荡牛" : "震荡熊";
-
-  if (point.closePrice < point.sma200) {
-    if (label === "大牛") label = "小牛";
-    else if (label === "小牛") label = "震荡牛";
-  }
-  if (point.closePrice > point.sma200) {
-    if (label === "大熊") label = "小熊";
-    else if (label === "小熊") label = "震荡熊";
-  }
-  return label;
-}
-
-type Research2BasePoint = Omit<BtcWeeklyResearch2Point, "baseRegime" | "confirmedRegime" | "confirmedTone" | "family">;
+type Research2BasePoint = Omit<BtcWeeklyResearch2Point, "confirmedRegime" | "confirmedTone" | "family">;
 
 type SegmentFeaturePoint = Research2BasePoint & {
   trendScore: number;
@@ -1057,8 +1030,6 @@ type SevenRegimeSegmentDraft = {
   peakToTroughDrawdownPct: number;
   peakToTroughWeeks: number;
   label: string;
-  classificationNote?: string;
-  validatorNote?: string;
 };
 
 function zscoreSeries(values: number[]) {
@@ -1322,19 +1293,6 @@ function isResearch2CrashBear(segment: SevenRegimeSegmentDraft, thresholds: Retu
   );
 }
 
-function classifyResearch2BigBearFlavor(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
-  if (isResearch2CrashBear(segment, thresholds)) return "急杀型大熊";
-  if (
-    segment.weeks >= 8 &&
-    segment.maxDrawdownPct <= thresholds.maxDrawQ10 &&
-    segment.cumulativeReturnPct <= thresholds.bearQ20 &&
-    segment.peakToEndDrawdownPct <= thresholds.peakToEndQ20
-  ) {
-    return "长周期大熊";
-  }
-  return undefined;
-}
-
 function labelResearch2Segment(
   segment: SevenRegimeSegmentDraft,
   thresholds: ReturnType<typeof buildResearch2Thresholds>,
@@ -1384,7 +1342,6 @@ function labelResearch2Segment(
 
 function validateResearch2SegmentLabel(segment: SevenRegimeSegmentDraft, thresholds: ReturnType<typeof buildResearch2Thresholds>) {
   let label = segment.label;
-  const notes: string[] = [];
   const bullFamily = new Set(["大牛", "小牛", "震荡牛"]);
   const bearFamily = new Set(["大熊", "小熊", "震荡熊"]);
   const strongTrend = segment.avgAdx14 >= thresholds.adxHighQ70 || Math.abs(segment.trendScore) >= Math.max(Math.abs(thresholds.trendQ30), Math.abs(thresholds.trendQ70));
@@ -1392,64 +1349,53 @@ function validateResearch2SegmentLabel(segment: SevenRegimeSegmentDraft, thresho
 
   if (segment.cumulativeReturnPct >= directionBand && bearFamily.has(label)) {
     label = strongTrend ? "小牛" : "震荡牛";
-    notes.push("上涨段禁止输出 Bear 家族");
   }
 
   if (segment.cumulativeReturnPct <= -directionBand && bullFamily.has(label)) {
     label = strongTrend ? "小熊" : "震荡熊";
-    notes.push("下跌段禁止输出 Bull 家族");
   }
 
   if (label === "大牛" || label === "小牛") {
     if (segment.cumulativeReturnPct < directionBand) {
       label = segment.cumulativeReturnPct <= -directionBand ? (strongTrend ? "小熊" : "震荡熊") : "震荡牛";
-      notes.push("牛系标签要求段首到段尾净涨");
     }
   }
 
   if (label === "大熊" || label === "小熊") {
     if (segment.cumulativeReturnPct > -directionBand) {
       label = segment.cumulativeReturnPct >= directionBand ? (strongTrend ? "小牛" : "震荡牛") : "震荡熊";
-      notes.push("熊系标签要求段首到段尾净跌");
     }
   }
 
   if (label === "震荡灰" && Math.abs(segment.cumulativeReturnPct) > directionBand) {
     label = segment.cumulativeReturnPct > 0 ? "震荡牛" : "震荡熊";
-    notes.push("震荡灰要求净涨跌接近 0");
   }
 
   if (label === "震荡牛" && segment.cumulativeReturnPct < directionBand) {
     label = Math.abs(segment.cumulativeReturnPct) <= directionBand ? "震荡灰" : "震荡熊";
-    notes.push("震荡牛要求段首到段尾净涨");
   }
 
   if (label === "震荡熊" && segment.cumulativeReturnPct > -directionBand) {
     label = Math.abs(segment.cumulativeReturnPct) <= directionBand ? "震荡灰" : "震荡牛";
-    notes.push("震荡熊要求段首到段尾净跌");
   }
 
   if (segment.maxAdvancePct >= thresholds.maxAdvanceQ90 && segment.cumulativeReturnPct >= thresholds.bullQ80 && segment.weeks >= 10 && label === "小牛") {
     label = "大牛";
-    notes.push("超级推进段升格为大牛");
   }
 
   if (segment.peakToEndDrawdownPct <= thresholds.peakToEndQ20 && segment.cumulativeReturnPct < 0 && bullFamily.has(label)) {
     label = strongTrend ? "小熊" : "震荡熊";
-    notes.push("高位回落净跌段禁止输出 Bull 家族");
   }
 
   if (label === "震荡熊" && segment.breakoutScore >= thresholds.maxAdvanceQ80 && segment.priceSlope > 0 && segment.cumulativeReturnPct >= directionBand) {
     label = strongTrend ? "小牛" : "震荡牛";
-    notes.push("后半段明显转强，纠偏为偏多");
   }
 
   if (label === "震荡牛" && segment.riskScore >= Math.abs(thresholds.maxDrawQ20) && segment.priceSlope < 0 && segment.cumulativeReturnPct <= -directionBand) {
     label = strongTrend ? "小熊" : "震荡熊";
-    notes.push("后半段明显转弱，纠偏为偏空");
   }
 
-  return { label, note: notes.join("；") || undefined };
+  return label;
 }
 
 function mergeResearch2Segments(points: SegmentFeaturePoint[], segments: SevenRegimeSegmentDraft[]) {
@@ -1463,8 +1409,6 @@ function mergeResearch2Segments(points: SegmentFeaturePoint[], segments: SevenRe
       current = {
         ...buildResearch2SegmentDraft(points, current.startIndex, candidate.endIndex),
         label: current.label,
-        classificationNote: [current.classificationNote, candidate.classificationNote].filter(Boolean).join("；") || undefined,
-        validatorNote: [current.validatorNote, candidate.validatorNote].filter(Boolean).join("；") || undefined,
       };
       continue;
     }
@@ -1528,7 +1472,7 @@ function buildBtcSevenRegimeResearch(
     return Number(((value - returnMeanValues[index]) / std).toFixed(3));
   });
 
-  const provisionalPoints: Array<Omit<BtcWeeklyResearch2Point, "baseRegime" | "confirmedRegime" | "confirmedTone" | "family">> = scopedCandles.map((candle, index) => {
+  const provisionalPoints: Array<Omit<BtcWeeklyResearch2Point, "confirmedRegime" | "confirmedTone" | "family">> = scopedCandles.map((candle, index) => {
     const metricWeek = `${candle.weekStart}/${candle.weekEnd}`;
     const volumes = volumeByWeek.get(metricWeek) ?? [];
     return {
@@ -1551,46 +1495,25 @@ function buildBtcSevenRegimeResearch(
     };
   });
 
-  const baseLabels = provisionalPoints.map((point, index) =>
-    computeSevenRegimeBase({
-      closePrice: point.closePrice,
-      ema21: point.ema21,
-      sma200: point.sma200,
-      adx14: point.adx14,
-      bbw: bbwValues[index],
-      bbwPercentile104: point.bbwPercentile104,
-      returnZ52: point.returnZ52,
-      bbwExpanding: index === 0 ? false : bbwValues[index] > bbwValues[index - 1],
-    }),
-  );
   const scoredPoints = buildResearch2Scores(provisionalPoints);
   const breakpoints = splitResearch2Segments(scoredPoints, 5, 7.8, 28);
   let segmentDrafts = buildResearch2SegmentDrafts(scoredPoints, breakpoints);
   let thresholds = buildResearch2Thresholds(segmentDrafts);
   for (const segment of segmentDrafts) {
     segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: false });
-    const validated = validateResearch2SegmentLabel(segment, thresholds);
-    segment.label = validated.label;
-    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
-    segment.validatorNote = validated.note;
+    segment.label = validateResearch2SegmentLabel(segment, thresholds);
   }
   segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
   thresholds = buildResearch2Thresholds(segmentDrafts);
   for (const segment of segmentDrafts) {
     segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
-    const validated = validateResearch2SegmentLabel(segment, thresholds);
-    segment.label = validated.label;
-    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
-    segment.validatorNote = validated.note;
+    segment.label = validateResearch2SegmentLabel(segment, thresholds);
   }
   segmentDrafts = mergeResearch2Segments(scoredPoints, segmentDrafts);
   thresholds = buildResearch2Thresholds(segmentDrafts);
   for (const segment of segmentDrafts) {
     segment.label = labelResearch2Segment(segment, thresholds, { allowCrashBear: true });
-    const validated = validateResearch2SegmentLabel(segment, thresholds);
-    segment.label = validated.label;
-    segment.classificationNote = segment.label === "大熊" ? classifyResearch2BigBearFlavor(segment, thresholds) : undefined;
-    segment.validatorNote = validated.note;
+    segment.label = validateResearch2SegmentLabel(segment, thresholds);
   }
   validateSevenRegimeSegments(segmentDrafts, 5);
 
@@ -1599,7 +1522,6 @@ function buildBtcSevenRegimeResearch(
     const confirmedRegime = segment?.label ?? "震荡灰";
     return {
       ...point,
-      baseRegime: baseLabels[index],
       confirmedRegime,
       confirmedTone: SEVEN_REGIME_TONE[confirmedRegime],
       family: SEVEN_REGIME_FAMILY[confirmedRegime],
@@ -1626,8 +1548,6 @@ function buildBtcSevenRegimeResearch(
     positiveReturnSharePct: segment.positiveReturnSharePct,
     priceSlope: segment.priceSlope,
     trendScore: segment.trendScore,
-    classificationNote: segment.classificationNote,
-    validatorNote: segment.validatorNote,
   }));
 
   const summaries: BtcWeeklyResearch2Summary[] = [...new Set(points.map((point) => point.confirmedRegime))].map((label) => {

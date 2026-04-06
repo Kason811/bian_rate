@@ -2738,12 +2738,6 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const averageSegmentWeeks = research2Data.segments.length
     ? Number((research2Data.segments.reduce((sum, segment) => sum + segment.weeks, 0) / research2Data.segments.length).toFixed(1))
     : 0;
-  const strongestBull = [...research2Data.segments]
-    .filter((segment) => segment.family === "Bull")
-    .sort((left, right) => right.cumulativeReturnPct - left.cumulativeReturnPct)[0];
-  const strongestBear = [...research2Data.segments]
-    .filter((segment) => segment.family === "Bear")
-    .sort((left, right) => left.cumulativeReturnPct - right.cumulativeReturnPct)[0];
   const orderedSummaries = [...research2Data.summaries].sort((left, right) => {
     const leftIndex = research2SummaryOrder.indexOf(left.label);
     const rightIndex = research2SummaryOrder.indexOf(right.label);
@@ -2754,16 +2748,17 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Kpi label="自动区间数" value={`${research2Data.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
         <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
-        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近一周 ${latestPoint.weekStart}，家族 ${latestPoint.family}` : "暂无最新周线。"} />
+        <Kpi label="当前状态" value={latestPoint?.confirmedRegime ?? "-"} hint={latestPoint ? `最近一周 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}，家族 ${latestPoint.family}` : "暂无最新周线。"} />
+        <Kpi label="最新数据日期" value={latestPoint?.weekEnd ?? "-"} hint={latestPoint ? `当前周线区间 ${latestPoint.weekStart} ~ ${latestPoint.weekEnd}` : "暂无最新周线。"} />
         <Kpi label="数据源" value={`${research2Data.symbol} 周线`} hint={research2Data.sourceLabel} />
       </div>
 
-      <Card title={`${research2Data.symbol} 七态自动分区图`} hint="规则来自 deep-research-report2.md：先在连续特征空间分段，再按段级收益、推进、回撤、趋势强度、费率和量能做七态命名。">
+      <Card title={`${research2Data.symbol} 七态自动分区图`}>
         <div className="mb-4 flex flex-wrap gap-2">
-          {research2Data.summaries.map((summary) => (
+          {orderedSummaries.map((summary) => (
             <span key={summary.label} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: points.find((point) => point.confirmedRegime === summary.label)?.confirmedTone ?? "#cbd5e1" }} />
               {summary.label} {summary.sharePct}%
@@ -2773,78 +2768,27 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
         <div className="mb-4 rounded-[18px] border border-slate-200 bg-white/75 px-4 py-3 shadow-sm backdrop-blur">
           {hoverPoint ? (
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
-              <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">时间</div>
-                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.weekStart}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">Confirmed</div>
-                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.confirmedRegime}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">周级初判</div>
-                  <div className="mt-1 font-medium text-slate-900">{hoverPoint.baseRegime}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">周涨跌</div>
-                  <div className={`mt-1 font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">价格</div>
-                  <div className="mt-1 font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">周费率</div>
-                  <div className={`mt-1 font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                  <div className="text-xs text-slate-500">周日均成交量</div>
-                  <div className="mt-1 font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</div>
-                </div>
-                <div className="rounded-[16px] border border-slate-200 bg-white px-4 py-3">
-                    <div className="text-xs text-slate-500">ADX / BBW分位</div>
-                    <div className="mt-1 font-medium text-slate-900">{hoverPoint.adx14.toFixed(1)} / {hoverPoint.bbwPercentile104.toFixed(1)}</div>
-                  </div>
-                </div>
+            <div className="space-y-3">
+              <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-6 xl:grid-cols-12">
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{hoverPoint.weekStart}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">周涨跌: <span className={`font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">价格: <span className="font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">周费率: <span className={`font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">日均成交量: <span className="font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-6 xl:col-span-2 whitespace-nowrap">ADX / BBW: <span className="font-medium text-slate-900">{hoverPoint.adx14.toFixed(1)} / {hoverPoint.bbwPercentile104.toFixed(1)}</span></div>
+              </div>
 
-              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-xs text-slate-500">当前区间摘要</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</div>
-                    <div className="mt-1 text-xs text-slate-500">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</div>
-                  </div>
-                  <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600">
-                    {activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}
-                  </span>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <div className="text-xs text-slate-500">区间累计涨跌</div>
-                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500">平均周收益</div>
-                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500">区间内最大上冲</div>
-                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500">区间内最大回撤</div>
-                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500">峰值到段末回撤</div>
-                    <div className={`mt-1 text-base font-semibold ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-slate-500">趋势分</div>
-                    <div className="mt-1 text-base font-semibold text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</div>
-                  </div>
+              <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
+                <div className="grid gap-x-4 gap-y-2 text-sm text-slate-600 md:grid-cols-4">
+                  <div>区间: <span className="font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</span></div>
+                  <div>时间范围: <span className="font-medium text-slate-900">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</span></div>
+                  <div>周数: <span className="font-medium text-slate-900">{activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}</span></div>
+                  <div>区间累计涨跌: <span className={`font-medium ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</span></div>
+                  <div>平均周收益: <span className={`font-medium ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</span></div>
+                  <div>区间内最大上冲: <span className={`font-medium ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</span></div>
+                  <div>区间内最大回撤: <span className={`font-medium ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</span></div>
+                  <div>峰值到段末回撤: <span className={`font-medium ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</span></div>
+                  <div className="md:col-span-4">趋势分: <span className="font-medium text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</span></div>
                 </div>
               </div>
             </div>
@@ -2958,7 +2902,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         </div>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+      <div className="space-y-6">
         <Card title="七态区间统计" hint="这里展示的是段级输出，不再等于周级标签多数表决。">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -3020,19 +2964,6 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
             ))}
           </div>
         </Card>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Kpi
-          label="最强牛段"
-          value={strongestBull ? `${strongestBull.label} ${fmtPct(strongestBull.cumulativeReturnPct)}` : "-"}
-          hint={strongestBull ? formatClosedDateSpan(strongestBull.start, strongestBull.end) : "当前没有牛家族段。"}
-        />
-        <Kpi
-          label="最深熊段"
-          value={strongestBear ? `${strongestBear.label} ${fmtPct(strongestBear.cumulativeReturnPct)}` : "-"}
-          hint={strongestBear ? formatClosedDateSpan(strongestBear.start, strongestBear.end) : "当前没有熊家族段。"}
-        />
       </div>
     </div>
   );

@@ -170,7 +170,6 @@ export type BtcWeeklyResearch2Point = {
   bbw: number;
   bbwPercentile104: number;
   returnZ52: number;
-  baseRegime: string;
   confirmedRegime: string;
   confirmedTone: string;
   family: "Bull" | "Sideways" | "Bear";
@@ -196,8 +195,6 @@ export type BtcWeeklyResearch2Segment = {
   positiveReturnSharePct: number;
   priceSlope: number;
   trendScore: number;
-  classificationNote?: string;
-  validatorNote?: string;
 };
 
 export type BtcWeeklyResearch2Summary = {
