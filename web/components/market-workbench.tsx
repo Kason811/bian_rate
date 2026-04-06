@@ -2731,11 +2731,18 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const [emaPeriodInput, setEmaPeriodInput] = useState(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
   const [smaPeriodInput, setSmaPeriodInput] = useState(String(research2Data?.indicatorSettings.smaPeriod ?? 200));
   const [adxPeriodInput, setAdxPeriodInput] = useState(String(research2Data?.indicatorSettings.adxPeriod ?? 14));
+  const [adxTrendLevelInput, setAdxTrendLevelInput] = useState(String(research2Data?.indicatorSettings.adxTrendLevel ?? 25));
   const [rsiPeriodInput, setRsiPeriodInput] = useState(String(research2Data?.indicatorSettings.rsiPeriod ?? 14));
+  const [rsiUpperInput, setRsiUpperInput] = useState(String(research2Data?.indicatorSettings.rsiUpper ?? 80));
+  const [rsiLowerInput, setRsiLowerInput] = useState(String(research2Data?.indicatorSettings.rsiLower ?? 20));
   const [bbPeriodInput, setBbPeriodInput] = useState(String(research2Data?.indicatorSettings.bbPeriod ?? 20));
   const [bbStdDevInput, setBbStdDevInput] = useState(String(research2Data?.indicatorSettings.bbStdDev ?? 2));
   const [returnZPeriodInput, setReturnZPeriodInput] = useState(String(research2Data?.indicatorSettings.returnZPeriod ?? 52));
+  const [returnUpperInput, setReturnUpperInput] = useState(String(research2Data?.indicatorSettings.returnUpper ?? 2));
+  const [returnLowerInput, setReturnLowerInput] = useState(String(research2Data?.indicatorSettings.returnLower ?? -2));
   const [bbwWindowInput, setBbwWindowInput] = useState(String(research2Data?.indicatorSettings.bbwPercentileWindow ?? 104));
+  const [bbwHighInput, setBbwHighInput] = useState(String(research2Data?.indicatorSettings.bbwHigh ?? 70));
+  const [bbwLowInput, setBbwLowInput] = useState(String(research2Data?.indicatorSettings.bbwLow ?? 30));
 
   useEffect(() => {
     setHoverPoint(latestPoint);
@@ -2754,11 +2761,18 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     setEmaPeriodInput(String(research2Data?.indicatorSettings.emaPeriod ?? 21));
     setSmaPeriodInput(String(research2Data?.indicatorSettings.smaPeriod ?? 200));
     setAdxPeriodInput(String(research2Data?.indicatorSettings.adxPeriod ?? 14));
+    setAdxTrendLevelInput(String(research2Data?.indicatorSettings.adxTrendLevel ?? 25));
     setRsiPeriodInput(String(research2Data?.indicatorSettings.rsiPeriod ?? 14));
+    setRsiUpperInput(String(research2Data?.indicatorSettings.rsiUpper ?? 80));
+    setRsiLowerInput(String(research2Data?.indicatorSettings.rsiLower ?? 20));
     setBbPeriodInput(String(research2Data?.indicatorSettings.bbPeriod ?? 20));
     setBbStdDevInput(String(research2Data?.indicatorSettings.bbStdDev ?? 2));
     setReturnZPeriodInput(String(research2Data?.indicatorSettings.returnZPeriod ?? 52));
+    setReturnUpperInput(String(research2Data?.indicatorSettings.returnUpper ?? 2));
+    setReturnLowerInput(String(research2Data?.indicatorSettings.returnLower ?? -2));
     setBbwWindowInput(String(research2Data?.indicatorSettings.bbwPercentileWindow ?? 104));
+    setBbwHighInput(String(research2Data?.indicatorSettings.bbwHigh ?? 70));
+    setBbwLowInput(String(research2Data?.indicatorSettings.bbwLow ?? 30));
   }, [research2Data?.indicatorSettings]);
 
   if (!research2Data || research2Data.loadError) {
@@ -2855,11 +2869,18 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     nextParams.set("emaPeriod", emaPeriodInput.trim() || String(research2Data.indicatorSettings.emaPeriod));
     nextParams.set("smaPeriod", smaPeriodInput.trim() || String(research2Data.indicatorSettings.smaPeriod));
     nextParams.set("adxPeriod", adxPeriodInput.trim() || String(research2Data.indicatorSettings.adxPeriod));
+    nextParams.set("adxTrendLevel", adxTrendLevelInput.trim() || String(research2Data.indicatorSettings.adxTrendLevel));
     nextParams.set("rsiPeriod", rsiPeriodInput.trim() || String(research2Data.indicatorSettings.rsiPeriod));
+    nextParams.set("rsiUpper", rsiUpperInput.trim() || String(research2Data.indicatorSettings.rsiUpper));
+    nextParams.set("rsiLower", rsiLowerInput.trim() || String(research2Data.indicatorSettings.rsiLower));
     nextParams.set("bbPeriod", bbPeriodInput.trim() || String(research2Data.indicatorSettings.bbPeriod));
     nextParams.set("bbStdDev", bbStdDevInput.trim() || String(research2Data.indicatorSettings.bbStdDev));
     nextParams.set("returnZPeriod", returnZPeriodInput.trim() || String(research2Data.indicatorSettings.returnZPeriod));
+    nextParams.set("returnUpper", returnUpperInput.trim() || String(research2Data.indicatorSettings.returnUpper));
+    nextParams.set("returnLower", returnLowerInput.trim() || String(research2Data.indicatorSettings.returnLower));
     nextParams.set("bbwWindow", bbwWindowInput.trim() || String(research2Data.indicatorSettings.bbwPercentileWindow));
+    nextParams.set("bbwHigh", bbwHighInput.trim() || String(research2Data.indicatorSettings.bbwHigh));
+    nextParams.set("bbwLow", bbwLowInput.trim() || String(research2Data.indicatorSettings.bbwLow));
     startTransition(() => {
       router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
     });
@@ -2868,13 +2889,20 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     setEmaPeriodInput("21");
     setSmaPeriodInput("200");
     setAdxPeriodInput("14");
+    setAdxTrendLevelInput("25");
     setRsiPeriodInput("14");
+    setRsiUpperInput("80");
+    setRsiLowerInput("20");
     setBbPeriodInput("20");
     setBbStdDevInput("2");
     setReturnZPeriodInput("52");
+    setReturnUpperInput("2");
+    setReturnLowerInput("-2");
     setBbwWindowInput("104");
+    setBbwHighInput("70");
+    setBbwLowInput("30");
     const nextParams = new URLSearchParams(searchParams.toString());
-    for (const key of ["emaPeriod", "smaPeriod", "adxPeriod", "rsiPeriod", "bbPeriod", "bbStdDev", "returnZPeriod", "bbwWindow"]) {
+    for (const key of ["emaPeriod", "smaPeriod", "adxPeriod", "adxTrendLevel", "rsiPeriod", "rsiUpper", "rsiLower", "bbPeriod", "bbStdDev", "returnZPeriod", "returnUpper", "returnLower", "bbwWindow", "bbwHigh", "bbwLow"]) {
       nextParams.delete(key);
     }
     startTransition(() => {
@@ -2967,7 +2995,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         {showIndicatorSettings ? (
           <div className="mb-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4">
             <div className="mb-3 text-sm font-semibold text-slate-900">指标参数设置</div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="text-xs text-slate-500">EMA</div>
                 <div className="mt-2 text-xs text-slate-500">周期</div>
@@ -2982,11 +3010,17 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <div className="text-xs text-slate-500">ADX</div>
                 <div className="mt-2 text-xs text-slate-500">周期</div>
                 <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={adxPeriodInput} onChange={(event) => setAdxPeriodInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">趋势阈值</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={adxTrendLevelInput} onChange={(event) => setAdxTrendLevelInput(event.target.value)} />
               </label>
               <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="text-xs text-slate-500">RSI</div>
                 <div className="mt-2 text-xs text-slate-500">周期</div>
                 <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={rsiPeriodInput} onChange={(event) => setRsiPeriodInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">上边界</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={rsiUpperInput} onChange={(event) => setRsiUpperInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">下边界</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={rsiLowerInput} onChange={(event) => setRsiLowerInput(event.target.value)} />
               </label>
               <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="text-xs text-slate-500">布林线</div>
@@ -2999,11 +3033,19 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <div className="text-xs text-slate-500">BBW 分位</div>
                 <div className="mt-2 text-xs text-slate-500">分位窗口</div>
                 <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbwWindowInput} onChange={(event) => setBbwWindowInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">高波动线</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbwHighInput} onChange={(event) => setBbwHighInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">低波动线</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={bbwLowInput} onChange={(event) => setBbwLowInput(event.target.value)} />
               </label>
               <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="text-xs text-slate-500">Return Z</div>
                 <div className="mt-2 text-xs text-slate-500">Z 分数窗口</div>
                 <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={returnZPeriodInput} onChange={(event) => setReturnZPeriodInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">上边界</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={returnUpperInput} onChange={(event) => setReturnUpperInput(event.target.value)} />
+                <div className="mt-2 text-xs text-slate-500">下边界</div>
+                <input className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500" value={returnLowerInput} onChange={(event) => setReturnLowerInput(event.target.value)} />
               </label>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -3016,7 +3058,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         <div className="space-y-4">
           <div className="h-[220px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <button type="button" onClick={() => toggleIndicatorVisibility("bollinger")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bollinger ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />布林线 {hoverPoint ? `${fmtPrice(hoverPoint.bbUpper)} / ${fmtPrice(hoverPoint.bbBasis)} / ${fmtPrice(hoverPoint.bbLower)}` : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("bollinger")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bollinger ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#fde047]" />布林线 {hoverPoint ? `${fmtPrice(hoverPoint.bbUpper)} / ${fmtPrice(hoverPoint.bbBasis)} / ${fmtPrice(hoverPoint.bbLower)}` : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("ema")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.ema ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#0f766e]" />EMA {hoverPoint ? fmtPrice(hoverPoint.ema21) : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("sma")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.sma ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />SMA {hoverPoint ? fmtPrice(hoverPoint.sma200) : "-"}</button>
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价 {hoverPoint ? fmtPrice(hoverPoint.closePrice) : "-"}</span>
@@ -3031,9 +3073,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                 <Tooltip content={() => null} />
                 <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.4} />
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbUpper" stroke="#f59e0b" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbBasis" stroke="#fbbf24" dot={false} strokeWidth={1.1} /> : null}
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbLower" stroke="#f59e0b" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbUpper" stroke="#fde047" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbBasis" stroke="#facc15" dot={false} strokeWidth={1.1} /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbLower" stroke="#fde047" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
                 {indicatorVisibility.ema ? <Line type="monotone" dataKey="ema21" stroke="#0f766e" dot={false} strokeWidth={1.5} /> : null}
                 {indicatorVisibility.sma ? <Line type="monotone" dataKey="sma200" stroke="#7c3aed" dot={false} strokeWidth={1.2} /> : null}
               </LineChart>
@@ -3065,6 +3107,25 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           <div className="h-[170px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
               <button type="button" onClick={() => toggleIndicatorVisibility("rsi")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.rsi ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#ef4444]" />RSI {hoverPoint ? hoverPoint.rsi.toFixed(1) : "-"}</button>
+            </div>
+            <ResponsiveContainer>
+              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-rsi-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.2} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <ReferenceLine y={research2Data.indicatorSettings.rsiUpper} stroke="#f97316" strokeDasharray="4 4" />
+                <ReferenceLine y={research2Data.indicatorSettings.rsiLower} stroke="#f97316" strokeDasharray="4 4" />
+                <Tooltip content={() => null} />
+                {indicatorVisibility.rsi ? <Line type="monotone" dataKey="rsi" stroke="#ef4444" dot={false} strokeWidth={1.8} /> : null}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[170px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
               <button type="button" onClick={() => toggleIndicatorVisibility("adx")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.adx ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#0f172a]" />ADX {hoverPoint ? hoverPoint.adx14.toFixed(1) : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("bbw")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bbw ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#d97706]" />BBW {hoverPoint ? hoverPoint.bbwPercentile104.toFixed(1) : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("returnZ")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.returnZ ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Return {hoverPoint ? hoverPoint.returnZ52.toFixed(2) : "-"}</button>
@@ -3078,8 +3139,12 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <XAxis dataKey="weekStart" hide />
                 <YAxis yAxisId="left" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 12 }} />
                 <YAxis yAxisId="right" orientation="right" domain={[-4, 4]} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.adxTrendLevel} stroke="#334155" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.bbwHigh} stroke="#f59e0b" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="left" y={research2Data.indicatorSettings.bbwLow} stroke="#f59e0b" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="right" y={research2Data.indicatorSettings.returnUpper} stroke="#2563eb" strokeDasharray="4 4" />
+                <ReferenceLine yAxisId="right" y={research2Data.indicatorSettings.returnLower} stroke="#2563eb" strokeDasharray="4 4" />
                 <Tooltip content={() => null} />
-                {indicatorVisibility.rsi ? <Line yAxisId="left" type="monotone" dataKey="rsi" stroke="#ef4444" dot={false} strokeWidth={1.6} /> : null}
                 {indicatorVisibility.adx ? <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} /> : null}
                 {indicatorVisibility.bbw ? <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} /> : null}
                 {indicatorVisibility.returnZ ? <Line yAxisId="right" type="monotone" dataKey="returnZ52" stroke="#2563eb" dot={false} strokeWidth={1.6} /> : null}

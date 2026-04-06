@@ -241,11 +241,18 @@ export type BtcWeeklyResearch2IndicatorSettings = {
   emaPeriod: number;
   smaPeriod: number;
   adxPeriod: number;
+  adxTrendLevel: number;
   rsiPeriod: number;
+  rsiUpper: number;
+  rsiLower: number;
   bbPeriod: number;
   bbStdDev: number;
   returnZPeriod: number;
+  returnUpper: number;
+  returnLower: number;
   bbwPercentileWindow: number;
+  bbwHigh: number;
+  bbwLow: number;
 };
 
 export type BtcWeeklyResearch2Data = {

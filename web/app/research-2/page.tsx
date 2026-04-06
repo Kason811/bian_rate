@@ -30,11 +30,18 @@ export default async function Research2Page({
     emaPeriod: parseIntParam(params.emaPeriod, 21),
     smaPeriod: parseIntParam(params.smaPeriod, 200),
     adxPeriod: parseIntParam(params.adxPeriod, 14),
+    adxTrendLevel: parseIntParam(params.adxTrendLevel, 25),
     rsiPeriod: parseIntParam(params.rsiPeriod, 14),
+    rsiUpper: parseIntParam(params.rsiUpper, 80),
+    rsiLower: parseIntParam(params.rsiLower, 20),
     bbPeriod: parseIntParam(params.bbPeriod, 20),
     bbStdDev: parseFloatParam(params.bbStdDev, 2),
     returnZPeriod: parseIntParam(params.returnZPeriod, 52),
+    returnUpper: parseFloatParam(params.returnUpper, 2),
+    returnLower: parseFloatParam(params.returnLower, -2),
     bbwPercentileWindow: parseIntParam(params.bbwWindow, 104),
+    bbwHigh: parseIntParam(params.bbwHigh, 70),
+    bbwLow: parseIntParam(params.bbwLow, 30),
   };
   const [data, research2Data] = await Promise.all([Promise.resolve(getWorkbenchData()), getBtcWeeklyResearch2Data({ tuning, indicatorSettings })]);
   return <MarketWorkbench data={data} initialView="research2" research2Data={research2Data} />;

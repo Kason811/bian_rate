@@ -1334,11 +1334,18 @@ type Research2IndicatorSettings = {
   emaPeriod: number;
   smaPeriod: number;
   adxPeriod: number;
+  adxTrendLevel: number;
   rsiPeriod: number;
+  rsiUpper: number;
+  rsiLower: number;
   bbPeriod: number;
   bbStdDev: number;
   returnZPeriod: number;
+  returnUpper: number;
+  returnLower: number;
   bbwPercentileWindow: number;
+  bbwHigh: number;
+  bbwLow: number;
 };
 
 function normalizeResearch2Tuning(input?: Partial<Research2Tuning>): Research2Tuning {
@@ -1354,11 +1361,18 @@ function normalizeResearch2IndicatorSettings(input?: Partial<Research2IndicatorS
     emaPeriod: clamp(Math.round(input?.emaPeriod ?? 21), 3, 120),
     smaPeriod: clamp(Math.round(input?.smaPeriod ?? 200), 20, 300),
     adxPeriod: clamp(Math.round(input?.adxPeriod ?? 14), 5, 60),
+    adxTrendLevel: clamp(Math.round(input?.adxTrendLevel ?? 25), 10, 60),
     rsiPeriod: clamp(Math.round(input?.rsiPeriod ?? 14), 5, 60),
+    rsiUpper: clamp(Math.round(input?.rsiUpper ?? 80), 50, 95),
+    rsiLower: clamp(Math.round(input?.rsiLower ?? 20), 5, 50),
     bbPeriod: clamp(Math.round(input?.bbPeriod ?? 20), 5, 120),
     bbStdDev: Number(clamp(input?.bbStdDev ?? 2, 0.5, 4).toFixed(2)),
     returnZPeriod: clamp(Math.round(input?.returnZPeriod ?? 52), 10, 156),
+    returnUpper: Number(clamp(input?.returnUpper ?? 2, 0.5, 5).toFixed(2)),
+    returnLower: Number(clamp(input?.returnLower ?? -2, -5, -0.5).toFixed(2)),
     bbwPercentileWindow: clamp(Math.round(input?.bbwPercentileWindow ?? 104), 20, 260),
+    bbwHigh: clamp(Math.round(input?.bbwHigh ?? 70), 40, 95),
+    bbwLow: clamp(Math.round(input?.bbwLow ?? 30), 5, 60),
   };
 }
 
@@ -2160,7 +2174,7 @@ export async function getBtcWeeklyResearch2Data(
   const klineMtimeMs = fs.statSync(klinePath).mtimeMs;
   const tuning = normalizeResearch2Tuning(options?.tuning);
   const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
-  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${tuning.minSegmentWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.rsiPeriod}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.bbwPercentileWindow}`;
+  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${tuning.minSegmentWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.adxTrendLevel}:${indicatorSettings.rsiPeriod}:${indicatorSettings.rsiUpper}:${indicatorSettings.rsiLower}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.returnUpper}:${indicatorSettings.returnLower}:${indicatorSettings.bbwPercentileWindow}:${indicatorSettings.bbwHigh}:${indicatorSettings.bbwLow}`;
   if (cachedBtcWeeklyResearch2Data && cachedBtcWeeklyResearch2CacheKey === cacheKey) {
     return cachedBtcWeeklyResearch2Data;
   }
