@@ -623,6 +623,37 @@ function formatAuditNotes(...notes: Array<string | undefined>) {
     .replaceAll("ok", "正常");
 }
 
+function AuditCell({
+  status,
+  candleCount,
+  fundingCount,
+  volumeCount,
+  latest,
+  notes,
+}: {
+  status: string;
+  candleCount: number;
+  fundingCount: number;
+  volumeCount: number;
+  latest: string;
+  notes: string;
+}) {
+  return (
+    <div className="space-y-2 text-left">
+      <div>
+        <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(status)}`}>{status}</span>
+      </div>
+      <div className="text-xs leading-5 text-slate-600">
+        <div>K线 {candleCount}</div>
+        <div>费率 {fundingCount}</div>
+        <div>成交量 {volumeCount}</div>
+        <div>最新 {latest}</div>
+      </div>
+      <div className="text-xs leading-5 text-slate-500">{notes}</div>
+    </div>
+  );
+}
+
 function getAnnualizedMetrics(symbol: MarketSymbol) {
   return {
     prevMonthYearly: symbol.ratePrevMonthPct * 12,
@@ -1646,75 +1677,83 @@ function MonthlyMatrixView({ rows, months }: { rows: MonthlyRateRow[]; months: s
 
 function AuditView({ audits }: { audits: AuditRow[] }) {
   const [statusFilter, setStatusFilter] = useState<"all" | "warning" | "failed" | "inactive">("all");
+  const [marketFilter, setMarketFilter] = useState<"all" | "coinm" | "usdtm">("all");
   const [onlyIssues, setOnlyIssues] = useState(false);
   const [searchText, setSearchText] = useState("");
 
   const filteredAudits = audits.filter((row) => {
     const keyword = searchText.trim().toUpperCase();
     if (keyword && !row.symbol.includes(keyword)) return false;
-    if (statusFilter === "warning" && !["warning", "failed"].includes(row.fundingStatus) && !["warning", "failed"].includes(row.volumeStatus)) return false;
-    if (statusFilter === "failed" && row.volumeStatus !== "failed" && row.fundingStatus !== "failed") return false;
+    if (marketFilter !== "all" && row.marketType !== marketFilter) return false;
+    if (statusFilter === "warning" && !["warning", "failed"].includes(row.overallStatus)) return false;
+    if (statusFilter === "failed" && row.overallStatus !== "failed") return false;
     if (statusFilter === "inactive" && row.isActive) return false;
-    if (onlyIssues && !["warning", "failed"].includes(row.fundingStatus) && !["warning", "failed"].includes(row.volumeStatus) && row.isActive) return false;
+    if (onlyIssues && !["warning", "failed"].includes(row.overallStatus) && row.isActive) return false;
     return true;
   });
   const activeRows = audits.filter((row) => row.isActive);
-  const fundingWarnings = audits.filter((row) => ["warning", "failed"].includes(row.fundingStatus));
-  const volumeWarnings = audits.filter((row) => ["warning", "failed"].includes(row.volumeStatus));
   const inactiveRows = audits.filter((row) => !row.isActive);
-  const volumeFailedRows = audits.filter((row) => row.volumeStatus === "failed");
-  const fundingNotRunRows = audits.filter((row) => row.fundingStatus === "not_run");
-  const shortHistoryRows = audits.filter((row) => row.volumeNotes?.includes("short_history_or_new_listing"));
-  const fundingWarningSymbols = fundingWarnings.map((row) => row.symbol).join(" / ");
-  const volumeWarningSymbols = volumeWarnings.map((row) => row.symbol).join(" / ");
-  const inactiveSymbols = inactiveRows.map((row) => row.symbol).join(" / ");
-  const shortHistorySymbols = shortHistoryRows.map((row) => row.symbol).join(" / ");
+  const issueRows = audits.filter((row) => ["warning", "failed"].includes(row.overallStatus));
+  const coinmRows = audits.filter((row) => row.marketType === "coinm");
+  const usdtmRows = audits.filter((row) => row.marketType === "usdtm");
+  const dayWarnings = audits.filter((row) => ["warning", "failed"].includes(row.dayStatus));
+  const threeDayWarnings = audits.filter((row) => ["warning", "failed"].includes(row.threeDayStatus));
+  const weekWarnings = audits.filter((row) => ["warning", "failed"].includes(row.weekStatus));
+  const inactiveSymbols = inactiveRows.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ");
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-5 gap-3">
-        <Kpi label="当前活跃币种" value={`${activeRows.length}`} hint="目前数据库里仍在交易状态的币种数量。" />
-        <Kpi label="Funding 异常币种" value={`${fundingWarnings.length}`} hint={fundingWarnings.length ? fundingWarningSymbols : "当前 funding 审计没有异常。"} />
-        <Kpi label="Volume 异常币种" value={`${volumeWarnings.length}`} hint={volumeWarnings.length ? volumeWarningSymbols : "当前 volume 审计没有异常。"} />
-        <Kpi label="短历史新币" value={`${shortHistoryRows.length}`} hint={shortHistoryRows.length ? shortHistorySymbols : "当前没有需要单独标记的新币短历史。"} />
-        <Kpi label="当前需处理" value={`${inactiveRows.length + volumeFailedRows.length}`} hint={inactiveRows.length ? `非活跃: ${inactiveSymbols}` : volumeFailedRows.length ? `Volume 失败: ${volumeWarningSymbols}` : "当前没有需要处理的币种。"} />
+        <Kpi label="当前活跃合约" value={`${activeRows.length}`} hint="按 市场 + 币种 统计的研究页审计对象数量。" />
+        <Kpi label="币本位合约" value={`${coinmRows.length}`} hint="COIN-M 研究页可审计对象数量。" />
+        <Kpi label="U本位合约" value={`${usdtmRows.length}`} hint="USDT-M 研究页可审计对象数量。" />
+        <Kpi label="存在问题" value={`${issueRows.length}`} hint={issueRows.length ? issueRows.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "当前双市场三周期都可用。"} />
+        <Kpi label="非活跃合约" value={`${inactiveRows.length}`} hint={inactiveRows.length ? inactiveSymbols : "当前没有 inactive 合约。"} />
       </div>
 
-      <Card title="先看结论" hint="这块只回答四个问题：有没有下架币、funding 是否完整、volume 是否异常、新币是不是只是短历史。">
+      <Card title="先看结论" hint="这里审的是七态研究真实依赖的数据，不再沿用旧的 COIN-M collector 审计表。">
         <div className="grid gap-4 xl:grid-cols-4">
           <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
-            <div className="text-sm text-slate-500">当前活跃状态</div>
+            <div className="text-sm text-slate-500">日线</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">
-              {inactiveRows.length ? `有 ${inactiveRows.length} 个非活跃币` : "全部 22 个币都活跃"}
+              {dayWarnings.length ? `${dayWarnings.length} 个市场币种有问题` : "双市场日线都正常"}
             </div>
-            <div className="mt-2 text-sm text-slate-500">{inactiveRows.length ? inactiveSymbols : "当前没有下架后仍保留历史的数据币种。"}</div>
+            <div className="mt-2 text-sm text-slate-500">{dayWarnings.length ? dayWarnings.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "day 的 K线、费率、成交量都满足研究页要求。"}</div>
           </div>
           <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
-            <div className="text-sm text-slate-500">Funding 审计</div>
+            <div className="text-sm text-slate-500">3日线</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">
-              {fundingNotRunRows.length ? "Funding 审计尚未运行" : fundingWarnings.length ? `${fundingWarnings.length} 个币有异常` : "22 个币当前都正常"}
+              {threeDayWarnings.length ? `${threeDayWarnings.length} 个市场币种有问题` : "双市场3日线都正常"}
             </div>
-            <div className="mt-2 text-sm text-slate-500">{fundingNotRunRows.length ? "当前数据库里还没有 funding_quality_audits 结果。" : fundingWarnings.length ? fundingWarningSymbols : "当前 funding 侧没有 gap 或 0 事件天异常。"}</div>
+            <div className="mt-2 text-sm text-slate-500">{threeDayWarnings.length ? threeDayWarnings.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "3day 的 K线、费率、成交量都满足研究页要求。"}</div>
           </div>
           <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
-            <div className="text-sm text-slate-500">Volume 审计</div>
+            <div className="text-sm text-slate-500">周线</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">
-              {volumeWarnings.length ? `${volumeWarnings.length} 个币存在异常` : "当前 volume 侧全部正常"}
+              {weekWarnings.length ? `${weekWarnings.length} 个市场币种有问题` : "双市场周线都正常"}
             </div>
-            <div className="mt-2 text-sm text-slate-500">{volumeWarnings.length ? volumeWarningSymbols : "当前 volume 侧没有缺口或失败币种。"}</div>
+            <div className="mt-2 text-sm text-slate-500">{weekWarnings.length ? weekWarnings.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "week 的 K线、费率、成交量都满足研究页要求。"}</div>
           </div>
           <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
-            <div className="text-sm text-slate-500">新币短历史</div>
+            <div className="text-sm text-slate-500">活跃状态</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">
-              {shortHistoryRows.length ? `${shortHistoryRows.length} 个币属于正常短历史` : "当前没有短历史新币"}
+              {inactiveRows.length ? `${inactiveRows.length} 个合约 inactive` : "双市场当前都活跃"}
             </div>
-            <div className="mt-2 text-sm text-slate-500">{shortHistoryRows.length ? shortHistorySymbols : "所有币种当前都已接近完整历史长度。"}</div>
+            <div className="mt-2 text-sm text-slate-500">{inactiveRows.length ? inactiveSymbols : "当前 44 个研究页合约都处于 active 状态。"}</div>
           </div>
         </div>
       </Card>
 
-      <Card title="数据审计明细" hint="如果上面的结论有异常，再往下看这一张表定位具体原因。">
+      <Card title="研究数据审计明细" hint="每行一个 市场 + 币种，并同时检查 day / 3day / week 三个周期。">
         <div className="mb-4 flex flex-wrap items-center gap-3">
+          <label className="text-sm text-slate-600">
+            市场筛选
+            <select value={marketFilter} onChange={(event) => setMarketFilter(event.target.value as "all" | "coinm" | "usdtm")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
+              <option value="all">全部</option>
+              <option value="usdtm">U本位</option>
+              <option value="coinm">币本位</option>
+            </select>
+          </label>
           <label className="text-sm text-slate-600">
             状态筛选
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as "all" | "warning" | "failed" | "inactive")} className="ml-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900">
@@ -1743,22 +1782,19 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
           <table className="w-full text-center text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
+                <th className="py-3 text-left">市场</th>
                 <th className="py-3 text-left">币种</th>
                 <th className="py-3">是否活跃</th>
-                <th className="py-3">Funding 状态</th>
-                <th className="py-3">Funding 分数</th>
-                <th className="py-3">Funding 缺口数</th>
-                <th className="py-3">0事件天数</th>
-                <th className="py-3">Volume 状态</th>
-                <th className="py-3">Volume 分数</th>
-                <th className="py-3">Volume 覆盖天数</th>
-                <th className="py-3">Volume 缺口数</th>
-                <th className="py-3 text-left">备注</th>
+                <th className="py-3">总状态</th>
+                <th className="py-3 text-left">日线</th>
+                <th className="py-3 text-left">3日线</th>
+                <th className="py-3 text-left">周线</th>
               </tr>
             </thead>
             <tbody>
               {filteredAudits.map((row) => (
-                <tr key={row.symbol} className="border-b border-slate-100">
+                <tr key={`${row.marketType}-${row.symbol}`} className="border-b border-slate-100 align-top">
+                  <td className="py-3 text-left font-medium text-slate-700">{row.marketLabel}</td>
                   <td className="py-3 text-left font-medium text-slate-900">{row.symbol}</td>
                   <td className="py-3">
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${row.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
@@ -1766,20 +1802,11 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
                     </span>
                   </td>
                   <td className="py-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.fundingStatus)}`}>{row.fundingStatus}</span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.overallStatus)}`}>{row.overallStatus}</span>
                   </td>
-                  <td className="py-3 font-medium text-slate-900">{row.fundingScore.toFixed(1)}</td>
-                  <td className="py-3 text-slate-600">{row.fundingGapCount}</td>
-                  <td className="py-3 text-slate-600">{row.fundingZeroEventDays}</td>
-                  <td className="py-3">
-                    <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.volumeStatus)}`}>{row.volumeStatus}</span>
-                  </td>
-                  <td className="py-3 font-medium text-slate-900">{row.volumeScore.toFixed(1)}</td>
-                  <td className="py-3 text-slate-600">{row.volumeDayCount}</td>
-                  <td className="py-3 text-slate-600">{row.volumeGapCount}</td>
-                  <td className="py-3 text-left text-xs text-slate-500">
-                    {formatAuditNotes(row.fundingNotes, row.volumeNotes)}
-                  </td>
+                  <td className="py-3"><AuditCell status={row.dayStatus} candleCount={row.dayCandleCount} fundingCount={row.dayFundingCount} volumeCount={row.dayVolumeCount} latest={row.dayLatest} notes={formatAuditNotes(row.dayNotes)} /></td>
+                  <td className="py-3"><AuditCell status={row.threeDayStatus} candleCount={row.threeDayCandleCount} fundingCount={row.threeDayFundingCount} volumeCount={row.threeDayVolumeCount} latest={row.threeDayLatest} notes={formatAuditNotes(row.threeDayNotes)} /></td>
+                  <td className="py-3"><AuditCell status={row.weekStatus} candleCount={row.weekCandleCount} fundingCount={row.weekFundingCount} volumeCount={row.weekVolumeCount} latest={row.weekLatest} notes={formatAuditNotes(row.weekNotes)} /></td>
                 </tr>
               ))}
             </tbody>
@@ -2916,6 +2943,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     adx: true,
     bbw: true,
     returnZ: true,
+    trendComposite: true,
+    leverageComposite: true,
+    participationComposite: true,
   });
   const [minSegmentWeeksInput, setMinSegmentWeeksInput] = useState(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
   const [latestSegmentMinWeeksInput, setLatestSegmentMinWeeksInput] = useState(String(research2Data?.thresholds.latestSegmentMinWeeks ?? 5));
@@ -3450,6 +3480,12 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                       区间统计口径: <span className="font-medium">{activeSegment ? renderPriceRange(activeSegment.startCloseDate, activeSegment.startClosePrice, activeSegment.endCloseDate, activeSegment.endClosePrice) : "-"}</span>
                     </div>
                   </div>
+                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-4">
+                    <div>趋势复合: <span className="font-medium text-slate-900">{hoverPoint.trendScore.toFixed(2)}</span></div>
+                    <div>杠杆复合: <span className="font-medium text-slate-900">{hoverPoint.leverageScore.toFixed(2)}</span></div>
+                    <div>参与复合: <span className="font-medium text-slate-900">{hoverPoint.participationScore.toFixed(2)}</span></div>
+                    <div>波动复合: <span className="font-medium text-slate-900">{hoverPoint.volScore.toFixed(2)}</span></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3648,6 +3684,29 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 {indicatorVisibility.adx ? <Line yAxisId="left" type="monotone" dataKey="adx14" stroke="#0f172a" dot={false} strokeWidth={1.8} /> : null}
                 {indicatorVisibility.bbw ? <Line yAxisId="left" type="monotone" dataKey="bbwPercentile104" stroke="#d97706" dot={false} strokeWidth={1.6} /> : null}
                 {indicatorVisibility.returnZ ? <Line yAxisId="right" type="monotone" dataKey="returnZ52" stroke="#2563eb" dot={false} strokeWidth={1.6} /> : null}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="h-[170px] w-full">
+            <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
+              <button type="button" onClick={() => toggleIndicatorVisibility("trendComposite")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.trendComposite ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />趋势复合 {hoverPoint ? hoverPoint.trendScore.toFixed(2) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("leverageComposite")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.leverageComposite ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#dc2626]" />杠杆复合 {hoverPoint ? hoverPoint.leverageScore.toFixed(2) : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("participationComposite")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.participationComposite ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />参与复合 {hoverPoint ? hoverPoint.participationScore.toFixed(2) : "-"}</button>
+            </div>
+            <ResponsiveContainer>
+              <LineChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+                {visibleRegimeRanges.map((segment) => (
+                  <ReferenceArea key={`research2-composite-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.2} strokeOpacity={0} />
+                ))}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="weekStart" hide />
+                <YAxis domain={[-4, 4]} tick={{ fill: "#64748b", fontSize: 12 }} />
+                <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                <Tooltip content={() => null} />
+                {indicatorVisibility.trendComposite ? <Line type="monotone" dataKey="trendScore" stroke="#059669" dot={false} strokeWidth={1.8} /> : null}
+                {indicatorVisibility.leverageComposite ? <Line type="monotone" dataKey="leverageScore" stroke="#dc2626" dot={false} strokeWidth={1.7} /> : null}
+                {indicatorVisibility.participationComposite ? <Line type="monotone" dataKey="participationScore" stroke="#7c3aed" dot={false} strokeWidth={1.7} /> : null}
               </LineChart>
             </ResponsiveContainer>
           </div>

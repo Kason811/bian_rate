@@ -28,10 +28,8 @@ type DailyFundingRow = { symbol: string; metric_date: string; daily_funding_rate
 type WeeklyFundingRow = { symbol: string; metric_week: string; weekly_funding_rate: number };
 type MonthlyFundingRow = { symbol: string; metric_month: string; monthly_funding_rate: number };
 type VolumeRow = { symbol: string; metric_date: string; usd_volume: number };
-type SymbolMetaRow = { symbol: string; is_active: number };
+type SymbolMetaRow = { symbol: string; base_asset: string; market_type: string; is_active: number };
 type ResearchSymbolRow = { base_asset: string };
-type FundingAuditRow = { symbol: string; status: string; completeness_score: number; gap_count: number; days_with_zero_events: number; notes: string };
-type VolumeAuditRow = { symbol: string; status: string; completeness_score: number; day_count: number; gap_count: number; notes: string };
 
 let cachedWorkbenchData: WorkbenchData | null = null;
 let cachedDbMtimeMs: number | null = null;
@@ -881,7 +879,7 @@ function getResearchKlinePath(symbol: string, marketType: ResearchMarketType, ti
   return path.resolve(process.cwd(), "lib", "research-klines", marketType, timeframe, `${symbol}.json`);
 }
 
-function loadResearchCandles(symbol: string, marketType: ResearchMarketType, timeframe: ResearchTimeframe): BtcWeeklyCandle[] {
+export function loadResearchCandles(symbol: string, marketType: ResearchMarketType, timeframe: ResearchTimeframe): BtcWeeklyCandle[] {
   const klinePath = getResearchKlinePath(symbol, marketType, timeframe);
   if (!fs.existsSync(klinePath)) {
     return [];
@@ -980,7 +978,69 @@ function getResearchAvailableTimeframes(db: DatabaseSync): ResearchTimeframe[] {
   return timeframes;
 }
 
-function getResearchContractSymbol(symbol: string, marketType: ResearchMarketType) {
+function marketTypeToResearchMarketType(value: string): ResearchMarketType | null {
+  if (value === "COINM_PERPETUAL") return "coinm";
+  if (value === "USDTM_PERPETUAL") return "usdtm";
+  return null;
+}
+
+function marketTypeLabel(value: ResearchMarketType) {
+  return value === "coinm" ? "币本位" : "U本位";
+}
+
+function getLatestValue(values: string[]) {
+  return values.length ? values[values.length - 1] : "-";
+}
+
+function buildResearchAuditCell(params: {
+  timeframe: ResearchTimeframe;
+  symbol: string;
+  marketType: ResearchMarketType;
+  dailyFundingCount: number;
+  dailyFundingLatest: string;
+  dailyVolumeCount: number;
+  dailyVolumeLatest: string;
+  weeklyFundingCount: number;
+  weeklyFundingLatest: string;
+}) {
+  const { timeframe, symbol, marketType, dailyFundingCount, dailyFundingLatest, dailyVolumeCount, dailyVolumeLatest, weeklyFundingCount, weeklyFundingLatest } = params;
+  const candles = loadResearchCandles(symbol, marketType, timeframe);
+  const candleCount = candles.length;
+  const latestCandle = candles.at(-1)?.weekEnd ?? "-";
+  const requiredCandles = timeframe === "week" ? MIN_RESEARCH_WEEKLY_HISTORY : timeframe === "3day" ? MIN_RESEARCH_3DAY_HISTORY : MIN_RESEARCH_DAILY_HISTORY;
+  const requiredDaily = getResearchMinDailyHistory(timeframe);
+  const fundingCount = timeframe === "week" ? weeklyFundingCount : dailyFundingCount;
+  const volumeCount = dailyVolumeCount;
+  const latestFunding = timeframe === "week" ? weeklyFundingLatest : dailyFundingLatest;
+  const latestVolume = dailyVolumeLatest;
+  const latest = [latestCandle, latestFunding, latestVolume].filter((value) => value && value !== "-").sort().at(-1) ?? "-";
+  const notes: string[] = [];
+
+  if (!candleCount) notes.push("缺K线");
+  else if (candleCount < requiredCandles) notes.push(`K线不足(${candleCount}/${requiredCandles})`);
+
+  if (!fundingCount) notes.push(timeframe === "week" ? "缺周费率" : "缺日费率");
+  else if (timeframe !== "week" && fundingCount < requiredDaily) notes.push(`费率不足(${fundingCount}/${requiredDaily})`);
+  else if (timeframe === "week" && fundingCount < MIN_RESEARCH_WEEKLY_HISTORY) notes.push(`周费率不足(${fundingCount}/${MIN_RESEARCH_WEEKLY_HISTORY})`);
+
+  if (!volumeCount) notes.push("缺成交量");
+  else if (volumeCount < requiredDaily) notes.push(`成交量不足(${volumeCount}/${requiredDaily})`);
+
+  let status = "ok";
+  if (!candleCount || !fundingCount || !volumeCount) status = "failed";
+  else if (notes.length) status = "warning";
+
+  return {
+    status,
+    candleCount,
+    fundingCount,
+    volumeCount,
+    latest,
+    notes: notes.join(" / ") || "可用于研究页",
+  };
+}
+
+export function getResearchContractSymbol(symbol: string, marketType: ResearchMarketType) {
   return marketType === "usdtm" ? `${symbol}USDT` : `${symbol}USD_PERP`;
 }
 
@@ -1117,7 +1177,10 @@ function rollingPercentRank(values: number[], window: number) {
   });
 }
 
-type Research2BasePoint = Omit<BtcWeeklyResearch2Point, "confirmedRegime" | "confirmedTone" | "family">;
+type Research2BasePoint = Omit<
+  BtcWeeklyResearch2Point,
+  "confirmedRegime" | "confirmedTone" | "family" | "trendScore" | "volScore" | "leverageScore" | "participationScore"
+>;
 
 type SegmentFeaturePoint = Research2BasePoint & {
   trendScore: number;
@@ -1648,7 +1711,7 @@ function validateSevenRegimeSegments(segments: SevenRegimeSegmentDraft[], minWee
   }
 }
 
-function buildBtcSevenRegimeResearch(
+export function buildBtcSevenRegimeResearch(
   candles: BtcWeeklyCandle[],
   weeklyFunding: Array<{ metric_week: string; weekly_funding_rate: number }>,
   dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
@@ -1676,7 +1739,7 @@ function buildBtcSevenRegimeResearch(
   return buildResearch2FromMetricMaps(candles, fundingByWeekStart, volumeByWeek, { tuning, indicatorSettings });
 }
 
-function buildResearch2FromDailyMetrics(
+export function buildResearch2FromDailyMetrics(
   candles: BtcWeeklyCandle[],
   dailyFunding: Array<{ metric_date: string; daily_funding_rate: number }>,
   dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
@@ -1762,7 +1825,7 @@ function buildResearch2FromMetricMaps(
     return Number(((value - returnMeanValues[index]) / std).toFixed(3));
   });
 
-  const provisionalPoints: Array<Omit<BtcWeeklyResearch2Point, "confirmedRegime" | "confirmedTone" | "family">> = scopedCandles.map((candle, index) => {
+  const provisionalPoints: Research2BasePoint[] = scopedCandles.map((candle, index) => {
     const metricWeek = `${candle.weekStart}/${candle.weekEnd}`;
     const volumes = volumeByWeek.get(metricWeek) ?? [];
     return {
@@ -1860,6 +1923,9 @@ function buildResearch2FromMetricMaps(
     positiveReturnSharePct: segment.positiveReturnSharePct,
     priceSlope: segment.priceSlope,
     trendScore: segment.trendScore,
+    volScore: segment.volScore,
+    leverageScore: segment.leverageScore,
+    participationScore: segment.participationScore,
   }));
 
   const summaries: BtcWeeklyResearch2Summary[] = [...new Set(points.map((point) => point.confirmedRegime))].map((label) => {
@@ -2060,28 +2126,14 @@ export function getWorkbenchData(): WorkbenchData {
     const weeklyFunding = db.prepare("SELECT symbol, metric_week, weekly_funding_rate FROM weekly_funding_metrics ORDER BY symbol, metric_week").all() as WeeklyFundingRow[];
     const monthlyFunding = db.prepare("SELECT symbol, metric_month, monthly_funding_rate FROM monthly_funding_metrics ORDER BY symbol, metric_month").all() as MonthlyFundingRow[];
     const dailyVolumes = db.prepare("SELECT symbol, metric_date, usd_volume FROM daily_volume_metrics ORDER BY symbol, metric_date").all() as VolumeRow[];
-    const symbolMeta = db.prepare("SELECT symbol, is_active FROM symbols").all() as SymbolMetaRow[];
+    const symbolMeta = db.prepare("SELECT symbol, base_asset, market_type, is_active FROM symbols").all() as SymbolMetaRow[];
     const latestDate = db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics").get() as { latest_date: string | null };
-    const latestFundingRun = db.prepare("SELECT MAX(run_id) AS run_id FROM funding_quality_audits").get() as { run_id: number | null };
-    const latestVolumeRun = db.prepare("SELECT MAX(run_id) AS run_id FROM volume_quality_audits").get() as { run_id: number | null };
-    const fundingAudits = latestFundingRun.run_id
-      ? (db
-          .prepare("SELECT symbol, status, completeness_score, gap_count, days_with_zero_events, notes FROM funding_quality_audits WHERE run_id = ?")
-          .all(latestFundingRun.run_id) as FundingAuditRow[])
-      : [];
-    const volumeAudits = latestVolumeRun.run_id
-      ? (db
-          .prepare("SELECT symbol, status, completeness_score, day_count, gap_count, notes FROM volume_quality_audits WHERE run_id = ?")
-          .all(latestVolumeRun.run_id) as VolumeAuditRow[])
-      : [];
 
     const ratesBySymbol = new Map<string, DailyFundingRow[]>();
     const weeklyBySymbol = new Map<string, WeeklyFundingRow[]>();
     const monthlyBySymbol = new Map<string, MonthlyFundingRow[]>();
     const volumeBySymbol = new Map<string, VolumeRow[]>();
     const symbolMetaBySymbol = new Map(symbolMeta.map((row) => [row.symbol, row]));
-    const fundingAuditBySymbol = new Map(fundingAudits.map((row) => [row.symbol, row]));
-    const volumeAuditBySymbol = new Map(volumeAudits.map((row) => [row.symbol, row]));
 
     for (const row of dailyFunding) {
       const bucket = ratesBySymbol.get(row.symbol) ?? [];
@@ -2120,26 +2172,80 @@ export function getWorkbenchData(): WorkbenchData {
     const monthlyRateRows = [...monthlyBySymbol.keys()]
       .map((symbol) => buildMonthlyRateRow(symbol, monthlyBySymbol.get(symbol) ?? [], monthlyRateMonths))
       .sort((a, b) => a.symbol.localeCompare(b.symbol));
-    const audits: AuditRow[] = [...symbolMetaBySymbol.keys()]
-      .sort()
-      .map((symbol) => {
-        const fundingAudit = fundingAuditBySymbol.get(symbol);
-        const volumeAudit = volumeAuditBySymbol.get(symbol);
+    const audits: AuditRow[] = symbolMeta
+      .map((meta) => {
+        const researchMarket = marketTypeToResearchMarketType(meta.market_type);
+        if (!researchMarket) return null;
+
+        const dailyFundingRows = ratesBySymbol.get(meta.symbol) ?? [];
+        const weeklyFundingRows = weeklyBySymbol.get(meta.symbol) ?? [];
+        const dailyVolumeRows = volumeBySymbol.get(meta.symbol) ?? [];
+
+        const dayCell = buildResearchAuditCell({
+          timeframe: "day",
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          dailyFundingCount: dailyFundingRows.length,
+          dailyFundingLatest: getLatestValue(dailyFundingRows.map((row) => row.metric_date)),
+          dailyVolumeCount: dailyVolumeRows.length,
+          dailyVolumeLatest: getLatestValue(dailyVolumeRows.map((row) => row.metric_date)),
+          weeklyFundingCount: weeklyFundingRows.length,
+          weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
+        });
+        const threeDayCell = buildResearchAuditCell({
+          timeframe: "3day",
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          dailyFundingCount: dailyFundingRows.length,
+          dailyFundingLatest: getLatestValue(dailyFundingRows.map((row) => row.metric_date)),
+          dailyVolumeCount: dailyVolumeRows.length,
+          dailyVolumeLatest: getLatestValue(dailyVolumeRows.map((row) => row.metric_date)),
+          weeklyFundingCount: weeklyFundingRows.length,
+          weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
+        });
+        const weekCell = buildResearchAuditCell({
+          timeframe: "week",
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          dailyFundingCount: dailyFundingRows.length,
+          dailyFundingLatest: getLatestValue(dailyFundingRows.map((row) => row.metric_date)),
+          dailyVolumeCount: dailyVolumeRows.length,
+          dailyVolumeLatest: getLatestValue(dailyVolumeRows.map((row) => row.metric_date)),
+          weeklyFundingCount: weeklyFundingRows.length,
+          weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
+        });
+
+        const statuses = [dayCell.status, threeDayCell.status, weekCell.status];
+        const overallStatus = statuses.includes("failed") ? "failed" : statuses.includes("warning") ? "warning" : "ok";
+
         return {
-          symbol: symbol.replace("USD_PERP", ""),
-          isActive: Boolean(symbolMetaBySymbol.get(symbol)?.is_active ?? 1),
-          fundingStatus: fundingAudit?.status ?? "not_run",
-          fundingScore: fundingAudit?.completeness_score ?? 0,
-          fundingGapCount: fundingAudit?.gap_count ?? 0,
-          fundingZeroEventDays: fundingAudit?.days_with_zero_events ?? 0,
-          fundingNotes: fundingAudit?.notes ?? (latestFundingRun.run_id ? "" : "funding 审计尚未运行"),
-          volumeStatus: volumeAudit?.status ?? "not_run",
-          volumeScore: volumeAudit?.completeness_score ?? 0,
-          volumeDayCount: volumeAudit?.day_count ?? 0,
-          volumeGapCount: volumeAudit?.gap_count ?? 0,
-          volumeNotes: volumeAudit?.notes ?? (latestVolumeRun.run_id ? "" : "volume 审计尚未运行"),
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          marketLabel: marketTypeLabel(researchMarket),
+          isActive: Boolean(meta.is_active ?? 1),
+          overallStatus,
+          dayStatus: dayCell.status,
+          dayCandleCount: dayCell.candleCount,
+          dayFundingCount: dayCell.fundingCount,
+          dayVolumeCount: dayCell.volumeCount,
+          dayLatest: dayCell.latest,
+          dayNotes: dayCell.notes,
+          threeDayStatus: threeDayCell.status,
+          threeDayCandleCount: threeDayCell.candleCount,
+          threeDayFundingCount: threeDayCell.fundingCount,
+          threeDayVolumeCount: threeDayCell.volumeCount,
+          threeDayLatest: threeDayCell.latest,
+          threeDayNotes: threeDayCell.notes,
+          weekStatus: weekCell.status,
+          weekCandleCount: weekCell.candleCount,
+          weekFundingCount: weekCell.fundingCount,
+          weekVolumeCount: weekCell.volumeCount,
+          weekLatest: weekCell.latest,
+          weekNotes: weekCell.notes,
         };
-      });
+      })
+      .filter((row): row is AuditRow => Boolean(row))
+      .sort((a, b) => a.marketType.localeCompare(b.marketType) || a.symbol.localeCompare(b.symbol));
 
     if (!symbols.length) {
       const emptyView = {

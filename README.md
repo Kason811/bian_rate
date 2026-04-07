@@ -44,7 +44,7 @@ bian_rate/
 
 - `/` 费率总览
 - `/monthly` 月费率明细表
-- `/audit` 数据审计
+- `/audit` 研究数据审计
 - `/combined` 联合筛选
 - `/heatmap` 热力图
 - `/research-2` 七态研究
@@ -54,6 +54,8 @@ bian_rate/
 当前页面口径补充：
 
 - `/monthly` 默认看“上12个月”，即排除当月未完成月份
+- `/audit` 当前按研究页真实口径做审计，覆盖 `COIN-M / USDT-M + 日线 / 3日线 / 周线`
+- `/audit` 每行一个“市场 + 币种”，直接检查 `K线 / 费率 / 成交量` 是否满足七态研究要求
 - `/audit` 只保留审计信息，不复用费率总览顶部 5 张维度卡
 - `/combined` 使用“费率优先表”的综合分作为点大小，当前为 `X=成交量`、`Y=费率`
 - `/combined` 的成交量轴使用对数压缩并对极端值封顶，费率轴也会对称封顶，避免少数异常值拉坏整体分布
@@ -68,7 +70,7 @@ bian_rate/
 - `/research-2` 顶部卡片当前会区分“当前状态”和“最新数据日期”，避免把 `weekStart` 误读成最新数据截止日
 - `/research-2` 当前已清理早期残留的说明字段和调试字段，hover 信息块、区间统计、七态均值画像都已按当前展示需求收紧
 - `/research-2` 上下各有一套同步的时间截断控制，时间窗支持拖拽和 `- / +` 步进
-- `/research-2` 默认展示窗当前按周期区分：`周线=全量`、`3日线=约4年`、`日线=约1.5年`；手动拖动后仍可查看更长历史
+- `/research-2` 默认展示窗当前按周期区分：`周线=全量`、`3日线=约3年`、`日线=约1年`；手动拖动后仍可查看更长历史
 - `/research-2` 主图和指标图当前会随时间截断控制一起只显示选中区间，底部导航条继续保留全历史
 - `/research-2` 当前支持 `实时重构图表` 开关；点击开启后会立刻按当前可见 K 线重跑七态分段、统计、均值画像和边界参数
 - `/research-2` 当前支持点击 `RSI / 布林线 / EMA / SMA / ADX / BBW / Return` 图例，直接隐藏或显示对应叠加线
@@ -318,7 +320,7 @@ coin_funding_rate_outputs/
   - `web/lib/sqlite-workbench-data.ts` 已加入按 SQLite 文件修改时间的缓存，减少页面重复全表扫描
 
 - 前端页结构
-  - `/audit` 已独立成纯审计页，不再复用费率总览顶部 5 张维度卡
+  - `/audit` 已改成研究数据审计页，当前直接审 `COIN-M / USDT-M + day / 3day / week`
   - `/monthly` 默认范围为“上12个月”，并改成标题栏模式
   - `/combined` 已改成 5 张维度散点卡，点大小来自费率优先表综合分，坐标为 `X=成交量`、`Y=费率`
   - `/combined` 的成交量轴使用对数压缩并做极值封顶，费率轴也做对称封顶，hover 显示币种名、成交量、费率、分数
@@ -420,7 +422,7 @@ journalctl -u bian-rate-web.service -f
 - `deploy/bian-rate-collector.service`
 - `deploy/bian-rate-collector.timer`
 
-定时策略默认是每天 `00:15 / 08:15 / 16:15` 运行一次采集。
+定时策略现在默认是每天 `08:20` 运行一次日频增量采集。
 
 说明：
 
@@ -428,6 +430,10 @@ journalctl -u bian-rate-web.service -f
 - 当前默认假设你的机器时区就是 `Asia/Shanghai`
 - 如果服务器时区不是 `Asia/Shanghai`，要么改系统时区，要么改 timer
 - 采集脚本带文件锁，若上一次还没跑完，本次会自动跳过，不会重入
+- `funding` 默认回补最近 `14` 天
+- `volume` 默认回补最近 `45` 天
+- 采集完成后会追加一轮最近 `30` 天完整性审计，结果落到 `run/collector-recent-integrity.json`
+- 这套日常任务是“增量补抓 + 最近窗口重刷”，不是每次全量重抓 3 年
 
 安装方式：
 
@@ -444,6 +450,12 @@ sudo systemctl list-timers bian-rate-collector.timer
 ```bash
 sudo systemctl start bian-rate-collector.service
 journalctl -u bian-rate-collector.service -n 100 --no-pager
+```
+
+完整性审计脚本也可以单独运行：
+
+```bash
+python3 scripts/audit_recent_daily_integrity.py --output run/collector-recent-integrity.json
 ```
 
 ## IP 白名单

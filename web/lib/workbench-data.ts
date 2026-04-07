@@ -174,6 +174,10 @@ export type BtcWeeklyResearch2Point = {
   bbw: number;
   bbwPercentile104: number;
   returnZ52: number;
+  trendScore: number;
+  volScore: number;
+  leverageScore: number;
+  participationScore: number;
   confirmedRegime: string;
   confirmedTone: string;
   family: "Bull" | "Sideways" | "Bear";
@@ -203,6 +207,9 @@ export type BtcWeeklyResearch2Segment = {
   positiveReturnSharePct: number;
   priceSlope: number;
   trendScore: number;
+  volScore: number;
+  leverageScore: number;
+  participationScore: number;
 };
 
 export type BtcWeeklyResearch2Summary = {
@@ -302,17 +309,28 @@ export type MonthlyRateRow = {
 
 export type AuditRow = {
   symbol: string;
+  marketType: "coinm" | "usdtm";
+  marketLabel: string;
   isActive: boolean;
-  fundingStatus: string;
-  fundingScore: number;
-  fundingGapCount: number;
-  fundingZeroEventDays: number;
-  fundingNotes: string;
-  volumeStatus: string;
-  volumeScore: number;
-  volumeDayCount: number;
-  volumeGapCount: number;
-  volumeNotes: string;
+  overallStatus: string;
+  dayStatus: string;
+  dayCandleCount: number;
+  dayFundingCount: number;
+  dayVolumeCount: number;
+  dayLatest: string;
+  dayNotes: string;
+  threeDayStatus: string;
+  threeDayCandleCount: number;
+  threeDayFundingCount: number;
+  threeDayVolumeCount: number;
+  threeDayLatest: string;
+  threeDayNotes: string;
+  weekStatus: string;
+  weekCandleCount: number;
+  weekFundingCount: number;
+  weekVolumeCount: number;
+  weekLatest: string;
+  weekNotes: string;
 };
 
 export function getRateValue(symbol: MarketSymbol, timeframe: Timeframe) {
