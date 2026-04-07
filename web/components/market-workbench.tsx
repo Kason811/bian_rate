@@ -92,7 +92,7 @@ const emptyResearch2Data: BtcWeeklyResearch2Data = {
   marketType: "usdtm",
   symbol: "ETH",
   timeframe: "3day",
-  availableTimeframes: ["8h", "4h", "day", "3day", "week"],
+  availableTimeframes: ["4h", "8h", "day", "3day", "week"],
   availableMarkets: ["usdtm", "coinm"],
   availableSymbols: ["ETH"],
   points: [],
@@ -302,8 +302,8 @@ const researchMarketOptions: Array<{ key: BtcWeeklyResearch2Data["marketType"]; 
 ];
 
 const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string }> = [
-  { key: "8h", label: "8小时" },
   { key: "4h", label: "4小时" },
+  { key: "8h", label: "8小时" },
   { key: "day", label: "日线" },
   { key: "3day", label: "3日线" },
   { key: "week", label: "周线" },
@@ -1730,6 +1730,8 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
   const issueRows = audits.filter((row) => ["warning", "failed"].includes(row.overallStatus));
   const coinmRows = audits.filter((row) => row.marketType === "coinm");
   const usdtmRows = audits.filter((row) => row.marketType === "usdtm");
+  const fourHourWarnings = audits.filter((row) => ["warning", "failed"].includes(row.fourHourStatus));
+  const eightHourWarnings = audits.filter((row) => ["warning", "failed"].includes(row.eightHourStatus));
   const dayWarnings = audits.filter((row) => ["warning", "failed"].includes(row.dayStatus));
   const threeDayWarnings = audits.filter((row) => ["warning", "failed"].includes(row.threeDayStatus));
   const weekWarnings = audits.filter((row) => ["warning", "failed"].includes(row.weekStatus));
@@ -1746,7 +1748,21 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
       </div>
 
       <Card title="先看结论" hint="这里审的是七态研究真实依赖的数据，不再沿用旧的 COIN-M collector 审计表。">
-        <div className="grid gap-4 xl:grid-cols-4">
+        <div className="grid gap-4 xl:grid-cols-6">
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">4小时</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {fourHourWarnings.length ? `${fourHourWarnings.length} 个市场币种有问题` : "双市场4小时都正常"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{fourHourWarnings.length ? fourHourWarnings.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "4h 的 K线、费率、成交量都满足研究页要求。"}</div>
+          </div>
+          <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
+            <div className="text-sm text-slate-500">8小时</div>
+            <div className="mt-2 text-lg font-semibold text-slate-900">
+              {eightHourWarnings.length ? `${eightHourWarnings.length} 个市场币种有问题` : "双市场8小时都正常"}
+            </div>
+            <div className="mt-2 text-sm text-slate-500">{eightHourWarnings.length ? eightHourWarnings.map((row) => `${row.marketLabel} ${row.symbol}`).join(" / ") : "8h 的 K线、费率、成交量都满足研究页要求。"}</div>
+          </div>
           <div className="rounded-[22px] border border-slate-200 bg-white px-5 py-4">
             <div className="text-sm text-slate-500">日线</div>
             <div className="mt-2 text-lg font-semibold text-slate-900">
@@ -1778,7 +1794,7 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
         </div>
       </Card>
 
-      <Card title="研究数据审计明细" hint="每行一个 市场 + 币种，并同时检查 day / 3day / week 三个周期。">
+      <Card title="研究数据审计明细" hint="每行一个 市场 + 币种，并同时检查 4h / 8h / day / 3day / week 五个周期。">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <label className="text-sm text-slate-600">
             市场筛选
@@ -1820,6 +1836,8 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
                 <th className="py-3 text-left">币种</th>
                 <th className="py-3">是否活跃</th>
                 <th className="py-3">总状态</th>
+                <th className="py-3 text-left">4小时</th>
+                <th className="py-3 text-left">8小时</th>
                 <th className="py-3 text-left">日线</th>
                 <th className="py-3 text-left">3日线</th>
                 <th className="py-3 text-left">周线</th>
@@ -1838,6 +1856,8 @@ function AuditView({ audits }: { audits: AuditRow[] }) {
                   <td className="py-3">
                     <span className={`rounded-full px-3 py-1 text-xs font-medium ${auditTone(row.overallStatus)}`}>{row.overallStatus}</span>
                   </td>
+                  <td className="py-3"><AuditCell status={row.fourHourStatus} candleCount={row.fourHourCandleCount} fundingCount={row.fourHourFundingCount} volumeCount={row.fourHourVolumeCount} latest={row.fourHourLatest} notes={formatAuditNotes(row.fourHourNotes)} /></td>
+                  <td className="py-3"><AuditCell status={row.eightHourStatus} candleCount={row.eightHourCandleCount} fundingCount={row.eightHourFundingCount} volumeCount={row.eightHourVolumeCount} latest={row.eightHourLatest} notes={formatAuditNotes(row.eightHourNotes)} /></td>
                   <td className="py-3"><AuditCell status={row.dayStatus} candleCount={row.dayCandleCount} fundingCount={row.dayFundingCount} volumeCount={row.dayVolumeCount} latest={row.dayLatest} notes={formatAuditNotes(row.dayNotes)} /></td>
                   <td className="py-3"><AuditCell status={row.threeDayStatus} candleCount={row.threeDayCandleCount} fundingCount={row.threeDayFundingCount} volumeCount={row.threeDayVolumeCount} latest={row.threeDayLatest} notes={formatAuditNotes(row.threeDayNotes)} /></td>
                   <td className="py-3"><AuditCell status={row.weekStatus} candleCount={row.weekCandleCount} fundingCount={row.weekFundingCount} volumeCount={row.weekVolumeCount} latest={row.weekLatest} notes={formatAuditNotes(row.weekNotes)} /></td>

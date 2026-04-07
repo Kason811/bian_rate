@@ -313,6 +313,18 @@ export type AuditRow = {
   marketLabel: string;
   isActive: boolean;
   overallStatus: string;
+  fourHourStatus: string;
+  fourHourCandleCount: number;
+  fourHourFundingCount: number;
+  fourHourVolumeCount: number;
+  fourHourLatest: string;
+  fourHourNotes: string;
+  eightHourStatus: string;
+  eightHourCandleCount: number;
+  eightHourFundingCount: number;
+  eightHourVolumeCount: number;
+  eightHourLatest: string;
+  eightHourNotes: string;
   dayStatus: string;
   dayCandleCount: number;
   dayFundingCount: number;

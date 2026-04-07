@@ -2268,6 +2268,28 @@ export function getWorkbenchData(): WorkbenchData {
           weeklyFundingCount: weeklyFundingRows.length,
           weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
         });
+        const fourHourCell = buildResearchAuditCell({
+          timeframe: "4h",
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          dailyFundingCount: dailyFundingRows.length,
+          dailyFundingLatest: getLatestValue(dailyFundingRows.map((row) => row.metric_date)),
+          dailyVolumeCount: dailyVolumeRows.length,
+          dailyVolumeLatest: getLatestValue(dailyVolumeRows.map((row) => row.metric_date)),
+          weeklyFundingCount: weeklyFundingRows.length,
+          weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
+        });
+        const eightHourCell = buildResearchAuditCell({
+          timeframe: "8h",
+          symbol: meta.base_asset,
+          marketType: researchMarket,
+          dailyFundingCount: dailyFundingRows.length,
+          dailyFundingLatest: getLatestValue(dailyFundingRows.map((row) => row.metric_date)),
+          dailyVolumeCount: dailyVolumeRows.length,
+          dailyVolumeLatest: getLatestValue(dailyVolumeRows.map((row) => row.metric_date)),
+          weeklyFundingCount: weeklyFundingRows.length,
+          weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
+        });
         const threeDayCell = buildResearchAuditCell({
           timeframe: "3day",
           symbol: meta.base_asset,
@@ -2291,7 +2313,7 @@ export function getWorkbenchData(): WorkbenchData {
           weeklyFundingLatest: getLatestValue(weeklyFundingRows.map((row) => row.metric_week)),
         });
 
-        const statuses = [dayCell.status, threeDayCell.status, weekCell.status];
+        const statuses = [fourHourCell.status, eightHourCell.status, dayCell.status, threeDayCell.status, weekCell.status];
         const overallStatus = statuses.includes("failed") ? "failed" : statuses.includes("warning") ? "warning" : "ok";
 
         return {
@@ -2300,6 +2322,18 @@ export function getWorkbenchData(): WorkbenchData {
           marketLabel: marketTypeLabel(researchMarket),
           isActive: Boolean(meta.is_active ?? 1),
           overallStatus,
+          fourHourStatus: fourHourCell.status,
+          fourHourCandleCount: fourHourCell.candleCount,
+          fourHourFundingCount: fourHourCell.fundingCount,
+          fourHourVolumeCount: fourHourCell.volumeCount,
+          fourHourLatest: fourHourCell.latest,
+          fourHourNotes: fourHourCell.notes,
+          eightHourStatus: eightHourCell.status,
+          eightHourCandleCount: eightHourCell.candleCount,
+          eightHourFundingCount: eightHourCell.fundingCount,
+          eightHourVolumeCount: eightHourCell.volumeCount,
+          eightHourLatest: eightHourCell.latest,
+          eightHourNotes: eightHourCell.notes,
           dayStatus: dayCell.status,
           dayCandleCount: dayCell.candleCount,
           dayFundingCount: dayCell.fundingCount,
