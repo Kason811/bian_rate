@@ -4,6 +4,8 @@
 
 coin_funding_rate_outputs/
 data/
+run/
+deep-research-report*.md
 
 .venv/
 venv/

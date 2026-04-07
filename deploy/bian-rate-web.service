@@ -1,0 +1,19 @@
+[Unit]
+Description=bian_rate Next.js web service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ben
+WorkingDirectory=/home/ben/server/vibecode/bian_rate/web
+Environment=NODE_ENV=production
+EnvironmentFile=/home/ben/server/vibecode/bian_rate/deploy/bian-rate.env
+ExecStart=/home/ben/server/vibecode/bian_rate/scripts/run-web.sh
+Restart=always
+RestartSec=5
+TimeoutStartSec=180
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

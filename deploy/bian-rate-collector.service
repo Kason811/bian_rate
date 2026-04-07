@@ -1,0 +1,15 @@
+[Unit]
+Description=bian_rate funding collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ben
+WorkingDirectory=/home/ben/server/vibecode/bian_rate
+EnvironmentFile=/home/ben/server/vibecode/bian_rate/deploy/bian-rate.env
+ExecStart=/home/ben/server/vibecode/bian_rate/scripts/run-collector.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true

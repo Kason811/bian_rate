@@ -16,9 +16,12 @@ bian_rate/
 ├─ sqlite_store.py                          # SQLite schema 与持久化逻辑
 ├─ import_outputs_to_sqlite.py              # 从已有 Excel 输出回灌 SQLite
 ├─ backfill_volume_history.py               # 给 SQLite 回填日成交量历史
+├─ requirements.txt                         # Python 依赖
 ├─ web/                                     # Next.js 分析前端
 ├─ scripts/
-│  └─ git-sync.ps1                          # 走代理的 Git 同步脚本
+│  ├─ bootstrap-ubuntu.sh                   # Ubuntu 初始化：venv + pip + npm ci
+│  ├─ git-sync.sh                           # Ubuntu Git 同步脚本
+│  └─ restart-web.sh                        # Ubuntu 启动/重启脚本
 ├─ coin_funding_rate_outputs/               # Excel 输出目录（gitignore）
 └─ data/
    └─ bian_rate.sqlite3                     # SQLite 数据库（gitignore）
@@ -81,18 +84,31 @@ bian_rate/
 安装依赖：
 
 ```bash
-pip install pandas openpyxl python-binance requests
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Node.js
 
-推荐 Node.js `20+`
+推荐 Node.js `22.13+`
+
+说明：
+
+- Web 端当前直接使用 `node:sqlite` 读取 `data/bian_rate.sqlite3`
+- 这意味着前端运行环境不能再按旧的 `Node 20+` 准备，建议直接用当前 LTS 的 `Node 22`
 
 安装前端依赖：
 
 ```bash
 cd web
-npm install
+npm ci
+```
+
+如果是刚从 Windows 迁移到 Ubuntu，建议直接执行一次完整初始化：
+
+```bash
+./scripts/bootstrap-ubuntu.sh
 ```
 
 ## 常用命令
@@ -175,26 +191,34 @@ npm run dev
 ```bash
 cd web
 npm run build
-npm run start -- --hostname 127.0.0.1 --port 3026
+npm run start
 ```
+
+当前生产启动参数：
+
+- 默认监听 `0.0.0.0:43126`
+- `43126` 是我这次排查时本机未占用的冷门端口
+- 启动时会读取 `/home/ben/server/vibecode/ip_allowlist.json`
+- 只有白名单 IP 和本机 `127.0.0.1 / ::1` 能访问
+- 白名单文件变更后无需重建，重启网页即可生效
 
 然后打开：
 
 ```text
-http://127.0.0.1:3026/
+http://127.0.0.1:43126/
 ```
 
 周线研究地址：
 
 ```text
-http://127.0.0.1:3026/research-2
+http://127.0.0.1:43126/research-2
 ```
 
 工作约定：
 
 - 下次继续工作时，不要先让用户手动启动程序
-- 应先执行 `npm run build` 与 `npm run start -- --hostname 127.0.0.1 --port 3026`
-- 确认 `3026` 可访问后，再开始继续改页面或数据逻辑
+- 应先执行 `./scripts/restart-web.sh`
+- 确认 `43126` 可访问后，再开始继续改页面或数据逻辑
 - 每次改动完成后，都要重新启动并确认页面返回正常
 
 ## 数据说明
@@ -293,39 +317,150 @@ coin_funding_rate_outputs/
 - 工具链
   - `web/eslint.config.mjs` 已补齐
   - `npm run lint` 当前可直接执行
-  - 本地查看统一使用 `3026` 端口
-  - `web/next.config.ts` 已把构建输出目录切到 `.next-runtime`，避开 Windows/Nutstore 下旧 `.next-build` 的构建问题
-  - 仓库已补 `scripts/restart-web-3026.ps1`，用于只清理 `3026` 监听进程并安全重启网页
+  - 本地查看统一使用 `43126` 端口
+  - `web/next.config.ts` 已把构建输出目录切到 `.next-runtime`
+  - 当前仓库以 Ubuntu 为唯一运行环境，已切到 shell 启动脚本与自定义白名单服务器
 
 当前建议直接从 `docs/2026-04-03-next-phase-plan.md` 接着看，因为那里记录会更详细。
 
 ## Git 同步
 
-仓库里保留了一个 PowerShell 辅助脚本：
+Ubuntu 下可直接使用 shell 辅助脚本：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\git-sync.ps1
+```bash
+./scripts/git-sync.sh
 ```
 
-它会按仓库约定通过代理执行 `pull / add / commit / push`。
+它会执行 `pull --rebase / add / commit / push`。
 
-## 安全重启 3026
+传提交说明：
+
+```bash
+./scripts/git-sync.sh "chore: your message"
+```
+
+如果你需要代理，可临时传环境变量：
+
+```bash
+GIT_PROXY_URL="socks5h://127.0.0.1:10808" ./scripts/git-sync.sh
+```
+
+## 启动与重启网页
 
 如果只想清掉网页端口并干净重启，不要执行“杀所有 node”。
 
 直接在仓库根目录运行：
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\restart-web-3026.ps1
+```bash
+./scripts/restart-web.sh
 ```
 
 这个脚本会：
 
-- 只停止当前监听 `3026` 的进程
-- 在 `web/` 下后台启动 `npm run start -- --hostname 127.0.0.1 --port 3026`
+- 只停止当前监听 `43126` 的进程
+- 先执行 `npm run build`
+- 再在 `web/` 下后台启动生产服务
+- 用 `http://127.0.0.1:43126/__health` 做本地健康检查
 - 输出新的日志文件路径和实际监听 PID
 
 这样不会把本机其他 `node` 进程一并杀掉。
+
+如果你准备长期常驻，建议改成 `systemd` 服务。仓库里已放模板：
+
+`deploy/bian-rate-web.service`
+
+它默认：
+
+- 监听 `0.0.0.0:43126`
+- 使用 `/home/ben/server/vibecode/ip_allowlist.json` 做白名单
+- 若构建产物不存在，会自动执行一次 `npm run build`
+- 失败后自动重启
+
+配套环境文件：
+
+`deploy/bian-rate.env`
+
+建议安装方式：
+
+```bash
+sudo cp deploy/bian-rate.env /home/ben/server/vibecode/bian_rate/deploy/bian-rate.env
+sudo cp deploy/bian-rate-web.service /etc/systemd/system/bian-rate-web.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now bian-rate-web.service
+sudo systemctl status bian-rate-web.service
+```
+
+查看日志：
+
+```bash
+journalctl -u bian-rate-web.service -f
+```
+
+## 定时任务
+
+仓库里已补 `systemd timer`：
+
+- `deploy/bian-rate-collector.service`
+- `deploy/bian-rate-collector.timer`
+
+定时策略默认是每天 `00:15 / 08:15 / 16:15` 运行一次采集。
+
+说明：
+
+- 这个时间按服务器本地时区解释
+- 当前默认假设你的机器时区就是 `Asia/Shanghai`
+- 如果服务器时区不是 `Asia/Shanghai`，要么改系统时区，要么改 timer
+- 采集脚本带文件锁，若上一次还没跑完，本次会自动跳过，不会重入
+
+安装方式：
+
+```bash
+sudo cp deploy/bian-rate-collector.service /etc/systemd/system/bian-rate-collector.service
+sudo cp deploy/bian-rate-collector.timer /etc/systemd/system/bian-rate-collector.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now bian-rate-collector.timer
+sudo systemctl list-timers bian-rate-collector.timer
+```
+
+手动触发一次采集：
+
+```bash
+sudo systemctl start bian-rate-collector.service
+journalctl -u bian-rate-collector.service -n 100 --no-pager
+```
+
+## IP 白名单
+
+网页生产服务会读取：
+
+```text
+/home/ben/server/vibecode/ip_allowlist.json
+```
+
+这是新的共享白名单配置，建议以后 `/home/ben/server/vibecode` 下所有需要白名单的程序都统一读取它。
+
+当前格式是结构化 JSON，优点是：
+
+- 可以保留 `id / label / system / tags / enabled` 等元信息
+- 可以临时禁用某台设备，而不是直接删记录
+- 可以后续扩展 `cidr`
+- 更适合被脚本、服务、面板统一读取
+
+当前 `bian_rate` 已兼容：
+
+- 新格式 `ip_allowlist.json`
+- 旧格式 `ip_tailscale.txt`
+
+建议以后以 `ip_allowlist.json` 为主，`ip_tailscale.txt` 只作为过渡或人工备忘。
+
+按我本次读取到的内容，当前允许的 Tailscale 客户端包括：
+
+- `100.89.9.119`
+- `100.82.170.71`
+- `100.94.105.9`
+- `100.79.204.72`
+
+此外，本机回环地址 `127.0.0.1` 和 `::1` 永远允许访问。
 
 ## 自动区间手动覆盖
 
