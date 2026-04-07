@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const data = await getBtcWeeklyResearch2Data({
     marketType: parseEnumParam<ResearchMarketType>(searchParams.get("market"), "coinm", ["coinm", "usdtm"]),
     symbol: parseSymbolParam(searchParams.get("symbol"), "BTC"),
-    timeframe: parseEnumParam<ResearchTimeframe>(searchParams.get("timeframe"), "week", ["week", "3day", "day"]),
+    timeframe: parseEnumParam<ResearchTimeframe>(searchParams.get("timeframe"), "week", ["week", "3day", "day", "8h", "4h"]),
     tuning: {
       minSegmentWeeks: parseIntParam(searchParams.get("minWeeks"), serverDefaults.tuning.minWeeks),
       latestSegmentMinWeeks: parseIntParam(searchParams.get("latestMinWeeks"), serverDefaults.tuning.latestMinWeeks),

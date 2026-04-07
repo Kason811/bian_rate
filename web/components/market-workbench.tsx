@@ -92,7 +92,7 @@ const emptyResearch2Data: BtcWeeklyResearch2Data = {
   marketType: "usdtm",
   symbol: "ETH",
   timeframe: "3day",
-  availableTimeframes: ["day", "3day", "week"],
+  availableTimeframes: ["8h", "4h", "day", "3day", "week"],
   availableMarkets: ["usdtm", "coinm"],
   availableSymbols: ["ETH"],
   points: [],
@@ -241,42 +241,56 @@ function getResearchMarketLabel(marketType: BtcWeeklyResearch2Data["marketType"]
 }
 
 function getResearchTimeframeLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "8小时";
+  if (timeframe === "4h") return "4小时";
   if (timeframe === "day") return "日线";
   if (timeframe === "3day") return "3日线";
   return "周线";
 }
 
 function getResearchPeriodCountLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "K线数";
+  if (timeframe === "4h") return "K线数";
   if (timeframe === "day") return "天数";
   if (timeframe === "3day") return "区间数";
   return "周数";
 }
 
 function getResearchPeriodUnitLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "个8小时";
+  if (timeframe === "4h") return "个4小时";
   if (timeframe === "day") return "天";
   if (timeframe === "3day") return "个3日";
   return "周";
 }
 
 function getResearchReturnLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "8小时涨跌";
+  if (timeframe === "4h") return "4小时涨跌";
   if (timeframe === "day") return "日涨跌";
   if (timeframe === "3day") return "3日涨跌";
   return "周涨跌";
 }
 
 function getResearchFundingLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "8小时费率";
+  if (timeframe === "4h") return "4小时费率";
   if (timeframe === "day") return "日费率";
   if (timeframe === "3day") return "3日费率";
   return "周费率";
 }
 
 function getResearchAverageReturnLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "平均8小时收益";
+  if (timeframe === "4h") return "平均4小时收益";
   if (timeframe === "day") return "平均日收益";
   if (timeframe === "3day") return "平均3日收益";
   return "平均周收益";
 }
 
 function getResearchAverageFundingLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "8h") return "平均8小时费率";
+  if (timeframe === "4h") return "平均4小时费率";
   if (timeframe === "day") return "平均日费率";
   if (timeframe === "3day") return "平均3日费率";
   return "平均周费率";
@@ -288,13 +302,29 @@ const researchMarketOptions: Array<{ key: BtcWeeklyResearch2Data["marketType"]; 
 ];
 
 const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string }> = [
+  { key: "8h", label: "8小时" },
+  { key: "4h", label: "4小时" },
   { key: "day", label: "日线" },
   { key: "3day", label: "3日线" },
   { key: "week", label: "周线" },
 ];
 
 function parseDateText(dateText: string) {
+  if (dateText.includes("T")) {
+    return new Date(`${dateText}:00`);
+  }
   return new Date(`${dateText}T00:00:00`);
+}
+
+function formatResearchDateText(dateText: string) {
+  return dateText.includes("T") ? dateText.replace("T", " ") : dateText;
+}
+
+function formatResearchAxisTick(value: string) {
+  if (value.includes("T")) {
+    return value.slice(5, 16).replace("T", " ");
+  }
+  return value.slice(2, 10);
 }
 
 function formatMonthLabel(date: Date) {
@@ -331,7 +361,11 @@ function buildResearchWindowRange(total: number, timeframe: BtcWeeklyResearch2Da
     return { startIndex: 0, endIndex: 0 };
   }
   const defaultWindow =
-    timeframe === "day"
+    timeframe === "8h"
+      ? 270
+      : timeframe === "4h"
+      ? 360
+      : timeframe === "day"
       ? 365
       : timeframe === "3day"
         ? 365
@@ -932,7 +966,7 @@ function AutoRegimeTooltip({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
-      <div className="text-sm font-semibold text-slate-900">{point.weekStart ?? "-"}</div>
+      <div className="text-sm font-semibold text-slate-900">{point.weekStart ? formatResearchDateText(point.weekStart) : "-"}</div>
       <div className="mt-2 text-sm text-slate-600">自动热度：{fmtScore(Number(point.autoHeatScore ?? 0))}</div>
       <div className="mt-1 text-sm text-slate-600">状态：{point.autoStateLabel ?? "-"}</div>
       <div className="mt-1 text-sm text-slate-600">来源：{point.autoSource === "manual" ? "手动覆盖" : "自动识别"}</div>
@@ -2317,7 +2351,7 @@ function ResearchManualRegimeEditor({
                     <ReferenceArea x1={selectionStart.weekStart} x2={selectionEnd.weekStart} fill={manualRegimeTone(selectedLabel)} fillOpacity={0.44} strokeOpacity={0} />
                   ) : null}
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                  <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={26} tickFormatter={(value) => value.slice(2, 10)} />
+                  <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={26} tickFormatter={formatResearchAxisTick} />
                   <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
                   <Tooltip content={() => null} />
                   <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.2} />
@@ -2779,7 +2813,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
           <div className="h-[90px] w-full">
             <ResponsiveContainer>
               <BarChart data={points} syncId="btc-weekly-research" onMouseMove={handleResearchHover}>
-                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={formatResearchAxisTick} />
                 <YAxis hide domain={[0, 1]} />
                 <Tooltip content={() => null} />
                 <Bar dataKey={() => 1} isAnimationActive={false}>
@@ -2826,7 +2860,7 @@ function ResearchView({ researchData }: { researchData?: BtcWeeklyResearchData }
             <ResponsiveContainer>
               <BarChart data={autoComparisonRows} syncId="btc-auto-regime" onMouseMove={handleResearchHover}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={formatResearchAxisTick} />
                 <YAxis domain={[-1, 1]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => fmtScore(Number(value))} />
                 <Tooltip content={<AutoRegimeTooltip />} />
                 <Bar dataKey="autoHeatScore" radius={[4, 4, 0, 0]}>
@@ -3240,7 +3274,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
             startIndex={normalizedRange.startIndex}
             endIndex={normalizedRange.endIndex}
             travellerWidth={12}
-            tickFormatter={(value) => value.slice(2, 10)}
+            tickFormatter={formatResearchAxisTick}
             onChange={(range) => {
               const startIndex = typeof range?.startIndex === "number" ? range.startIndex : normalizedRange.startIndex;
               const endIndex = typeof range?.endIndex === "number" ? range.endIndex : normalizedRange.endIndex;
@@ -3447,7 +3481,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           {hoverPoint ? (
             <div className="space-y-3">
               <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-6 xl:grid-cols-12">
-                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{hoverPoint.weekStart}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{formatResearchDateText(hoverPoint.weekStart)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchReturnLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">价格: <span className="font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchFundingLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</span></div>
@@ -3495,7 +3529,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          <div>当前展示窗: <span className="font-medium text-slate-900">{chartPoints[0]?.weekStart ?? "-"} ~ {chartPoints.at(-1)?.weekEnd ?? "-"}</span></div>
+          <div>当前展示窗: <span className="font-medium text-slate-900">{chartPoints[0]?.weekStart ? formatResearchDateText(chartPoints[0].weekStart) : "-"} ~ {chartPoints.at(-1)?.weekEnd ? formatResearchDateText(chartPoints.at(-1)!.weekEnd) : "-"}</span></div>
           <div>展示{getResearchPeriodCountLabel(displayData.timeframe)}: <span className="font-medium text-slate-900">{chartPoints.length}</span></div>
           <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700">
             <span>实时重构图表</span>
@@ -3732,7 +3766,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           <div className="h-[90px] w-full">
             <ResponsiveContainer>
               <BarChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
-                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
+                <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={formatResearchAxisTick} />
                 <YAxis hide domain={[0, 1]} />
                 <Tooltip content={() => null} />
                 <Bar dataKey={() => 1} isAnimationActive={false}>

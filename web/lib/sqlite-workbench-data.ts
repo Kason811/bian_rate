@@ -865,8 +865,12 @@ const SEVEN_REGIME_FAMILY: Record<string, SevenRegimeFamily> = {
 const MIN_RESEARCH_WEEKLY_HISTORY = 52;
 const MIN_RESEARCH_3DAY_HISTORY = 120;
 const MIN_RESEARCH_DAILY_HISTORY = 240;
+const MIN_RESEARCH_8H_HISTORY = 270;
+const MIN_RESEARCH_4H_HISTORY = 360;
 
 function getResearchMinDailyHistory(timeframe: ResearchTimeframe) {
+  if (timeframe === "8h") return 90;
+  if (timeframe === "4h") return 60;
   if (timeframe === "3day") return MIN_RESEARCH_3DAY_HISTORY * 3;
   if (timeframe === "day") return MIN_RESEARCH_DAILY_HISTORY;
   return MIN_RESEARCH_WEEKLY_HISTORY * 7;
@@ -876,7 +880,47 @@ function getResearchKlinePath(symbol: string, marketType: ResearchMarketType, ti
   if (timeframe === "week" && marketType === "coinm" && symbol === "BTC") {
     return path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
   }
-  return path.resolve(process.cwd(), "lib", "research-klines", marketType, timeframe, `${symbol}.json`);
+  const sourceTimeframe = timeframe === "8h" ? "4h" : timeframe;
+  return path.resolve(process.cwd(), "lib", "research-klines", marketType, sourceTimeframe, `${symbol}.json`);
+}
+
+function formatResearchBoundary(timestampMs: number, timeframe: ResearchTimeframe) {
+  const isoText = new Date(timestampMs).toISOString();
+  return timeframe === "4h" || timeframe === "8h" ? isoText.slice(0, 16) : isoText.slice(0, 10);
+}
+
+function formatResearchPointLabel(periodStart: string) {
+  return periodStart.includes("T") ? periodStart.slice(5, 16).replace("T", " ") : periodStart.slice(5);
+}
+
+function aggregate4hTo8h(rows: Array<[number, string, string, string, string, string, number]>) {
+  const groups = new Map<number, Array<[number, string, string, string, string, string, number]>>();
+  for (const row of rows) {
+    const startMs = Number(row[0]);
+    const bucketStartMs = Math.floor(startMs / 28_800_000) * 28_800_000;
+    const bucket = groups.get(bucketStartMs) ?? [];
+    bucket.push(row);
+    groups.set(bucketStartMs, bucket);
+  }
+
+  return [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, bucket]) => {
+      const ordered = [...bucket].sort((a, b) => Number(a[0]) - Number(b[0]));
+      const first = ordered[0];
+      const last = ordered[ordered.length - 1];
+      const high = Math.max(...ordered.map((item) => Number(item[2])));
+      const low = Math.min(...ordered.map((item) => Number(item[3])));
+      return [
+        Number(first[0]),
+        first[1],
+        String(high),
+        String(low),
+        last[4],
+        last[5],
+        Number(last[6]),
+      ] as [number, string, string, string, string, string, number];
+    });
 }
 
 export function loadResearchCandles(symbol: string, marketType: ResearchMarketType, timeframe: ResearchTimeframe): BtcWeeklyCandle[] {
@@ -884,31 +928,44 @@ export function loadResearchCandles(symbol: string, marketType: ResearchMarketTy
   if (!fs.existsSync(klinePath)) {
     return [];
   }
-  const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string, string, number]>;
+  const rawRows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string, string, number]>;
+  const rows = timeframe === "8h" ? aggregate4hTo8h(rawRows) : rawRows;
   const todayUtc = new Date().toISOString().slice(0, 10);
-  return rows
+  const nowMs = Date.now();
+  const candles = rows
     .map((row) => {
-      const weekStart = new Date(row[0]).toISOString().slice(0, 10);
+      const weekStart = formatResearchBoundary(Number(row[0]), timeframe);
       const weekEndDate = typeof row[6] === "number" ? new Date(row[6]) : new Date(row[0]);
       if (typeof row[6] !== "number") {
-        weekEndDate.setUTCDate(weekEndDate.getUTCDate() + (timeframe === "day" ? 0 : timeframe === "3day" ? 2 : 6));
+        weekEndDate.setUTCDate(weekEndDate.getUTCDate() + (timeframe === "day" || timeframe === "4h" || timeframe === "8h" ? 0 : timeframe === "3day" ? 2 : 6));
       }
       return {
         weekStart,
-        weekEnd: weekEndDate.toISOString().slice(0, 10),
+        weekEnd: formatResearchBoundary(weekEndDate.getTime(), timeframe),
         openPrice: Number(row[1]),
         highPrice: Number(row[2]),
         lowPrice: Number(row[3]),
         closePrice: Number(row[4]),
+        closeTimeMs: typeof row[6] === "number" ? row[6] : weekEndDate.getTime(),
       };
     })
-    .filter((row) => row.weekEnd < todayUtc);
+    .filter((row) => ((timeframe === "4h" || timeframe === "8h") ? row.closeTimeMs < nowMs : row.weekEnd < todayUtc));
+  return candles.map((row) => ({
+    weekStart: row.weekStart,
+    weekEnd: row.weekEnd,
+    openPrice: row.openPrice,
+    highPrice: row.highPrice,
+    lowPrice: row.lowPrice,
+    closePrice: row.closePrice,
+  }));
 }
 
 function eachDateBetween(start: string, end: string) {
   const dates: string[] = [];
-  const cursor = new Date(`${start}T00:00:00.000Z`);
-  const last = new Date(`${end}T00:00:00.000Z`);
+  const normalizedStart = start.includes("T") ? start.slice(0, 10) : start;
+  const normalizedEnd = end.includes("T") ? end.slice(0, 10) : end;
+  const cursor = new Date(`${normalizedStart}T00:00:00.000Z`);
+  const last = new Date(`${normalizedEnd}T00:00:00.000Z`);
   while (cursor <= last) {
     dates.push(cursor.toISOString().slice(0, 10));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
@@ -938,7 +995,7 @@ function getResearchAvailableSymbols(db: DatabaseSync, marketType: ResearchMarke
       .all(marketTypeName, MIN_RESEARCH_WEEKLY_HISTORY)
       .filter((row) => fs.existsSync(getResearchKlinePath((row as ResearchSymbolRow).base_asset, marketType, timeframe))) as ResearchSymbolRow[];
   }
-  if (timeframe === "3day" || timeframe === "day") {
+  if (timeframe === "3day" || timeframe === "day" || timeframe === "4h" || timeframe === "8h") {
     return db
       .prepare(
         `
@@ -970,7 +1027,7 @@ function getResearchAvailableMarkets(db: DatabaseSync, timeframe: ResearchTimefr
 
 function getResearchAvailableTimeframes(db: DatabaseSync): ResearchTimeframe[] {
   const timeframes: ResearchTimeframe[] = [];
-  for (const timeframe of ["week", "3day", "day"] as ResearchTimeframe[]) {
+  for (const timeframe of ["week", "3day", "day", "8h", "4h"] as ResearchTimeframe[]) {
     if (getResearchAvailableMarkets(db, timeframe).length > 0) {
       timeframes.push(timeframe);
     }
@@ -1007,7 +1064,7 @@ function buildResearchAuditCell(params: {
   const candles = loadResearchCandles(symbol, marketType, timeframe);
   const candleCount = candles.length;
   const latestCandle = candles.at(-1)?.weekEnd ?? "-";
-  const requiredCandles = timeframe === "week" ? MIN_RESEARCH_WEEKLY_HISTORY : timeframe === "3day" ? MIN_RESEARCH_3DAY_HISTORY : MIN_RESEARCH_DAILY_HISTORY;
+  const requiredCandles = timeframe === "week" ? MIN_RESEARCH_WEEKLY_HISTORY : timeframe === "3day" ? MIN_RESEARCH_3DAY_HISTORY : timeframe === "8h" ? MIN_RESEARCH_8H_HISTORY : timeframe === "4h" ? MIN_RESEARCH_4H_HISTORY : MIN_RESEARCH_DAILY_HISTORY;
   const requiredDaily = getResearchMinDailyHistory(timeframe);
   const fundingCount = timeframe === "week" ? weeklyFundingCount : dailyFundingCount;
   const volumeCount = dailyVolumeCount;
@@ -1744,24 +1801,43 @@ export function buildResearch2FromDailyMetrics(
   dailyFunding: Array<{ metric_date: string; daily_funding_rate: number }>,
   dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
   options?: {
+    timeframe?: ResearchTimeframe;
     tuning?: Partial<Research2Tuning>;
     indicatorSettings?: Partial<Research2IndicatorSettings>;
   },
 ) {
+  const timeframe = options?.timeframe ?? "day";
   const tuning = normalizeResearch2Tuning(options?.tuning);
   const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
   const fundingByDate = new Map(dailyFunding.map((row) => [row.metric_date, row.daily_funding_rate]));
   const volumeByDate = new Map(dailyVolumes.map((row) => [row.metric_date, row.usd_volume]));
   const fundingByPeriodStart = new Map<string, number>();
   const volumeByPeriod = new Map<string, number[]>();
+  const candlesPerDate = new Map<string, number>();
+
+  if (timeframe === "4h" || timeframe === "8h") {
+    for (const candle of candles) {
+      candlesPerDate.set(candle.weekStart, (candlesPerDate.get(candle.weekStart) ?? 0) + 1);
+    }
+  }
 
   for (const candle of candles) {
     const dates = eachDateBetween(candle.weekStart, candle.weekEnd);
     const fundingValues = dates
-      .map((date) => fundingByDate.get(date))
+      .map((date) => {
+        const value = fundingByDate.get(date);
+        if (typeof value !== "number") return undefined;
+        if (timeframe !== "4h" && timeframe !== "8h") return value;
+        return value / Math.max(candlesPerDate.get(date) ?? 1, 1);
+      })
       .filter((value): value is number => typeof value === "number");
     const volumeValues = dates
-      .map((date) => volumeByDate.get(date))
+      .map((date) => {
+        const value = volumeByDate.get(date);
+        if (typeof value !== "number") return undefined;
+        if (timeframe !== "4h" && timeframe !== "8h") return value;
+        return value / Math.max(candlesPerDate.get(date) ?? 1, 1);
+      })
       .filter((value): value is number => typeof value === "number");
     if (fundingValues.length > 0) {
       fundingByPeriodStart.set(candle.weekStart, sumValues(fundingValues));
@@ -1831,7 +1907,7 @@ function buildResearch2FromMetricMaps(
     return {
       weekStart: candle.weekStart,
       weekEnd: candle.weekEnd,
-      weekLabel: candle.weekStart.slice(5),
+      weekLabel: formatResearchPointLabel(candle.weekStart),
       openPrice: candle.openPrice,
       highPrice: candle.highPrice,
       lowPrice: candle.lowPrice,
@@ -2528,7 +2604,7 @@ export async function getBtcWeeklyResearch2Data(
     const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
     const builtResearch = timeframe === "week"
       ? buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings })
-      : buildResearch2FromDailyMetrics(candles, dailyFunding, dailyVolumes, { tuning, indicatorSettings });
+      : buildResearch2FromDailyMetrics(candles, dailyFunding, dailyVolumes, { timeframe, tuning, indicatorSettings });
     const result = {
       marketType,
       symbol,
@@ -2540,6 +2616,8 @@ export async function getBtcWeeklyResearch2Data(
       latestObservedDate,
       sourceLabel: timeframe === "week"
         ? `SQLite 周费率/周成交量 + 本地 ${symbol} ${marketType.toUpperCase()} 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`
+        : timeframe === "4h" || timeframe === "8h"
+          ? `SQLite 日费率/日成交量按日内K线均分聚合 + 本地 ${symbol} ${marketType.toUpperCase()} 4h OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`
         : `SQLite 日费率/日成交量聚合 + 本地 ${symbol} ${marketType.toUpperCase()} ${timeframe} OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`,
     };
     cachedBtcWeeklyResearch2Data = result;

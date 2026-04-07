@@ -251,7 +251,7 @@ export type BtcWeeklyResearch2Thresholds = {
 
 export type ResearchMarketType = "coinm" | "usdtm";
 
-export type ResearchTimeframe = "week" | "3day" | "day";
+export type ResearchTimeframe = "week" | "3day" | "day" | "8h" | "4h";
 
 export type Research2IndicatorSettings = {
   emaPeriod: number;
