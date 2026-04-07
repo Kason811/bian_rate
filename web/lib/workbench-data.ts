@@ -268,6 +268,7 @@ export type Research2Data = {
   marketType: ResearchMarketType;
   symbol: string;
   timeframe: ResearchTimeframe;
+  availableTimeframes: ResearchTimeframe[];
   availableMarkets: ResearchMarketType[];
   availableSymbols: string[];
   points: BtcWeeklyResearch2Point[];

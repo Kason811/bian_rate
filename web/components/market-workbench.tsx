@@ -92,6 +92,7 @@ const emptyResearch2Data: BtcWeeklyResearch2Data = {
   marketType: "coinm",
   symbol: "BTC",
   timeframe: "week",
+  availableTimeframes: ["week"],
   availableMarkets: ["coinm"],
   availableSymbols: ["BTC"],
   points: [],
@@ -245,15 +246,51 @@ function getResearchTimeframeLabel(timeframe: BtcWeeklyResearch2Data["timeframe"
   return "周线";
 }
 
+function getResearchPeriodCountLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "天数";
+  if (timeframe === "3day") return "区间数";
+  return "周数";
+}
+
+function getResearchPeriodUnitLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "天";
+  if (timeframe === "3day") return "个3日";
+  return "周";
+}
+
+function getResearchReturnLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "日涨跌";
+  if (timeframe === "3day") return "3日涨跌";
+  return "周涨跌";
+}
+
+function getResearchFundingLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "日费率";
+  if (timeframe === "3day") return "3日费率";
+  return "周费率";
+}
+
+function getResearchAverageReturnLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "平均日收益";
+  if (timeframe === "3day") return "平均3日收益";
+  return "平均周收益";
+}
+
+function getResearchAverageFundingLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "平均日费率";
+  if (timeframe === "3day") return "平均3日费率";
+  return "平均周费率";
+}
+
 const researchMarketOptions: Array<{ key: BtcWeeklyResearch2Data["marketType"]; label: string; enabled: boolean }> = [
   { key: "coinm", label: "币本位 COIN-M", enabled: true },
   { key: "usdtm", label: "U本位 USDT-M", enabled: false },
 ];
 
-const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string; enabled: boolean }> = [
-  { key: "week", label: "周线", enabled: true },
-  { key: "3day", label: "3日线", enabled: false },
-  { key: "day", label: "日线", enabled: false },
+const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string }> = [
+  { key: "week", label: "周线" },
+  { key: "3day", label: "3日线" },
+  { key: "day", label: "日线" },
 ];
 
 function parseDateText(dateText: string) {
@@ -289,11 +326,21 @@ function viewTitle(view: ViewKey) {
   return "热力图";
 }
 
-function buildResearchWindowRange(total: number) {
+function buildResearchWindowRange(total: number, timeframe: BtcWeeklyResearch2Data["timeframe"] = "week") {
   if (!total) {
     return { startIndex: 0, endIndex: 0 };
   }
-  return { startIndex: 0, endIndex: total - 1 };
+  const defaultWindow =
+    timeframe === "day"
+      ? 550
+      : timeframe === "3day"
+        ? 490
+        : total;
+  if (total <= defaultWindow) {
+    return { startIndex: 0, endIndex: total - 1 };
+  }
+  const startIndex = Math.max(0, total - defaultWindow);
+  return { startIndex, endIndex: total - 1 };
 }
 
 
@@ -2856,7 +2903,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const points = useMemo(() => baseResearch2Data.points, [baseResearch2Data.points]);
   const latestPoint = points.at(-1) ?? null;
   const [hoverPoint, setHoverPoint] = useState<BtcWeeklyResearch2Data["points"][number] | null>(latestPoint);
-  const [visibleRange, setVisibleRange] = useState(() => buildResearchWindowRange(points.length));
+  const [visibleRange, setVisibleRange] = useState(() => buildResearchWindowRange(points.length, baseResearch2Data.timeframe));
   const [realtimeRebuild, setRealtimeRebuild] = useState(false);
   const [previewData, setPreviewData] = useState<BtcWeeklyResearch2Data | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -2895,8 +2942,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   }, [latestPoint]);
 
   useEffect(() => {
-    setVisibleRange(buildResearchWindowRange(points.length));
-  }, [points.length]);
+    setVisibleRange(buildResearchWindowRange(points.length, baseResearch2Data.timeframe));
+  }, [baseResearch2Data.timeframe, points.length]);
 
   useEffect(() => {
     setMinSegmentWeeksInput(String(research2Data?.thresholds.minSegmentWeeks ?? 5));
@@ -3244,7 +3291,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     return (
       <Card
         title={`${getResearchMarketLabel(baseResearch2Data.marketType)} ${baseResearch2Data.symbol} ${getResearchTimeframeLabel(baseResearch2Data.timeframe)}研究`}
-        hint="当前先保留七态自动体制逻辑，后续再扩成多市场、多币种、多周期统一框架。"
+        hint="当前保留七态自动体制逻辑，并逐步扩成多市场、多币种、多周期统一框架。"
       >
         <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
           {research2Data?.loadError ?? "七态研究数据暂不可用。"}
@@ -3255,7 +3302,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
   return (
     <div className="space-y-6">
-      <Card title="研究上下文" hint="先把市场、周期、币种三层骨架接好。当前真实数据只开放 币本位 BTC 周线，其他入口先占位。">
+      <Card title="研究上下文" hint="先把市场、周期、币种三层骨架接好。当前真实数据已开放双市场周线、3日线与日线。">
         <div className="space-y-4">
           <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
             当前选择: <span className="font-semibold text-slate-900">{getResearchMarketLabel(displayData.marketType)} / {getResearchTimeframeLabel(displayData.timeframe)} / {displayData.symbol}</span>
@@ -3291,23 +3338,24 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">周期</div>
             <div className="flex flex-wrap gap-2">
               {researchTimeframeOptions.map((option) => {
+                const enabled = displayData.availableTimeframes.includes(option.key);
                 const active = displayData.timeframe === option.key;
                 return (
                   <button
                     key={option.key}
                     type="button"
-                    disabled={!option.enabled}
+                    disabled={!enabled}
                     onClick={() => updateResearch2Context({ timeframe: option.key })}
                     className={`rounded-full border px-4 py-2 text-sm transition ${
                       active
                         ? "border-slate-900 bg-slate-900 text-white"
-                        : option.enabled
+                        : enabled
                           ? "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
                           : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
                     }`}
                   >
                     {option.label}
-                    {!option.enabled ? " · 规划中" : ""}
+                    {!enabled ? " · 规划中" : ""}
                   </button>
                 );
               })}
@@ -3337,9 +3385,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
       <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Kpi label="K线总数" value={`${klineCount}`} hint="当前市场、币种、周期下已接入研究页的总 K 线数量。" />
         <Kpi label="自动区间数" value={`${displayData.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
-        <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
-        <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}，家族 ${displayLatestPoint.family}` : "暂无已完成周线。"} />
-        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={displayLatestPoint ? `当前研究分段最新完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}` : "暂无最新观测数据。"} />
+        <Kpi label="平均区间长度" value={`${averageSegmentWeeks} ${getResearchPeriodUnitLabel(displayData.timeframe)}`} hint="这里越大，说明切换越稳；越小，说明对当前周期状态变化更敏感。" />
+        <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成区间 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}，家族 ${displayLatestPoint.family}` : "暂无已完成区间。"} />
+        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={displayLatestPoint ? `当前研究分段最新完成区间 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}` : "暂无最新观测数据。"} />
         <Kpi label="数据源" value={`${getResearchMarketLabel(research2Data.marketType)} ${research2Data.symbol} ${getResearchTimeframeLabel(research2Data.timeframe)}`} hint={research2Data.sourceLabel} />
       </div>
 
@@ -3370,9 +3418,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
             <div className="space-y-3">
               <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-6 xl:grid-cols-12">
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{hoverPoint.weekStart}</span></div>
-                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">周涨跌: <span className={`font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchReturnLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">价格: <span className="font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</span></div>
-                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">周费率: <span className={`font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchFundingLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">日均成交量: <span className="font-medium text-slate-900">{fmtVol(hoverPoint.avgVolumeM)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-6 xl:col-span-2 whitespace-nowrap">ADX / BBW: <span className="font-medium text-slate-900">{hoverPoint.adx14.toFixed(1)} / {hoverPoint.bbwPercentile104.toFixed(1)}</span></div>
               </div>
@@ -3383,11 +3431,11 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                     <div>区间: <span className="font-semibold text-slate-900">{activeSegment?.label ?? hoverPoint.confirmedRegime}</span></div>
                     <div>当前区块: <span className="font-medium text-slate-900">#{activeSegment ? activeSegment.index + 1 : "-"}</span></div>
                     <div>时间范围: <span className="font-medium text-slate-900">{activeSegment ? formatClosedDateSpan(activeSegment.start, activeSegment.end) : "-"}</span></div>
-                    <div>周数: <span className="font-medium text-slate-900">{activeSegment ? `${activeSegment.weeks} 周` : hoverPoint.family}</span></div>
+                    <div>{getResearchPeriodCountLabel(displayData.timeframe)}: <span className="font-medium text-slate-900">{activeSegment ? `${activeSegment.weeks} ${getResearchPeriodUnitLabel(displayData.timeframe)}` : hoverPoint.family}</span></div>
                   </div>
                   <div className="grid gap-x-4 gap-y-2 md:grid-cols-4">
                     <div>区间累计涨跌: <span className={`font-medium ${rateText(activeSegment?.cumulativeReturnPct ?? 0)}`}>{fmtPct(activeSegment?.cumulativeReturnPct ?? 0)}</span></div>
-                    <div>平均周收益: <span className={`font-medium ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</span></div>
+                    <div>{getResearchAverageReturnLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(activeSegment?.avgWeeklyReturnPct ?? 0)}`}>{fmtPct(activeSegment?.avgWeeklyReturnPct ?? 0)}</span></div>
                     <div>区间内最大上冲: <span className={`font-medium ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</span></div>
                     <div>区间内最大回撤: <span className={`font-medium ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</span></div>
                   </div>
@@ -3412,7 +3460,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
           <div>当前展示窗: <span className="font-medium text-slate-900">{chartPoints[0]?.weekStart ?? "-"} ~ {chartPoints.at(-1)?.weekEnd ?? "-"}</span></div>
-          <div>展示周数: <span className="font-medium text-slate-900">{chartPoints.length}</span></div>
+          <div>展示{getResearchPeriodCountLabel(displayData.timeframe)}: <span className="font-medium text-slate-900">{chartPoints.length}</span></div>
           <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700">
             <span>实时重构图表</span>
             <button
@@ -3536,7 +3584,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
           <div className="h-[170px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />周费率柱 {hoverPoint ? fmtPct(hoverPoint.fundingRatePct) : "-"}</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />{getResearchFundingLabel(displayData.timeframe)}柱 {hoverPoint ? fmtPct(hoverPoint.fundingRatePct) : "-"}</span>
             </div>
             <ResponsiveContainer>
               <BarChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
@@ -3650,10 +3698,10 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                   <th className="py-3">区间</th>
                   <th className="py-3">状态</th>
                   <th className="py-3">时间范围</th>
-                  <th className="py-3 text-right">周数</th>
+                  <th className="py-3 text-right">{getResearchPeriodCountLabel(displayData.timeframe)}</th>
                   <th className="py-3 text-right">累计涨跌</th>
-                  <th className="py-3 text-right">平均周收益</th>
-                  <th className="py-3 text-right">平均周费率</th>
+                  <th className="py-3 text-right">{getResearchAverageReturnLabel(displayData.timeframe)}</th>
+                  <th className="py-3 text-right">{getResearchAverageFundingLabel(displayData.timeframe)}</th>
                   <th className="py-3 text-right">平均 ADX</th>
                   <th className="py-3 text-right">平均 BBW分位</th>
                   <th className="py-3 text-right">峰值到段末回撤</th>
@@ -3694,8 +3742,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                   <div className="text-xs text-slate-500">{summary.weeks} 周 / {summary.sharePct}%</div>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
-                  <div>平均周收益：<span className={rateText(summary.avgWeeklyReturnPct)}>{fmtPct(summary.avgWeeklyReturnPct)}</span></div>
-                  <div>平均周费率：<span className={rateText(summary.avgFundingRatePct)}>{fmtPct(summary.avgFundingRatePct)}</span></div>
+                  <div>{getResearchAverageReturnLabel(displayData.timeframe)}：<span className={rateText(summary.avgWeeklyReturnPct)}>{fmtPct(summary.avgWeeklyReturnPct)}</span></div>
+                  <div>{getResearchAverageFundingLabel(displayData.timeframe)}：<span className={rateText(summary.avgFundingRatePct)}>{fmtPct(summary.avgFundingRatePct)}</span></div>
                   <div>平均 ADX：<span className="text-slate-900">{summary.avgAdx14.toFixed(1)}</span></div>
                   <div>平均 BBW分位：<span className="text-slate-900">{summary.avgBbwPercentile104.toFixed(1)}</span></div>
                 </div>

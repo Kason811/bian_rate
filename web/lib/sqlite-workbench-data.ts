@@ -865,26 +865,36 @@ const SEVEN_REGIME_FAMILY: Record<string, SevenRegimeFamily> = {
 };
 
 const MIN_RESEARCH_WEEKLY_HISTORY = 52;
+const MIN_RESEARCH_3DAY_HISTORY = 120;
+const MIN_RESEARCH_DAILY_HISTORY = 240;
 
-function getResearchWeeklyKlinePath(symbol: string, marketType: ResearchMarketType) {
-  if (marketType === "coinm" && symbol === "BTC") {
-    return path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
-  }
-  return path.resolve(process.cwd(), "lib", "research-klines", marketType, "week", `${symbol}.json`);
+function getResearchMinDailyHistory(timeframe: ResearchTimeframe) {
+  if (timeframe === "3day") return MIN_RESEARCH_3DAY_HISTORY * 3;
+  if (timeframe === "day") return MIN_RESEARCH_DAILY_HISTORY;
+  return MIN_RESEARCH_WEEKLY_HISTORY * 7;
 }
 
-function loadResearchWeeklyCandles(symbol: string, marketType: ResearchMarketType): BtcWeeklyCandle[] {
-  const klinePath = getResearchWeeklyKlinePath(symbol, marketType);
+function getResearchKlinePath(symbol: string, marketType: ResearchMarketType, timeframe: ResearchTimeframe) {
+  if (timeframe === "week" && marketType === "coinm" && symbol === "BTC") {
+    return path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+  }
+  return path.resolve(process.cwd(), "lib", "research-klines", marketType, timeframe, `${symbol}.json`);
+}
+
+function loadResearchCandles(symbol: string, marketType: ResearchMarketType, timeframe: ResearchTimeframe): BtcWeeklyCandle[] {
+  const klinePath = getResearchKlinePath(symbol, marketType, timeframe);
   if (!fs.existsSync(klinePath)) {
     return [];
   }
-  const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
+  const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string, string, number]>;
   const todayUtc = new Date().toISOString().slice(0, 10);
   return rows
     .map((row) => {
       const weekStart = new Date(row[0]).toISOString().slice(0, 10);
-      const weekEndDate = new Date(row[0]);
-      weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+      const weekEndDate = typeof row[6] === "number" ? new Date(row[6]) : new Date(row[0]);
+      if (typeof row[6] !== "number") {
+        weekEndDate.setUTCDate(weekEndDate.getUTCDate() + (timeframe === "day" ? 0 : timeframe === "3day" ? 2 : 6));
+      }
       return {
         weekStart,
         weekEnd: weekEndDate.toISOString().slice(0, 10),
@@ -897,11 +907,20 @@ function loadResearchWeeklyCandles(symbol: string, marketType: ResearchMarketTyp
     .filter((row) => row.weekEnd < todayUtc);
 }
 
-function getResearchAvailableSymbols(db: DatabaseSync, marketType: ResearchMarketType, timeframe: ResearchTimeframe) {
-  if (timeframe !== "week") {
-    return [];
+function eachDateBetween(start: string, end: string) {
+  const dates: string[] = [];
+  const cursor = new Date(`${start}T00:00:00.000Z`);
+  const last = new Date(`${end}T00:00:00.000Z`);
+  while (cursor <= last) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
-  if (marketType === "coinm") {
+  return dates;
+}
+
+function getResearchAvailableSymbols(db: DatabaseSync, marketType: ResearchMarketType, timeframe: ResearchTimeframe) {
+  const marketTypeName = marketType === "coinm" ? "COINM_PERPETUAL" : "USDTM_PERPETUAL";
+  if (timeframe === "week") {
     return db
       .prepare(
         `
@@ -912,41 +931,53 @@ function getResearchAvailableSymbols(db: DatabaseSync, marketType: ResearchMarke
             FROM weekly_funding_metrics
             GROUP BY symbol
           ) wf ON wf.symbol = s.symbol
-          WHERE s.market_type = 'COINM_PERPETUAL'
+          WHERE s.market_type = ?
             AND s.is_active = 1
             AND wf.weekly_points >= ?
           ORDER BY s.base_asset
         `,
       )
-      .all(MIN_RESEARCH_WEEKLY_HISTORY) as ResearchSymbolRow[];
+      .all(marketTypeName, MIN_RESEARCH_WEEKLY_HISTORY)
+      .filter((row) => fs.existsSync(getResearchKlinePath((row as ResearchSymbolRow).base_asset, marketType, timeframe))) as ResearchSymbolRow[];
   }
-  return db
-    .prepare(
-      `
-        SELECT s.base_asset
-        FROM symbols s
-        INNER JOIN (
-          SELECT symbol, COUNT(*) AS weekly_points
-          FROM weekly_funding_metrics
-          GROUP BY symbol
-        ) wf ON wf.symbol = s.symbol
-        WHERE s.market_type = 'USDTM_PERPETUAL'
-          AND s.is_active = 1
-          AND wf.weekly_points >= ?
-        ORDER BY s.base_asset
-      `,
-    )
-    .all(MIN_RESEARCH_WEEKLY_HISTORY) as ResearchSymbolRow[];
+  if (timeframe === "3day" || timeframe === "day") {
+    return db
+      .prepare(
+        `
+          SELECT s.base_asset
+          FROM symbols s
+          INNER JOIN (
+            SELECT symbol, COUNT(*) AS daily_points
+            FROM daily_funding_metrics
+            GROUP BY symbol
+          ) df ON df.symbol = s.symbol
+          WHERE s.market_type = ?
+            AND s.is_active = 1
+            AND df.daily_points >= ?
+          ORDER BY s.base_asset
+        `,
+      )
+      .all(marketTypeName, getResearchMinDailyHistory(timeframe))
+      .filter((row) => fs.existsSync(getResearchKlinePath((row as ResearchSymbolRow).base_asset, marketType, timeframe))) as ResearchSymbolRow[];
+  }
+  return [];
 }
 
 function getResearchAvailableMarkets(db: DatabaseSync, timeframe: ResearchTimeframe): ResearchMarketType[] {
-  if (timeframe !== "week") {
-    return [];
-  }
   const markets: ResearchMarketType[] = [];
   if (getResearchAvailableSymbols(db, "coinm", timeframe).length > 0) markets.push("coinm");
   if (getResearchAvailableSymbols(db, "usdtm", timeframe).length > 0) markets.push("usdtm");
   return markets;
+}
+
+function getResearchAvailableTimeframes(db: DatabaseSync): ResearchTimeframe[] {
+  const timeframes: ResearchTimeframe[] = [];
+  for (const timeframe of ["week", "3day", "day"] as ResearchTimeframe[]) {
+    if (getResearchAvailableMarkets(db, timeframe).length > 0) {
+      timeframes.push(timeframe);
+    }
+  }
+  return timeframes;
 }
 
 function getResearchContractSymbol(symbol: string, marketType: ResearchMarketType) {
@@ -1314,8 +1345,8 @@ function buildResearch2SegmentDraft(points: SegmentFeaturePoint[], startIndex: n
     end: segmentPoints.at(-1)?.weekEnd ?? segmentPoints[0].weekEnd,
     startCloseDate: segmentPoints[0].weekStart,
     endCloseDate: segmentPoints.at(-1)?.weekEnd ?? segmentPoints[0].weekEnd,
-    startClosePrice: Number(firstOpen.toFixed(2)),
-    endClosePrice: Number(lastClose.toFixed(2)),
+    startClosePrice: firstOpen,
+    endClosePrice: lastClose,
     weeks: segmentPoints.length,
     cumulativeReturnPct: Number((((lastClose / firstOpen) - 1) * 100).toFixed(2)),
     maxAdvancePct: Number(Math.max(...maxAdvancePath).toFixed(2)),
@@ -1642,6 +1673,55 @@ function buildBtcSevenRegimeResearch(
       return [start, row.weekly_funding_rate] as const;
     }),
   );
+  return buildResearch2FromMetricMaps(candles, fundingByWeekStart, volumeByWeek, { tuning, indicatorSettings });
+}
+
+function buildResearch2FromDailyMetrics(
+  candles: BtcWeeklyCandle[],
+  dailyFunding: Array<{ metric_date: string; daily_funding_rate: number }>,
+  dailyVolumes: Array<{ metric_date: string; usd_volume: number }>,
+  options?: {
+    tuning?: Partial<Research2Tuning>;
+    indicatorSettings?: Partial<Research2IndicatorSettings>;
+  },
+) {
+  const tuning = normalizeResearch2Tuning(options?.tuning);
+  const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
+  const fundingByDate = new Map(dailyFunding.map((row) => [row.metric_date, row.daily_funding_rate]));
+  const volumeByDate = new Map(dailyVolumes.map((row) => [row.metric_date, row.usd_volume]));
+  const fundingByPeriodStart = new Map<string, number>();
+  const volumeByPeriod = new Map<string, number[]>();
+
+  for (const candle of candles) {
+    const dates = eachDateBetween(candle.weekStart, candle.weekEnd);
+    const fundingValues = dates
+      .map((date) => fundingByDate.get(date))
+      .filter((value): value is number => typeof value === "number");
+    const volumeValues = dates
+      .map((date) => volumeByDate.get(date))
+      .filter((value): value is number => typeof value === "number");
+    if (fundingValues.length > 0) {
+      fundingByPeriodStart.set(candle.weekStart, sumValues(fundingValues));
+    }
+    if (volumeValues.length > 0) {
+      volumeByPeriod.set(`${candle.weekStart}/${candle.weekEnd}`, volumeValues);
+    }
+  }
+
+  return buildResearch2FromMetricMaps(candles, fundingByPeriodStart, volumeByPeriod, { tuning, indicatorSettings });
+}
+
+function buildResearch2FromMetricMaps(
+  candles: BtcWeeklyCandle[],
+  fundingByWeekStart: Map<string, number>,
+  volumeByWeek: Map<string, number[]>,
+  options?: {
+    tuning?: Partial<Research2Tuning>;
+    indicatorSettings?: Partial<Research2IndicatorSettings>;
+  },
+) {
+  const tuning = normalizeResearch2Tuning(options?.tuning);
+  const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
 
   const scopedCandles = candles.filter((row) => {
     if (!fundingByWeekStart.has(row.weekStart)) return false;
@@ -1692,15 +1772,15 @@ function buildBtcSevenRegimeResearch(
       openPrice: candle.openPrice,
       highPrice: candle.highPrice,
       lowPrice: candle.lowPrice,
-      closePrice: Number(candle.closePrice.toFixed(2)),
+      closePrice: candle.closePrice,
       fundingRatePct: toPct(fundingByWeekStart.get(candle.weekStart) ?? 0),
       avgVolumeM: toMillion(avgValues(volumes)),
       weeklyReturnPct: index > 0 ? Number((((candle.closePrice / scopedCandles[index - 1].closePrice) - 1) * 100).toFixed(3)) : 0,
-      ema21: Number(ema21Values[index].toFixed(2)),
-      sma200: Number(sma200Values[index].toFixed(2)),
-      bbBasis: Number(bbBasisValues[index].toFixed(2)),
-      bbUpper: Number((bbBasisValues[index] + (bbStdValues[index] * indicatorSettings.bbStdDev)).toFixed(2)),
-      bbLower: Number((bbBasisValues[index] - (bbStdValues[index] * indicatorSettings.bbStdDev)).toFixed(2)),
+      ema21: ema21Values[index],
+      sma200: sma200Values[index],
+      bbBasis: bbBasisValues[index],
+      bbUpper: bbBasisValues[index] + (bbStdValues[index] * indicatorSettings.bbStdDev),
+      bbLower: bbBasisValues[index] - (bbStdValues[index] * indicatorSettings.bbStdDev),
       rsi: Number((Number.isFinite(rsiValues[index]) ? rsiValues[index] : 50).toFixed(3)),
       adx14: Number((Number.isFinite(adx14Values[index]) ? adx14Values[index] : 25).toFixed(3)),
       bbw: Number((bbwValues[index] * 100).toFixed(3)),
@@ -2269,7 +2349,7 @@ export async function getBtcWeeklyResearch2Data(
   const marketType = options?.marketType ?? "coinm";
   const symbol = (options?.symbol ?? "BTC").toUpperCase();
   const timeframe = options?.timeframe ?? "week";
-  const klinePath = getResearchWeeklyKlinePath(symbol, marketType);
+  const klinePath = getResearchKlinePath(symbol, marketType, timeframe);
   const klineMtimeMs = fs.existsSync(klinePath) ? fs.statSync(klinePath).mtimeMs : 0;
   const tuning = normalizeResearch2Tuning(options?.tuning);
   const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
@@ -2282,10 +2362,11 @@ export async function getBtcWeeklyResearch2Data(
 
   let db: DatabaseSync | null = null;
 
-  const emptyResult = (availableMarkets: ResearchMarketType[], availableSymbols: string[], sourceLabel: string, loadError?: string): Research2Data => ({
+  const emptyResult = (availableTimeframes: ResearchTimeframe[], availableMarkets: ResearchMarketType[], availableSymbols: string[], sourceLabel: string, loadError?: string): Research2Data => ({
     marketType,
     symbol,
     timeframe,
+    availableTimeframes,
     availableMarkets,
     availableSymbols,
     points: [],
@@ -2300,55 +2381,66 @@ export async function getBtcWeeklyResearch2Data(
 
   try {
     db = new DatabaseSync(databasePath, { open: true, readOnly: true });
+    const availableTimeframes = getResearchAvailableTimeframes(db);
     const availableMarkets = getResearchAvailableMarkets(db, timeframe);
     const availableSymbols = getResearchAvailableSymbols(db, marketType, timeframe).map((row) => row.base_asset);
-    if (timeframe !== "week") {
-      return emptyResult(availableMarkets, availableSymbols, "研究页2当前仅支持周线数据", `暂不支持 ${timeframe} 周期，当前仅开放 week。`);
+    if (!availableTimeframes.includes(timeframe)) {
+      return emptyResult(availableTimeframes, availableMarkets, availableSymbols, "研究页2周期暂不可用", `暂不支持 ${timeframe} 周期，当前还没有可用历史数据。`);
     }
     if (!availableMarkets.includes(marketType)) {
-      return emptyResult(availableMarkets, availableSymbols, "研究页2市场暂不可用", `${marketType}:${timeframe} 当前还没有可用历史数据。`);
+      return emptyResult(availableTimeframes, availableMarkets, availableSymbols, "研究页2市场暂不可用", `${marketType}:${timeframe} 当前还没有可用历史数据。`);
     }
     if (!availableSymbols.includes(symbol)) {
-      return emptyResult(availableMarkets, availableSymbols, "研究页2币种暂不可用", `${symbol} 暂未进入当前研究页可选周线币种列表。`);
+      return emptyResult(availableTimeframes, availableMarkets, availableSymbols, "研究页2币种暂不可用", `${symbol} 暂未进入当前研究页可选${timeframe}币种列表。`);
     }
     const contractSymbol = getResearchContractSymbol(symbol, marketType);
-    const weeklyFunding = db
-      .prepare("SELECT metric_week, weekly_funding_rate FROM weekly_funding_metrics WHERE symbol = ? ORDER BY metric_week")
-      .all(contractSymbol) as Array<{ metric_week: string; weekly_funding_rate: number }>;
+    const dailyFunding = db
+      .prepare("SELECT metric_date, daily_funding_rate FROM daily_funding_metrics WHERE symbol = ? ORDER BY metric_date")
+      .all(contractSymbol) as Array<{ metric_date: string; daily_funding_rate: number }>;
     const dailyVolumes = db
       .prepare("SELECT metric_date, usd_volume FROM daily_volume_metrics WHERE symbol = ? ORDER BY metric_date")
       .all(contractSymbol) as Array<{ metric_date: string; usd_volume: number }>;
+    const weeklyFunding = timeframe === "week"
+      ? db.prepare("SELECT metric_week, weekly_funding_rate FROM weekly_funding_metrics WHERE symbol = ? ORDER BY metric_week")
+        .all(contractSymbol) as Array<{ metric_week: string; weekly_funding_rate: number }>
+      : [];
 
-    if (!weeklyFunding.length || !dailyVolumes.length) {
-      return emptyResult(availableMarkets, availableSymbols, `SQLite 无 ${symbol} 周线研究页2数据`, `${symbol} 周费率或成交量数据缺失。`);
+    if (!dailyFunding.length || !dailyVolumes.length || (timeframe === "week" && !weeklyFunding.length)) {
+      return emptyResult(availableTimeframes, availableMarkets, availableSymbols, `SQLite 无 ${symbol} ${timeframe} 研究页2数据`, `${symbol} funding 或成交量数据缺失。`);
     }
 
-    const candles = loadResearchWeeklyCandles(symbol, marketType).filter((candle) => {
+    const candles = loadResearchCandles(symbol, marketType, timeframe).filter((candle) => {
       if (rangeStart && candle.weekStart < rangeStart) return false;
       if (rangeEnd && candle.weekStart > rangeEnd) return false;
       return true;
     });
     if (!candles.length) {
-      return emptyResult(availableMarkets, availableSymbols, `${symbol} 周线 K 线缓存缺失`, `${symbol} 缺少本地周线 OHLC 缓存，请先回填 research-klines/${marketType}/week/${symbol}.json。`);
+      return emptyResult(availableTimeframes, availableMarkets, availableSymbols, `${symbol} ${timeframe} K 线缓存缺失`, `${symbol} 缺少本地 ${timeframe} OHLC 缓存，请先回填 research-klines/${marketType}/${timeframe}/${symbol}.json。`);
     }
     const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(contractSymbol) as { latest_date: string | null }).latest_date;
     const latestVolumeDate = dailyVolumes.at(-1)?.metric_date ?? null;
     const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
+    const builtResearch = timeframe === "week"
+      ? buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings })
+      : buildResearch2FromDailyMetrics(candles, dailyFunding, dailyVolumes, { tuning, indicatorSettings });
     const result = {
       marketType,
       symbol,
       timeframe,
+      availableTimeframes,
       availableMarkets,
       availableSymbols,
-      ...buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings }),
+      ...builtResearch,
       latestObservedDate,
-      sourceLabel: `SQLite 周费率/周成交量 + 本地 ${symbol} ${marketType.toUpperCase()} 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`,
+      sourceLabel: timeframe === "week"
+        ? `SQLite 周费率/周成交量 + 本地 ${symbol} ${marketType.toUpperCase()} 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`
+        : `SQLite 日费率/日成交量聚合 + 本地 ${symbol} ${marketType.toUpperCase()} ${timeframe} OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`,
     };
     cachedBtcWeeklyResearch2Data = result;
     cachedBtcWeeklyResearch2CacheKey = cacheKey;
     return result;
   } catch (error) {
-    return emptyResult([], [], `${symbol} 周线研究页2数据读取失败`, error instanceof Error ? error.message : "unknown error");
+    return emptyResult([], [], [], `${symbol} 研究页2数据读取失败`, error instanceof Error ? error.message : "unknown error");
   } finally {
     db?.close();
   }
