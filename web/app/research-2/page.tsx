@@ -35,9 +35,9 @@ export default async function Research2Page({
 }) {
   const params = searchParams ? await searchParams : {};
   const serverDefaults = getResearch2Defaults();
-  const marketType = parseEnumParam<ResearchMarketType>(params.market, "coinm", ["coinm", "usdtm"]);
-  const timeframe = parseEnumParam<ResearchTimeframe>(params.timeframe, "week", ["week", "3day", "day"]);
-  const symbol = parseSymbolParam(params.symbol, "BTC");
+  const marketType = parseEnumParam<ResearchMarketType>(params.market, "usdtm", ["coinm", "usdtm"]);
+  const timeframe = parseEnumParam<ResearchTimeframe>(params.timeframe, "3day", ["week", "3day", "day"]);
+  const symbol = parseSymbolParam(params.symbol, "ETH");
   const tuning = {
     minSegmentWeeks: parseIntParam(params.minWeeks, serverDefaults.tuning.minWeeks),
     latestSegmentMinWeeks: parseIntParam(params.latestMinWeeks, serverDefaults.tuning.latestMinWeeks),

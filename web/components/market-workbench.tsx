@@ -89,12 +89,12 @@ const RESEARCH2_INDICATOR_DEFAULTS = {
   bbwLow: "30",
 } as const;
 const emptyResearch2Data: BtcWeeklyResearch2Data = {
-  marketType: "coinm",
-  symbol: "BTC",
-  timeframe: "week",
-  availableTimeframes: ["week"],
-  availableMarkets: ["coinm"],
-  availableSymbols: ["BTC"],
+  marketType: "usdtm",
+  symbol: "ETH",
+  timeframe: "3day",
+  availableTimeframes: ["day", "3day", "week"],
+  availableMarkets: ["usdtm", "coinm"],
+  availableSymbols: ["ETH"],
   points: [],
   segments: [],
   summaries: [],
@@ -283,14 +283,14 @@ function getResearchAverageFundingLabel(timeframe: BtcWeeklyResearch2Data["timef
 }
 
 const researchMarketOptions: Array<{ key: BtcWeeklyResearch2Data["marketType"]; label: string; enabled: boolean }> = [
+  { key: "usdtm", label: "U本位 USDT-M", enabled: true },
   { key: "coinm", label: "币本位 COIN-M", enabled: true },
-  { key: "usdtm", label: "U本位 USDT-M", enabled: false },
 ];
 
 const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string }> = [
-  { key: "week", label: "周线" },
-  { key: "3day", label: "3日线" },
   { key: "day", label: "日线" },
+  { key: "3day", label: "3日线" },
+  { key: "week", label: "周线" },
 ];
 
 function parseDateText(dateText: string) {
@@ -332,9 +332,9 @@ function buildResearchWindowRange(total: number, timeframe: BtcWeeklyResearch2Da
   }
   const defaultWindow =
     timeframe === "day"
-      ? 550
+      ? 365
       : timeframe === "3day"
-        ? 490
+        ? 365
         : total;
   if (total <= defaultWindow) {
     return { startIndex: 0, endIndex: total - 1 };
