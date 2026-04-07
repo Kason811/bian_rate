@@ -3017,8 +3017,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   ]);
 
   const displayData: BtcWeeklyResearch2Data = realtimeRebuild ? (previewData ?? research2Data ?? emptyResearch2Data) : (research2Data ?? emptyResearch2Data);
-  const visiblePoints = displayData.points;
-  const displayLatestPoint = visiblePoints.at(-1) ?? null;
+  const chartPoints = realtimeRebuild ? (previewData?.points ?? selectedPoints) : selectedPoints;
+  const displayLatestPoint = chartPoints.at(-1) ?? null;
 
   useEffect(() => {
     setHoverPoint(displayLatestPoint);
@@ -3027,7 +3027,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const regimeRanges = displayData.segments.map((segment) => ({
     ...segment,
     x1: segment.start,
-    x2: visiblePoints.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
+    x2: displayData.points.find((point) => point.weekEnd === segment.end)?.weekStart ?? segment.start,
   }));
   const visibleRegimeRanges = regimeRanges
     .filter((segment) => !visibleStartWeek || !visibleEndWeek || (segment.x2 >= visibleStartWeek && segment.x1 <= visibleEndWeek))
@@ -3043,9 +3043,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const activeSegment = hoverPoint
     ? displayData.segments.find((segment) => hoverPoint.weekStart >= segment.start && hoverPoint.weekEnd <= segment.end)
     : null;
-  const priceValues = visiblePoints.map((point) => point.closePrice);
-  const fundingValues = visiblePoints.map((point) => point.fundingRatePct);
-  const volumeValues = visiblePoints.map((point) => point.avgVolumeM).filter((value) => value > 0);
+  const priceValues = chartPoints.map((point) => point.closePrice);
+  const fundingValues = chartPoints.map((point) => point.fundingRatePct);
+  const volumeValues = chartPoints.map((point) => point.avgVolumeM).filter((value) => value > 0);
   const priceMin = priceValues.length ? Math.min(...priceValues) : 0;
   const priceMax = priceValues.length ? Math.max(...priceValues) : 0;
   const pricePadding = priceMax > priceMin ? (priceMax - priceMin) * 0.08 : priceMax * 0.05;
@@ -3411,8 +3411,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          <div>当前展示窗: <span className="font-medium text-slate-900">{visiblePoints[0]?.weekStart ?? "-"} ~ {visiblePoints.at(-1)?.weekEnd ?? "-"}</span></div>
-          <div>展示周数: <span className="font-medium text-slate-900">{visiblePoints.length}</span></div>
+          <div>当前展示窗: <span className="font-medium text-slate-900">{chartPoints[0]?.weekStart ?? "-"} ~ {chartPoints.at(-1)?.weekEnd ?? "-"}</span></div>
+          <div>展示周数: <span className="font-medium text-slate-900">{chartPoints.length}</span></div>
           <label className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700">
             <span>实时重构图表</span>
             <button
@@ -3516,7 +3516,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价 {hoverPoint ? fmtPrice(hoverPoint.closePrice) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <LineChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-price-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
@@ -3539,7 +3539,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#059669]" />周费率柱 {hoverPoint ? fmtPct(hoverPoint.fundingRatePct) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <BarChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-funding-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
@@ -3548,7 +3548,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 <YAxis domain={[-fundingCap, fundingCap]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(2)}%`} />
                 <Tooltip content={() => null} />
                 <Bar dataKey="fundingRatePct" radius={[4, 4, 0, 0]}>
-                  {visiblePoints.map((point) => (
+                  {chartPoints.map((point) => (
                     <Cell key={`research2-funding-bar-${point.weekStart}`} fill={point.fundingRatePct >= 0 ? "#059669" : "#dc2626"} />
                   ))}
                 </Bar>
@@ -3561,7 +3561,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <button type="button" onClick={() => toggleIndicatorVisibility("rsi")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.rsi ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#ef4444]" />RSI {hoverPoint ? hoverPoint.rsi.toFixed(1) : "-"}</button>
             </div>
             <ResponsiveContainer>
-              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <LineChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-rsi-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.2} strokeOpacity={0} />
                 ))}
@@ -3583,7 +3583,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <button type="button" onClick={() => toggleIndicatorVisibility("returnZ")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.returnZ ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Return {hoverPoint ? hoverPoint.returnZ52.toFixed(2) : "-"}</button>
             </div>
             <ResponsiveContainer>
-              <LineChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <LineChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-indicator-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.25} strokeOpacity={0} />
                 ))}
@@ -3609,7 +3609,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
               <span className="inline-flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />日均成交量 {hoverPoint ? fmtVol(hoverPoint.avgVolumeM) : "-"}</span>
             </div>
             <ResponsiveContainer>
-              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <BarChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 {visibleRegimeRanges.map((segment) => (
                   <ReferenceArea key={`research2-volume-${segment.index}`} x1={segment.x1} x2={segment.x2} fill={segment.tone} fillOpacity={0.35} strokeOpacity={0} />
                 ))}
@@ -3624,12 +3624,12 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
           <div className="h-[90px] w-full">
             <ResponsiveContainer>
-              <BarChart data={visiblePoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
+              <BarChart data={chartPoints} syncId="btc-weekly-research-2" onMouseMove={handleHover}>
                 <XAxis dataKey="weekStart" tick={{ fill: "#64748b", fontSize: 11 }} minTickGap={28} tickFormatter={(value) => value.slice(2, 10)} />
                 <YAxis hide domain={[0, 1]} />
                 <Tooltip content={() => null} />
                 <Bar dataKey={() => 1} isAnimationActive={false}>
-                  {visiblePoints.map((point) => (
+                  {chartPoints.map((point) => (
                     <Cell key={`research2-band-${point.weekStart}`} fill={point.confirmedTone} />
                   ))}
                 </Bar>
