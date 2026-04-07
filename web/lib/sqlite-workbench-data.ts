@@ -1,12 +1,9 @@
-import "server-only";
-
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   type AuditRow,
   type BtcWeeklyResearchData,
-  type BtcWeeklyResearch2Data,
   type BtcWeeklyResearch2Point,
   type BtcWeeklyResearch2Segment,
   type BtcWeeklyResearch2Summary,
@@ -17,17 +14,22 @@ import {
   type Point,
   type ResearchAutoRegimePoint,
   type ResearchAutoRegimeSegment,
+  type Research2Data,
+  type Research2IndicatorSettings,
+  type ResearchMarketType,
+  type ResearchTimeframe,
   type ResearchLagStat,
   type ResearchRegime,
   type ResearchRegimeStat,
   type WorkbenchData,
-} from "@/lib/workbench-data";
+} from "./workbench-data";
 
 type DailyFundingRow = { symbol: string; metric_date: string; daily_funding_rate: number };
 type WeeklyFundingRow = { symbol: string; metric_week: string; weekly_funding_rate: number };
 type MonthlyFundingRow = { symbol: string; metric_month: string; monthly_funding_rate: number };
 type VolumeRow = { symbol: string; metric_date: string; usd_volume: number };
 type SymbolMetaRow = { symbol: string; is_active: number };
+type ResearchSymbolRow = { base_asset: string };
 type FundingAuditRow = { symbol: string; status: string; completeness_score: number; gap_count: number; days_with_zero_events: number; notes: string };
 type VolumeAuditRow = { symbol: string; status: string; completeness_score: number; day_count: number; gap_count: number; notes: string };
 
@@ -35,7 +37,7 @@ let cachedWorkbenchData: WorkbenchData | null = null;
 let cachedDbMtimeMs: number | null = null;
 let cachedBtcWeeklyResearchData: BtcWeeklyResearchData | null = null;
 let cachedBtcWeeklyResearchCacheKey: string | null = null;
-let cachedBtcWeeklyResearch2Data: BtcWeeklyResearch2Data | null = null;
+let cachedBtcWeeklyResearch2Data: Research2Data | null = null;
 let cachedBtcWeeklyResearch2CacheKey: string | null = null;
 
 type ManualResearchRegimeFileRow = {
@@ -862,23 +864,93 @@ const SEVEN_REGIME_FAMILY: Record<string, SevenRegimeFamily> = {
   大熊: "Bear",
 };
 
-function loadBtcWeeklyCandles() {
-  const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+const MIN_RESEARCH_WEEKLY_HISTORY = 52;
+
+function getResearchWeeklyKlinePath(symbol: string, marketType: ResearchMarketType) {
+  if (marketType === "coinm" && symbol === "BTC") {
+    return path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
+  }
+  return path.resolve(process.cwd(), "lib", "research-klines", marketType, "week", `${symbol}.json`);
+}
+
+function loadResearchWeeklyCandles(symbol: string, marketType: ResearchMarketType): BtcWeeklyCandle[] {
+  const klinePath = getResearchWeeklyKlinePath(symbol, marketType);
+  if (!fs.existsSync(klinePath)) {
+    return [];
+  }
   const rows = JSON.parse(fs.readFileSync(klinePath, "utf8")) as Array<[number, string, string, string, string]>;
   const todayUtc = new Date().toISOString().slice(0, 10);
-  return rows.map((row) => {
-    const weekStart = new Date(row[0]).toISOString().slice(0, 10);
-    const weekEndDate = new Date(row[0]);
-    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
-    return {
-      weekStart,
-      weekEnd: weekEndDate.toISOString().slice(0, 10),
-      openPrice: Number(row[1]),
-      highPrice: Number(row[2]),
-      lowPrice: Number(row[3]),
-      closePrice: Number(row[4]),
-    };
-  }).filter((row) => row.weekEnd < todayUtc);
+  return rows
+    .map((row) => {
+      const weekStart = new Date(row[0]).toISOString().slice(0, 10);
+      const weekEndDate = new Date(row[0]);
+      weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+      return {
+        weekStart,
+        weekEnd: weekEndDate.toISOString().slice(0, 10),
+        openPrice: Number(row[1]),
+        highPrice: Number(row[2]),
+        lowPrice: Number(row[3]),
+        closePrice: Number(row[4]),
+      };
+    })
+    .filter((row) => row.weekEnd < todayUtc);
+}
+
+function getResearchAvailableSymbols(db: DatabaseSync, marketType: ResearchMarketType, timeframe: ResearchTimeframe) {
+  if (timeframe !== "week") {
+    return [];
+  }
+  if (marketType === "coinm") {
+    return db
+      .prepare(
+        `
+          SELECT s.base_asset
+          FROM symbols s
+          INNER JOIN (
+            SELECT symbol, COUNT(*) AS weekly_points
+            FROM weekly_funding_metrics
+            GROUP BY symbol
+          ) wf ON wf.symbol = s.symbol
+          WHERE s.market_type = 'COINM_PERPETUAL'
+            AND s.is_active = 1
+            AND wf.weekly_points >= ?
+          ORDER BY s.base_asset
+        `,
+      )
+      .all(MIN_RESEARCH_WEEKLY_HISTORY) as ResearchSymbolRow[];
+  }
+  return db
+    .prepare(
+      `
+        SELECT s.base_asset
+        FROM symbols s
+        INNER JOIN (
+          SELECT symbol, COUNT(*) AS weekly_points
+          FROM weekly_funding_metrics
+          GROUP BY symbol
+        ) wf ON wf.symbol = s.symbol
+        WHERE s.market_type = 'USDTM_PERPETUAL'
+          AND s.is_active = 1
+          AND wf.weekly_points >= ?
+        ORDER BY s.base_asset
+      `,
+    )
+    .all(MIN_RESEARCH_WEEKLY_HISTORY) as ResearchSymbolRow[];
+}
+
+function getResearchAvailableMarkets(db: DatabaseSync, timeframe: ResearchTimeframe): ResearchMarketType[] {
+  if (timeframe !== "week") {
+    return [];
+  }
+  const markets: ResearchMarketType[] = [];
+  if (getResearchAvailableSymbols(db, "coinm", timeframe).length > 0) markets.push("coinm");
+  if (getResearchAvailableSymbols(db, "usdtm", timeframe).length > 0) markets.push("usdtm");
+  return markets;
+}
+
+function getResearchContractSymbol(symbol: string, marketType: ResearchMarketType) {
+  return marketType === "usdtm" ? `${symbol}USDT` : `${symbol}USD_PERP`;
 }
 
 function rollingMean(values: number[], window: number) {
@@ -1338,24 +1410,6 @@ type Research2Tuning = {
   latestSegmentMinWeeks: number;
   splitPenalty: number;
   maxSegmentWeeks: number;
-};
-
-type Research2IndicatorSettings = {
-  emaPeriod: number;
-  smaPeriod: number;
-  adxPeriod: number;
-  adxTrendLevel: number;
-  rsiPeriod: number;
-  rsiUpper: number;
-  rsiLower: number;
-  bbPeriod: number;
-  bbStdDev: number;
-  returnZPeriod: number;
-  returnUpper: number;
-  returnLower: number;
-  bbwPercentileWindow: number;
-  bbwHigh: number;
-  bbwLow: number;
 };
 
 function normalizeResearch2Tuning(input?: Partial<Research2Tuning>): Research2Tuning {
@@ -2185,6 +2239,9 @@ export async function getBtcWeeklyResearchData(): Promise<BtcWeeklyResearchData>
 
 export async function getBtcWeeklyResearch2Data(
   options?: {
+    marketType?: ResearchMarketType;
+    symbol?: string;
+    timeframe?: ResearchTimeframe;
     tuning?: Partial<Research2Tuning>;
     indicatorSettings?: Partial<Research2IndicatorSettings>;
     range?: {
@@ -2192,78 +2249,92 @@ export async function getBtcWeeklyResearch2Data(
       endWeek?: string;
     };
   },
-): Promise<BtcWeeklyResearch2Data> {
+): Promise<Research2Data> {
   const databasePath = path.resolve(process.cwd(), "..", "data", "bian_rate.sqlite3");
   const databaseMtimeMs = fs.statSync(databasePath).mtimeMs;
-  const klinePath = path.resolve(process.cwd(), "lib", "btc-weekly-klines.json");
-  const klineMtimeMs = fs.statSync(klinePath).mtimeMs;
+  const marketType = options?.marketType ?? "coinm";
+  const symbol = (options?.symbol ?? "BTC").toUpperCase();
+  const timeframe = options?.timeframe ?? "week";
+  const klinePath = getResearchWeeklyKlinePath(symbol, marketType);
+  const klineMtimeMs = fs.existsSync(klinePath) ? fs.statSync(klinePath).mtimeMs : 0;
   const tuning = normalizeResearch2Tuning(options?.tuning);
   const indicatorSettings = normalizeResearch2IndicatorSettings(options?.indicatorSettings);
   const rangeStart = options?.range?.startWeek ?? "";
   const rangeEnd = options?.range?.endWeek ?? "";
-  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${rangeStart}:${rangeEnd}:${tuning.minSegmentWeeks}:${tuning.latestSegmentMinWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.adxTrendLevel}:${indicatorSettings.rsiPeriod}:${indicatorSettings.rsiUpper}:${indicatorSettings.rsiLower}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.returnUpper}:${indicatorSettings.returnLower}:${indicatorSettings.bbwPercentileWindow}:${indicatorSettings.bbwHigh}:${indicatorSettings.bbwLow}`;
+  const cacheKey = `${databaseMtimeMs}:${klineMtimeMs}:${marketType}:${symbol}:${timeframe}:${rangeStart}:${rangeEnd}:${tuning.minSegmentWeeks}:${tuning.latestSegmentMinWeeks}:${tuning.splitPenalty}:${tuning.maxSegmentWeeks}:${indicatorSettings.emaPeriod}:${indicatorSettings.smaPeriod}:${indicatorSettings.adxPeriod}:${indicatorSettings.adxTrendLevel}:${indicatorSettings.rsiPeriod}:${indicatorSettings.rsiUpper}:${indicatorSettings.rsiLower}:${indicatorSettings.bbPeriod}:${indicatorSettings.bbStdDev}:${indicatorSettings.returnZPeriod}:${indicatorSettings.returnUpper}:${indicatorSettings.returnLower}:${indicatorSettings.bbwPercentileWindow}:${indicatorSettings.bbwHigh}:${indicatorSettings.bbwLow}`;
   if (cachedBtcWeeklyResearch2Data && cachedBtcWeeklyResearch2CacheKey === cacheKey) {
     return cachedBtcWeeklyResearch2Data;
   }
 
   let db: DatabaseSync | null = null;
 
+  const emptyResult = (availableMarkets: ResearchMarketType[], availableSymbols: string[], sourceLabel: string, loadError?: string): Research2Data => ({
+    marketType,
+    symbol,
+    timeframe,
+    availableMarkets,
+    availableSymbols,
+    points: [],
+    segments: [],
+    summaries: [],
+    thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
+    indicatorSettings,
+    latestObservedDate: "-",
+    sourceLabel,
+    loadError,
+  });
+
   try {
     db = new DatabaseSync(databasePath, { open: true, readOnly: true });
-    const symbol = "BTC";
+    const availableMarkets = getResearchAvailableMarkets(db, timeframe);
+    const availableSymbols = getResearchAvailableSymbols(db, marketType, timeframe).map((row) => row.base_asset);
+    if (timeframe !== "week") {
+      return emptyResult(availableMarkets, availableSymbols, "研究页2当前仅支持周线数据", `暂不支持 ${timeframe} 周期，当前仅开放 week。`);
+    }
+    if (!availableMarkets.includes(marketType)) {
+      return emptyResult(availableMarkets, availableSymbols, "研究页2市场暂不可用", `${marketType}:${timeframe} 当前还没有可用历史数据。`);
+    }
+    if (!availableSymbols.includes(symbol)) {
+      return emptyResult(availableMarkets, availableSymbols, "研究页2币种暂不可用", `${symbol} 暂未进入当前研究页可选周线币种列表。`);
+    }
+    const contractSymbol = getResearchContractSymbol(symbol, marketType);
     const weeklyFunding = db
       .prepare("SELECT metric_week, weekly_funding_rate FROM weekly_funding_metrics WHERE symbol = ? ORDER BY metric_week")
-      .all(`${symbol}USD_PERP`) as Array<{ metric_week: string; weekly_funding_rate: number }>;
+      .all(contractSymbol) as Array<{ metric_week: string; weekly_funding_rate: number }>;
     const dailyVolumes = db
       .prepare("SELECT metric_date, usd_volume FROM daily_volume_metrics WHERE symbol = ? ORDER BY metric_date")
-      .all(`${symbol}USD_PERP`) as Array<{ metric_date: string; usd_volume: number }>;
+      .all(contractSymbol) as Array<{ metric_date: string; usd_volume: number }>;
 
     if (!weeklyFunding.length || !dailyVolumes.length) {
-      return {
-        symbol,
-        timeframe: "week",
-        points: [],
-        segments: [],
-        summaries: [],
-        thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
-        indicatorSettings,
-        latestObservedDate: "-",
-        sourceLabel: "SQLite 无 BTC 周线研究页2数据",
-        loadError: "BTC 周费率或成交量数据缺失。",
-      };
+      return emptyResult(availableMarkets, availableSymbols, `SQLite 无 ${symbol} 周线研究页2数据`, `${symbol} 周费率或成交量数据缺失。`);
     }
 
-    const candles = loadBtcWeeklyCandles().filter((candle) => {
+    const candles = loadResearchWeeklyCandles(symbol, marketType).filter((candle) => {
       if (rangeStart && candle.weekStart < rangeStart) return false;
       if (rangeEnd && candle.weekStart > rangeEnd) return false;
       return true;
     });
-    const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(`${symbol}USD_PERP`) as { latest_date: string | null }).latest_date;
+    if (!candles.length) {
+      return emptyResult(availableMarkets, availableSymbols, `${symbol} 周线 K 线缓存缺失`, `${symbol} 缺少本地周线 OHLC 缓存，请先回填 research-klines/${marketType}/week/${symbol}.json。`);
+    }
+    const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(contractSymbol) as { latest_date: string | null }).latest_date;
     const latestVolumeDate = dailyVolumes.at(-1)?.metric_date ?? null;
     const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
     const result = {
+      marketType,
       symbol,
-      timeframe: "week" as const,
+      timeframe,
+      availableMarkets,
+      availableSymbols,
       ...buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings }),
       latestObservedDate,
-      sourceLabel: "SQLite 周费率/周成交量 + 本地 BTC 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则",
+      sourceLabel: `SQLite 周费率/周成交量 + 本地 ${symbol} ${marketType.toUpperCase()} 周线 OHLC 缓存（按可用历史动态取交集）+ 七态自动体制规则`,
     };
     cachedBtcWeeklyResearch2Data = result;
     cachedBtcWeeklyResearch2CacheKey = cacheKey;
     return result;
   } catch (error) {
-    return {
-      symbol: "BTC",
-      timeframe: "week",
-      points: [],
-      segments: [],
-      summaries: [],
-      thresholds: withResearch2TuningSnapshot(buildResearch2Thresholds([]), tuning),
-      indicatorSettings,
-      latestObservedDate: "-",
-      sourceLabel: "BTC 周线研究页2数据读取失败",
-      loadError: error instanceof Error ? error.message : "unknown error",
-    };
+    return emptyResult([], [], `${symbol} 周线研究页2数据读取失败`, error instanceof Error ? error.message : "unknown error");
   } finally {
     db?.close();
   }

@@ -254,22 +254,46 @@ def upsert_symbols(
     contract_sizes: Dict[str, float],
     deactivate_missing: bool = True,
 ) -> None:
-    now_iso = utc_now_iso()
-    rows = []
+    records = []
     for symbol in symbols:
         base_asset = symbol.replace("_PERP", "")
         quote_asset = "USD" if base_asset.endswith("USD") else ""
         if quote_asset:
             base_asset = base_asset[: -len(quote_asset)]
+        records.append(
+            {
+                "symbol": symbol,
+                "base_asset": base_asset,
+                "quote_asset": quote_asset or "USD",
+                "market_type": "COINM_PERPETUAL",
+                "contract_size": float(contract_sizes.get(symbol, 1.0)),
+                "category": None,
+                "is_active": 1,
+            }
+        )
+    upsert_symbol_records(conn, records, deactivate_missing=deactivate_missing)
+
+
+def upsert_symbol_records(
+    conn: sqlite3.Connection,
+    records: List[Dict[str, object]],
+    deactivate_missing: bool = True,
+) -> None:
+    now_iso = utc_now_iso()
+    rows = []
+    symbols = []
+    for record in records:
+        symbol = str(record["symbol"])
+        symbols.append(symbol)
         rows.append(
             (
-                symbol,
-                base_asset,
-                quote_asset or "USD",
-                "COINM_PERPETUAL",
-                float(contract_sizes.get(symbol, 1.0)),
-                None,
-                1,
+                str(record["symbol"]),
+                str(record["base_asset"]),
+                str(record["quote_asset"]),
+                str(record["market_type"]),
+                float(record.get("contract_size", 1.0)),
+                record.get("category"),
+                int(record.get("is_active", 1)),
                 now_iso,
             )
         )

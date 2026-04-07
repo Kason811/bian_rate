@@ -12,13 +12,14 @@
     "next": "15.5.14",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "recharts": "2.15.1"
+    "recharts": "2.15.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
     "@types/node": "22.13.9",
     "@types/react": "19.0.10",
     "@types/react-dom": "19.0.4",
-    "@eslint/eslintrc": "3.3.1",
     "autoprefixer": "10.4.20",
     "eslint": "9.24.0",
     "eslint-config-next": "15.5.14",

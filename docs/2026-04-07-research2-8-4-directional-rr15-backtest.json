@@ -1,0 +1,397 @@
+{
+  "generatedAt": "2026-04-07T05:40:04.219Z",
+  "assumptions": {
+    "tuning": {
+      "minSegmentWeeks": 8,
+      "latestSegmentMinWeeks": 4,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    "positionUsd": 1000,
+    "riskReward": "1:1.5",
+    "entryRule": "Directional family signal (Bull/Bear only), enter next week open",
+    "exitRule": "Exit at stop, target, or next directional signal open",
+    "intrabarRule": "If stop and target hit in same weekly bar, stop wins"
+  },
+  "directionalSignalCount": 13,
+  "evaluatedStops": [
+    {
+      "candidate": "ema21_anchor",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 342.13,
+      "avgPnlPerTrade": 26.32,
+      "profitFactor": 1.5526,
+      "maxDrawdownUsd": -365.03
+    },
+    {
+      "candidate": "fixed_9.5pct",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 163.68,
+      "avgPnlPerTrade": 12.59,
+      "profitFactor": 1.3037,
+      "maxDrawdownUsd": -355.39
+    },
+    {
+      "candidate": "fixed_9.0pct",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 158.68,
+      "avgPnlPerTrade": 12.21,
+      "profitFactor": 1.3087,
+      "maxDrawdownUsd": -337.89
+    },
+    {
+      "candidate": "fixed_8.5pct",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 153.68,
+      "avgPnlPerTrade": 11.82,
+      "profitFactor": 1.3143,
+      "maxDrawdownUsd": -320.39
+    },
+    {
+      "candidate": "fixed_10.0pct",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 97.18,
+      "avgPnlPerTrade": 7.48,
+      "profitFactor": 1.1723,
+      "maxDrawdownUsd": -372.89
+    },
+    {
+      "candidate": "fixed_4.5pct",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 67.98,
+      "avgPnlPerTrade": 5.23,
+      "profitFactor": 1.2158,
+      "maxDrawdownUsd": -202.5
+    },
+    {
+      "candidate": "segment_extreme",
+      "tradeCount": 13,
+      "winRate": 0.4615,
+      "netProfit": 43.56,
+      "avgPnlPerTrade": 3.35,
+      "profitFactor": 1.0452,
+      "maxDrawdownUsd": -758.06
+    },
+    {
+      "candidate": "fixed_3.5pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -17.5,
+      "avgPnlPerTrade": -1.35,
+      "profitFactor": 0.9375,
+      "maxDrawdownUsd": -157.5
+    },
+    {
+      "candidate": "fixed_7.5pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -18.53,
+      "avgPnlPerTrade": -1.43,
+      "profitFactor": 0.964,
+      "maxDrawdownUsd": -285.39
+    },
+    {
+      "candidate": "fixed_4.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -34.52,
+      "avgPnlPerTrade": -2.66,
+      "profitFactor": 0.8921,
+      "maxDrawdownUsd": -180
+    },
+    {
+      "candidate": "fixed_6.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -37.41,
+      "avgPnlPerTrade": -2.88,
+      "profitFactor": 0.9155,
+      "maxDrawdownUsd": -232.89
+    },
+    {
+      "candidate": "fixed_6.5pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -42.41,
+      "avgPnlPerTrade": -3.26,
+      "profitFactor": 0.9113,
+      "maxDrawdownUsd": -250.39
+    },
+    {
+      "candidate": "fixed_7.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -47.41,
+      "avgPnlPerTrade": -3.65,
+      "profitFactor": 0.9076,
+      "maxDrawdownUsd": -267.89
+    },
+    {
+      "candidate": "fixed_8.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -51.32,
+      "avgPnlPerTrade": -3.95,
+      "profitFactor": 0.9057,
+      "maxDrawdownUsd": -302.89
+    },
+    {
+      "candidate": "fixed_5.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -54.52,
+      "avgPnlPerTrade": -4.19,
+      "profitFactor": 0.8637,
+      "maxDrawdownUsd": -225
+    },
+    {
+      "candidate": "fixed_2.5pct",
+      "tradeCount": 13,
+      "winRate": 0.3077,
+      "netProfit": -75,
+      "avgPnlPerTrade": -5.77,
+      "profitFactor": 0.6667,
+      "maxDrawdownUsd": -150
+    },
+    {
+      "candidate": "fixed_3.0pct",
+      "tradeCount": 13,
+      "winRate": 0.3077,
+      "netProfit": -90,
+      "avgPnlPerTrade": -6.92,
+      "profitFactor": 0.6667,
+      "maxDrawdownUsd": -180
+    },
+    {
+      "candidate": "signal_week_extreme",
+      "tradeCount": 13,
+      "winRate": 0.3846,
+      "netProfit": -91.98,
+      "avgPnlPerTrade": -7.08,
+      "profitFactor": 0.8165,
+      "maxDrawdownUsd": -387.11
+    },
+    {
+      "candidate": "fixed_2.0pct",
+      "tradeCount": 13,
+      "winRate": 0.2308,
+      "netProfit": -110,
+      "avgPnlPerTrade": -8.46,
+      "profitFactor": 0.45,
+      "maxDrawdownUsd": -120
+    },
+    {
+      "candidate": "fixed_5.5pct",
+      "tradeCount": 13,
+      "winRate": 0.3077,
+      "netProfit": -202.02,
+      "avgPnlPerTrade": -15.54,
+      "profitFactor": 0.5919,
+      "maxDrawdownUsd": -330
+    }
+  ],
+  "best": {
+    "candidate": "ema21_anchor",
+    "tuningKey": "8-4-7.8-40",
+    "tradeCount": 13,
+    "wins": 6,
+    "losses": 7,
+    "winRate": 0.4615,
+    "grossProfit": 961.25,
+    "grossLoss": 619.12,
+    "netProfit": 342.13,
+    "avgPnlPerTrade": 26.32,
+    "profitFactor": 1.5526,
+    "maxDrawdownUsd": -365.03,
+    "trades": [
+      {
+        "signalWeek": "2023-01-09",
+        "entryWeek": "2023-01-16",
+        "exitWeek": "2023-01-16",
+        "transition": "Sideways->Bull",
+        "side": "LONG",
+        "entryPrice": 20886.8,
+        "stopPrice": 19421.53,
+        "targetPrice": 23084.71,
+        "exitPrice": 23084.71,
+        "exitReason": "target",
+        "pnlUsd": 105.23,
+        "pnlPctOnNotional": 10.523
+      },
+      {
+        "signalWeek": "2023-01-16",
+        "entryWeek": "2023-01-23",
+        "exitWeek": "2023-01-30",
+        "transition": "Sideways->Bull",
+        "side": "LONG",
+        "entryPrice": 22708.3,
+        "stopPrice": 19720.33,
+        "targetPrice": 27190.25,
+        "exitPrice": 23741.1,
+        "exitReason": "next_signal_open",
+        "pnlUsd": 45.48,
+        "pnlPctOnNotional": 4.548
+      },
+      {
+        "signalWeek": "2023-01-23",
+        "entryWeek": "2023-01-30",
+        "exitWeek": "2023-03-06",
+        "transition": "Sideways->Bull",
+        "side": "LONG",
+        "entryPrice": 23741.1,
+        "stopPrice": 20085.85,
+        "targetPrice": 29223.97,
+        "exitPrice": 20085.85,
+        "exitReason": "stop",
+        "pnlUsd": -153.96,
+        "pnlPctOnNotional": -15.396
+      },
+      {
+        "signalWeek": "2023-08-28",
+        "entryWeek": "2023-09-04",
+        "exitWeek": "2023-09-18",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 25955.9,
+        "stopPrice": 27487.91,
+        "targetPrice": 23657.89,
+        "exitPrice": 27487.91,
+        "exitReason": "stop",
+        "pnlUsd": -59.02,
+        "pnlPctOnNotional": -5.902
+      },
+      {
+        "signalWeek": "2023-10-30",
+        "entryWeek": "2023-11-06",
+        "exitWeek": "2023-12-04",
+        "transition": "Sideways->Bull",
+        "side": "LONG",
+        "entryPrice": 35044.1,
+        "stopPrice": 28798.22,
+        "targetPrice": 44412.92,
+        "exitPrice": 44412.92,
+        "exitReason": "target",
+        "pnlUsd": 267.34,
+        "pnlPctOnNotional": 26.734
+      },
+      {
+        "signalWeek": "2024-07-01",
+        "entryWeek": "2024-07-08",
+        "exitWeek": "2024-07-08",
+        "transition": "Bull->Bear",
+        "side": "SHORT",
+        "entryPrice": 55830,
+        "stopPrice": 60913.45,
+        "targetPrice": 48204.83,
+        "exitPrice": 60913.45,
+        "exitReason": "stop",
+        "pnlUsd": -91.05,
+        "pnlPctOnNotional": -9.105
+      },
+      {
+        "signalWeek": "2024-11-18",
+        "entryWeek": "2024-11-25",
+        "exitWeek": "2025-03-10",
+        "transition": "Sideways->Bull",
+        "side": "LONG",
+        "entryPrice": 98068.7,
+        "stopPrice": 69881.89,
+        "targetPrice": 140348.91,
+        "exitPrice": 80695.7,
+        "exitReason": "next_signal_open",
+        "pnlUsd": -177.15,
+        "pnlPctOnNotional": -17.715
+      },
+      {
+        "signalWeek": "2025-03-03",
+        "entryWeek": "2025-03-10",
+        "exitWeek": "2025-03-17",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 80695.7,
+        "stopPrice": 89255.64,
+        "targetPrice": 67855.79,
+        "exitPrice": 82542.6,
+        "exitReason": "next_signal_open",
+        "pnlUsd": -22.89,
+        "pnlPctOnNotional": -2.289
+      },
+      {
+        "signalWeek": "2025-03-10",
+        "entryWeek": "2025-03-17",
+        "exitWeek": "2025-03-24",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 82542.6,
+        "stopPrice": 88645.35,
+        "targetPrice": 73388.48,
+        "exitPrice": 88645.35,
+        "exitReason": "stop",
+        "pnlUsd": -73.93,
+        "pnlPctOnNotional": -7.393
+      },
+      {
+        "signalWeek": "2025-05-05",
+        "entryWeek": "2025-05-12",
+        "exitWeek": "2025-10-06",
+        "transition": "Bear->Bull",
+        "side": "LONG",
+        "entryPrice": 104089.1,
+        "stopPrice": 89320.17,
+        "targetPrice": 126242.5,
+        "exitPrice": 126242.5,
+        "exitReason": "target",
+        "pnlUsd": 212.83,
+        "pnlPctOnNotional": 21.283
+      },
+      {
+        "signalWeek": "2025-11-10",
+        "entryWeek": "2025-11-17",
+        "exitWeek": "2025-11-24",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 94162,
+        "stopPrice": 109049.35,
+        "targetPrice": 71830.97,
+        "exitPrice": 86770.3,
+        "exitReason": "next_signal_open",
+        "pnlUsd": 78.5,
+        "pnlPctOnNotional": 7.85
+      },
+      {
+        "signalWeek": "2025-11-17",
+        "entryWeek": "2025-11-24",
+        "exitWeek": "2025-12-01",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 86770.3,
+        "stopPrice": 107023.98,
+        "targetPrice": 56389.78,
+        "exitPrice": 90338,
+        "exitReason": "next_signal_open",
+        "pnlUsd": -41.12,
+        "pnlPctOnNotional": -4.112
+      },
+      {
+        "signalWeek": "2025-11-24",
+        "entryWeek": "2025-12-01",
+        "exitWeek": "2026-02-02",
+        "transition": "Sideways->Bear",
+        "side": "SHORT",
+        "entryPrice": 90338,
+        "stopPrice": 105507.08,
+        "targetPrice": 67584.38,
+        "exitPrice": 67584.38,
+        "exitReason": "target",
+        "pnlUsd": 251.87,
+        "pnlPctOnNotional": 25.187
+      }
+    ]
+  }
+}

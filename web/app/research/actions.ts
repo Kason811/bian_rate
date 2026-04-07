@@ -3,6 +3,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { revalidatePath } from "next/cache";
+import {
+  resetResearch2Defaults as resetResearch2DefaultFile,
+  saveResearch2Defaults as saveResearch2DefaultFile,
+  type Research2Defaults,
+} from "@/lib/research2-defaults";
 
 type ManualResearchRegimeFileRow = {
   symbol: string;
@@ -90,4 +95,16 @@ export async function saveManualResearchRegimes(symbol: string, rows: ManualRese
   validateRows(merged);
   fs.writeFileSync(regimesPath(), `${JSON.stringify(merged, null, 2)}\n`, "utf8");
   revalidatePath("/research");
+}
+
+export async function saveResearch2ServerDefaults(defaults: Partial<Research2Defaults>) {
+  const saved = saveResearch2DefaultFile(defaults);
+  revalidatePath("/research-2");
+  return saved;
+}
+
+export async function resetResearch2ServerDefaults(scope?: keyof Research2Defaults) {
+  const saved = resetResearch2DefaultFile(scope);
+  revalidatePath("/research-2");
+  return saved;
 }

@@ -238,7 +238,11 @@ export type BtcWeeklyResearch2Thresholds = {
   crashBearRule: string;
 };
 
-export type BtcWeeklyResearch2IndicatorSettings = {
+export type ResearchMarketType = "coinm" | "usdtm";
+
+export type ResearchTimeframe = "week" | "3day" | "day";
+
+export type Research2IndicatorSettings = {
   emaPeriod: number;
   smaPeriod: number;
   adxPeriod: number;
@@ -256,18 +260,24 @@ export type BtcWeeklyResearch2IndicatorSettings = {
   bbwLow: number;
 };
 
-export type BtcWeeklyResearch2Data = {
+export type Research2Data = {
+  marketType: ResearchMarketType;
   symbol: string;
-  timeframe: "week";
+  timeframe: ResearchTimeframe;
+  availableMarkets: ResearchMarketType[];
+  availableSymbols: string[];
   points: BtcWeeklyResearch2Point[];
   segments: BtcWeeklyResearch2Segment[];
   summaries: BtcWeeklyResearch2Summary[];
   thresholds: BtcWeeklyResearch2Thresholds;
-  indicatorSettings: BtcWeeklyResearch2IndicatorSettings;
+  indicatorSettings: Research2IndicatorSettings;
   latestObservedDate: string;
   sourceLabel: string;
   loadError?: string;
 };
+
+export type BtcWeeklyResearch2IndicatorSettings = Research2IndicatorSettings;
+export type BtcWeeklyResearch2Data = Research2Data;
 
 export type MonthlyRateRow = {
   symbol: string;

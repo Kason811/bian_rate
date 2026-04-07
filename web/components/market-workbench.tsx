@@ -20,7 +20,7 @@ import {
   YAxis,
   ZAxis,
 } from "recharts";
-import { saveManualResearchRegimes } from "@/app/research/actions";
+import { resetResearch2ServerDefaults, saveManualResearchRegimes, saveResearch2ServerDefaults } from "@/app/research/actions";
 import {
   type AuditRow,
   type BtcWeeklyResearchData,
@@ -65,9 +65,35 @@ const timeframeItems: { key: Timeframe; label: string }[] = [
 ];
 
 const chartPalette = ["#2563eb", "#0f766e", "#d97706", "#db2777", "#7c3aed", "#0891b2"];
+const RESEARCH2_TUNING_DEFAULTS = {
+  minWeeks: "5",
+  latestMinWeeks: "5",
+  splitPenalty: "7.8",
+  maxWeeks: "28",
+} as const;
+const RESEARCH2_INDICATOR_DEFAULTS = {
+  emaPeriod: "21",
+  smaPeriod: "200",
+  adxPeriod: "14",
+  adxTrendLevel: "25",
+  rsiPeriod: "14",
+  rsiUpper: "80",
+  rsiLower: "20",
+  bbPeriod: "20",
+  bbStdDev: "2",
+  returnZPeriod: "52",
+  returnUpper: "2",
+  returnLower: "-2",
+  bbwWindow: "104",
+  bbwHigh: "70",
+  bbwLow: "30",
+} as const;
 const emptyResearch2Data: BtcWeeklyResearch2Data = {
+  marketType: "coinm",
   symbol: "BTC",
   timeframe: "week",
+  availableMarkets: ["coinm"],
+  availableSymbols: ["BTC"],
   points: [],
   segments: [],
   summaries: [],
@@ -123,7 +149,7 @@ const viewItems: { key: ViewKey; label: string; href: string }[] = [
   { key: "audit", label: "数据审计", href: "/audit" },
   { key: "combined", label: "联合筛选", href: "/combined" },
   { key: "heatmap", label: "热力图", href: "/heatmap" },
-  { key: "research2", label: "周线研究", href: "/research-2" },
+  { key: "research2", label: "七态研究", href: "/research-2" },
 ];
 const rateWindowItems: { key: RateWindowKey; label: string; hint: string }[] = [
   { key: "currentMonth", label: "本月维度", hint: "本月累计费率" },
@@ -150,7 +176,39 @@ function fmtVol(value: number) {
 }
 
 function fmtPrice(value: number) {
-  return `$${Math.round(value).toLocaleString("en-US")}`;
+  if (!Number.isFinite(value)) return "-";
+  const absValue = Math.abs(value);
+  if (absValue >= 1000) {
+    return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  }
+  if (absValue >= 1) {
+    return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  }
+  if (absValue >= 0.1) {
+    return `$${value.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 4 })}`;
+  }
+  if (absValue >= 0.01) {
+    return `$${value.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 5 })}`;
+  }
+  return `$${value.toLocaleString("en-US", { minimumFractionDigits: 5, maximumFractionDigits: 6 })}`;
+}
+
+function fmtPriceAxisTick(value: number) {
+  if (!Number.isFinite(value)) return "-";
+  const absValue = Math.abs(value);
+  if (absValue >= 1000) {
+    return `${Math.round(value / 1000)}k`;
+  }
+  if (absValue >= 1) {
+    return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (absValue >= 0.1) {
+    return value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+  }
+  if (absValue >= 0.01) {
+    return value.toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+  }
+  return value.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 5 });
 }
 
 function fmtCount(value: number) {
@@ -164,6 +222,27 @@ function fmtScore(value: number) {
 function fmtPlainNumber(value: number) {
   return Number.isFinite(value) ? value.toFixed(3) : "-";
 }
+
+function getResearchMarketLabel(marketType: BtcWeeklyResearch2Data["marketType"]) {
+  return marketType === "usdtm" ? "U本位" : "币本位";
+}
+
+function getResearchTimeframeLabel(timeframe: BtcWeeklyResearch2Data["timeframe"]) {
+  if (timeframe === "day") return "日线";
+  if (timeframe === "3day") return "3日线";
+  return "周线";
+}
+
+const researchMarketOptions: Array<{ key: BtcWeeklyResearch2Data["marketType"]; label: string; enabled: boolean }> = [
+  { key: "coinm", label: "币本位 COIN-M", enabled: true },
+  { key: "usdtm", label: "U本位 USDT-M", enabled: false },
+];
+
+const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]; label: string; enabled: boolean }> = [
+  { key: "week", label: "周线", enabled: true },
+  { key: "3day", label: "3日线", enabled: false },
+  { key: "day", label: "日线", enabled: false },
+];
 
 function parseDateText(dateText: string) {
   return new Date(`${dateText}T00:00:00`);
@@ -194,19 +273,17 @@ function viewTitle(view: ViewKey) {
   if (view === "volume") return "成交量观察";
   if (view === "combined") return "联合筛选";
   if (view === "research") return "BTC 周线研究";
-  if (view === "research2") return "BTC 周线研究";
+  if (view === "research2") return "七态研究";
   return "热力图";
 }
 
-function buildResearchWindowRange(total: number, defaultWindowSize = 156) {
+function buildResearchWindowRange(total: number) {
   if (!total) {
     return { startIndex: 0, endIndex: 0 };
   }
-  if (total <= defaultWindowSize) {
-    return { startIndex: 0, endIndex: total - 1 };
-  }
-  return { startIndex: total - defaultWindowSize, endIndex: total - 1 };
+  return { startIndex: 0, endIndex: total - 1 };
 }
+
 
 function formatDateSpan(startText: string, endText: string) {
   const endDate = parseDateText(endText);
@@ -2921,6 +2998,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const averageSegmentWeeks = displayData.segments.length
     ? Number((displayData.segments.reduce((sum, segment) => sum + segment.weeks, 0) / displayData.segments.length).toFixed(1))
     : 0;
+  const klineCount = displayData.points.length;
   const orderedSummaries = [...displayData.summaries].sort((left, right) => {
     const leftIndex = research2SummaryOrder.indexOf(left.label);
     const rightIndex = research2SummaryOrder.indexOf(right.label);
@@ -2934,27 +3012,50 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
   const bearSharePct = orderedSummaries
     .filter((summary) => ["大熊", "小熊", "震荡熊"].includes(summary.label))
     .reduce((sum, summary) => sum + summary.sharePct, 0);
-  const applyResearch2Tuning = () => {
+  const updateResearch2Context = (next: Partial<Pick<BtcWeeklyResearch2Data, "marketType" | "symbol" | "timeframe">>) => {
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("minWeeks", minSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.minSegmentWeeks));
-    nextParams.set("latestMinWeeks", latestSegmentMinWeeksInput.trim() || String(baseResearch2Data.thresholds.latestSegmentMinWeeks));
-    nextParams.set("splitPenalty", splitPenaltyInput.trim() || String(baseResearch2Data.thresholds.splitPenalty));
-    nextParams.set("maxWeeks", maxSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.maxSegmentWeeks));
+    if (next.marketType) {
+      nextParams.set("market", next.marketType);
+    }
+    if (next.symbol) {
+      nextParams.set("symbol", next.symbol);
+    }
+    if (next.timeframe) {
+      nextParams.set("timeframe", next.timeframe);
+    }
     startTransition(() => {
       router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
     });
   };
+  const applyResearch2Tuning = () => {
+    const tuningDefaults = {
+      minWeeks: Number.parseInt(minSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.minSegmentWeeks), 10),
+      latestMinWeeks: Number.parseInt(latestSegmentMinWeeksInput.trim() || String(baseResearch2Data.thresholds.latestSegmentMinWeeks), 10),
+      splitPenalty: Number.parseFloat(splitPenaltyInput.trim() || String(baseResearch2Data.thresholds.splitPenalty)),
+      maxWeeks: Number.parseInt(maxSegmentWeeksInput.trim() || String(baseResearch2Data.thresholds.maxSegmentWeeks), 10),
+    };
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("minWeeks", String(tuningDefaults.minWeeks));
+    nextParams.set("latestMinWeeks", String(tuningDefaults.latestMinWeeks));
+    nextParams.set("splitPenalty", String(tuningDefaults.splitPenalty));
+    nextParams.set("maxWeeks", String(tuningDefaults.maxWeeks));
+    startTransition(async () => {
+      await saveResearch2ServerDefaults({ tuning: tuningDefaults });
+      router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
+    });
+  };
   const resetResearch2Tuning = () => {
-    setMinSegmentWeeksInput("5");
-    setLatestSegmentMinWeeksInput("5");
-    setSplitPenaltyInput("7.8");
-    setMaxSegmentWeeksInput("28");
+    setMinSegmentWeeksInput(RESEARCH2_TUNING_DEFAULTS.minWeeks);
+    setLatestSegmentMinWeeksInput(RESEARCH2_TUNING_DEFAULTS.latestMinWeeks);
+    setSplitPenaltyInput(RESEARCH2_TUNING_DEFAULTS.splitPenalty);
+    setMaxSegmentWeeksInput(RESEARCH2_TUNING_DEFAULTS.maxWeeks);
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.delete("minWeeks");
     nextParams.delete("latestMinWeeks");
     nextParams.delete("splitPenalty");
     nextParams.delete("maxWeeks");
-    startTransition(() => {
+    startTransition(async () => {
+      await resetResearch2ServerDefaults("tuning");
       const query = nextParams.toString();
       router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
     });
@@ -2971,48 +3072,112 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
       };
     });
   };
+  const renderTimeRangeControls = () => (
+    <div className="w-full rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-2">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <div className="text-xs text-slate-500">时间截断控制</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => stepVisibleRange(-1)}
+            disabled={normalizedRange.endIndex <= normalizedRange.startIndex}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            onClick={() => stepVisibleRange(1)}
+            disabled={normalizedRange.endIndex >= points.length - 1}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
+          >
+            +
+          </button>
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={30}>
+        <LineChart data={points}>
+          <XAxis dataKey="weekStart" hide />
+          <YAxis hide domain={["dataMin", "dataMax"]} />
+          <Brush
+            dataKey="weekStart"
+            height={22}
+            stroke="#2563eb"
+            startIndex={normalizedRange.startIndex}
+            endIndex={normalizedRange.endIndex}
+            travellerWidth={12}
+            tickFormatter={(value) => value.slice(2, 10)}
+            onChange={(range) => {
+              const startIndex = typeof range?.startIndex === "number" ? range.startIndex : normalizedRange.startIndex;
+              const endIndex = typeof range?.endIndex === "number" ? range.endIndex : normalizedRange.endIndex;
+              setVisibleRange({ startIndex, endIndex });
+            }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
   const applyIndicatorSettings = () => {
+    const indicatorDefaults = {
+      emaPeriod: Number.parseInt(emaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.emaPeriod), 10),
+      smaPeriod: Number.parseInt(smaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.smaPeriod), 10),
+      adxPeriod: Number.parseInt(adxPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.adxPeriod), 10),
+      adxTrendLevel: Number.parseInt(adxTrendLevelInput.trim() || String(baseResearch2Data.indicatorSettings.adxTrendLevel), 10),
+      rsiPeriod: Number.parseInt(rsiPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.rsiPeriod), 10),
+      rsiUpper: Number.parseInt(rsiUpperInput.trim() || String(baseResearch2Data.indicatorSettings.rsiUpper), 10),
+      rsiLower: Number.parseInt(rsiLowerInput.trim() || String(baseResearch2Data.indicatorSettings.rsiLower), 10),
+      bbPeriod: Number.parseInt(bbPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.bbPeriod), 10),
+      bbStdDev: Number.parseFloat(bbStdDevInput.trim() || String(baseResearch2Data.indicatorSettings.bbStdDev)),
+      returnZPeriod: Number.parseInt(returnZPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.returnZPeriod), 10),
+      returnUpper: Number.parseFloat(returnUpperInput.trim() || String(baseResearch2Data.indicatorSettings.returnUpper)),
+      returnLower: Number.parseFloat(returnLowerInput.trim() || String(baseResearch2Data.indicatorSettings.returnLower)),
+      bbwWindow: Number.parseInt(bbwWindowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwPercentileWindow), 10),
+      bbwHigh: Number.parseInt(bbwHighInput.trim() || String(baseResearch2Data.indicatorSettings.bbwHigh), 10),
+      bbwLow: Number.parseInt(bbwLowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwLow), 10),
+    };
     const nextParams = new URLSearchParams(searchParams.toString());
-    nextParams.set("emaPeriod", emaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.emaPeriod));
-    nextParams.set("smaPeriod", smaPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.smaPeriod));
-    nextParams.set("adxPeriod", adxPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.adxPeriod));
-    nextParams.set("adxTrendLevel", adxTrendLevelInput.trim() || String(baseResearch2Data.indicatorSettings.adxTrendLevel));
-    nextParams.set("rsiPeriod", rsiPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.rsiPeriod));
-    nextParams.set("rsiUpper", rsiUpperInput.trim() || String(baseResearch2Data.indicatorSettings.rsiUpper));
-    nextParams.set("rsiLower", rsiLowerInput.trim() || String(baseResearch2Data.indicatorSettings.rsiLower));
-    nextParams.set("bbPeriod", bbPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.bbPeriod));
-    nextParams.set("bbStdDev", bbStdDevInput.trim() || String(baseResearch2Data.indicatorSettings.bbStdDev));
-    nextParams.set("returnZPeriod", returnZPeriodInput.trim() || String(baseResearch2Data.indicatorSettings.returnZPeriod));
-    nextParams.set("returnUpper", returnUpperInput.trim() || String(baseResearch2Data.indicatorSettings.returnUpper));
-    nextParams.set("returnLower", returnLowerInput.trim() || String(baseResearch2Data.indicatorSettings.returnLower));
-    nextParams.set("bbwWindow", bbwWindowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwPercentileWindow));
-    nextParams.set("bbwHigh", bbwHighInput.trim() || String(baseResearch2Data.indicatorSettings.bbwHigh));
-    nextParams.set("bbwLow", bbwLowInput.trim() || String(baseResearch2Data.indicatorSettings.bbwLow));
-    startTransition(() => {
+    nextParams.set("emaPeriod", String(indicatorDefaults.emaPeriod));
+    nextParams.set("smaPeriod", String(indicatorDefaults.smaPeriod));
+    nextParams.set("adxPeriod", String(indicatorDefaults.adxPeriod));
+    nextParams.set("adxTrendLevel", String(indicatorDefaults.adxTrendLevel));
+    nextParams.set("rsiPeriod", String(indicatorDefaults.rsiPeriod));
+    nextParams.set("rsiUpper", String(indicatorDefaults.rsiUpper));
+    nextParams.set("rsiLower", String(indicatorDefaults.rsiLower));
+    nextParams.set("bbPeriod", String(indicatorDefaults.bbPeriod));
+    nextParams.set("bbStdDev", String(indicatorDefaults.bbStdDev));
+    nextParams.set("returnZPeriod", String(indicatorDefaults.returnZPeriod));
+    nextParams.set("returnUpper", String(indicatorDefaults.returnUpper));
+    nextParams.set("returnLower", String(indicatorDefaults.returnLower));
+    nextParams.set("bbwWindow", String(indicatorDefaults.bbwWindow));
+    nextParams.set("bbwHigh", String(indicatorDefaults.bbwHigh));
+    nextParams.set("bbwLow", String(indicatorDefaults.bbwLow));
+    startTransition(async () => {
+      await saveResearch2ServerDefaults({ indicator: indicatorDefaults });
       router.push(`${pathname}?${nextParams.toString()}`, { scroll: false });
     });
   };
   const resetIndicatorSettings = () => {
-    setEmaPeriodInput("21");
-    setSmaPeriodInput("200");
-    setAdxPeriodInput("14");
-    setAdxTrendLevelInput("25");
-    setRsiPeriodInput("14");
-    setRsiUpperInput("80");
-    setRsiLowerInput("20");
-    setBbPeriodInput("20");
-    setBbStdDevInput("2");
-    setReturnZPeriodInput("52");
-    setReturnUpperInput("2");
-    setReturnLowerInput("-2");
-    setBbwWindowInput("104");
-    setBbwHighInput("70");
-    setBbwLowInput("30");
+    setEmaPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.emaPeriod);
+    setSmaPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.smaPeriod);
+    setAdxPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.adxPeriod);
+    setAdxTrendLevelInput(RESEARCH2_INDICATOR_DEFAULTS.adxTrendLevel);
+    setRsiPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.rsiPeriod);
+    setRsiUpperInput(RESEARCH2_INDICATOR_DEFAULTS.rsiUpper);
+    setRsiLowerInput(RESEARCH2_INDICATOR_DEFAULTS.rsiLower);
+    setBbPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.bbPeriod);
+    setBbStdDevInput(RESEARCH2_INDICATOR_DEFAULTS.bbStdDev);
+    setReturnZPeriodInput(RESEARCH2_INDICATOR_DEFAULTS.returnZPeriod);
+    setReturnUpperInput(RESEARCH2_INDICATOR_DEFAULTS.returnUpper);
+    setReturnLowerInput(RESEARCH2_INDICATOR_DEFAULTS.returnLower);
+    setBbwWindowInput(RESEARCH2_INDICATOR_DEFAULTS.bbwWindow);
+    setBbwHighInput(RESEARCH2_INDICATOR_DEFAULTS.bbwHigh);
+    setBbwLowInput(RESEARCH2_INDICATOR_DEFAULTS.bbwLow);
     const nextParams = new URLSearchParams(searchParams.toString());
     for (const key of ["emaPeriod", "smaPeriod", "adxPeriod", "adxTrendLevel", "rsiPeriod", "rsiUpper", "rsiLower", "bbPeriod", "bbStdDev", "returnZPeriod", "returnUpper", "returnLower", "bbwWindow", "bbwHigh", "bbwLow"]) {
       nextParams.delete(key);
     }
-    startTransition(() => {
+    startTransition(async () => {
+      await resetResearch2ServerDefaults("indicator");
       const query = nextParams.toString();
       router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
     });
@@ -3020,9 +3185,12 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
   if (!research2Data || research2Data.loadError) {
     return (
-      <Card title="BTC 周线研究" hint="固定只看 BTC 周线，用七态自动体制替代手工分段。">
+      <Card
+        title={`${getResearchMarketLabel(baseResearch2Data.marketType)} ${baseResearch2Data.symbol} ${getResearchTimeframeLabel(baseResearch2Data.timeframe)}研究`}
+        hint="当前先保留七态自动体制逻辑，后续再扩成多市场、多币种、多周期统一框架。"
+      >
         <div className="rounded-[22px] border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-900">
-          {research2Data?.loadError ?? "周线研究数据暂不可用。"}
+          {research2Data?.loadError ?? "七态研究数据暂不可用。"}
         </div>
       </Card>
     );
@@ -3030,15 +3198,98 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-5">
+      <Card title="研究上下文" hint="先把市场、周期、币种三层骨架接好。当前真实数据只开放 币本位 BTC 周线，其他入口先占位。">
+        <div className="space-y-4">
+          <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            当前选择: <span className="font-semibold text-slate-900">{getResearchMarketLabel(displayData.marketType)} / {getResearchTimeframeLabel(displayData.timeframe)} / {displayData.symbol}</span>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">市场</div>
+            <div className="flex flex-wrap gap-2">
+              {researchMarketOptions.map((option) => {
+                const enabled = displayData.availableMarkets.includes(option.key);
+                const active = displayData.marketType === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    disabled={!enabled}
+                    onClick={() => updateResearch2Context({ marketType: option.key })}
+                    className={`rounded-full border px-4 py-2 text-sm transition ${
+                      active
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : enabled
+                          ? "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                          : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    {option.label}
+                    {!enabled ? " · 即将开放" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">周期</div>
+            <div className="flex flex-wrap gap-2">
+              {researchTimeframeOptions.map((option) => {
+                const active = displayData.timeframe === option.key;
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    disabled={!option.enabled}
+                    onClick={() => updateResearch2Context({ timeframe: option.key })}
+                    className={`rounded-full border px-4 py-2 text-sm transition ${
+                      active
+                        ? "border-slate-900 bg-slate-900 text-white"
+                        : option.enabled
+                          ? "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                          : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    {option.label}
+                    {!option.enabled ? " · 规划中" : ""}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">币种</div>
+            <div className="flex flex-wrap gap-2">
+              {displayData.availableSymbols.map((symbol) => {
+                const active = displayData.symbol === symbol;
+                return (
+                  <button
+                    key={symbol}
+                    type="button"
+                    onClick={() => updateResearch2Context({ symbol })}
+                    className={`rounded-full border px-4 py-2 text-sm transition ${active ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"}`}
+                  >
+                    {symbol}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <Kpi label="K线总数" value={`${klineCount}`} hint="当前市场、币种、周期下已接入研究页的总 K 线数量。" />
         <Kpi label="自动区间数" value={`${displayData.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
         <Kpi label="平均区间长度" value={`${averageSegmentWeeks} 周`} hint="这里越大，说明切换越稳；越小，说明对周线状态变化更敏感。" />
         <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}，家族 ${displayLatestPoint.family}` : "暂无已完成周线。"} />
         <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={displayLatestPoint ? `当前研究分段最新完成周 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}` : "暂无最新观测数据。"} />
-        <Kpi label="数据源" value={`${research2Data.symbol} 周线`} hint={research2Data.sourceLabel} />
+        <Kpi label="数据源" value={`${getResearchMarketLabel(research2Data.marketType)} ${research2Data.symbol} ${getResearchTimeframeLabel(research2Data.timeframe)}`} hint={research2Data.sourceLabel} />
       </div>
 
-      <Card title={`${research2Data.symbol} 七态自动分区图`} hint="底部时间窗可左右拖拽，默认先看最近 156 周。">
+      <Card
+        title={`${getResearchMarketLabel(research2Data.marketType)} ${research2Data.symbol} ${getResearchTimeframeLabel(research2Data.timeframe)}七态自动分区图`}
+        hint="上下两处时间截断控制会同步，默认先展示全时间段。"
+      >
         <div className="mb-4 flex flex-wrap gap-2">
           {orderedSummaries.map((summary) => (
             <span key={summary.label} className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700">
@@ -3124,9 +3375,14 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           </div>
         </div>
 
+        <div className="mb-4">
+          {renderTimeRangeControls()}
+        </div>
+
         {showIndicatorSettings ? (
           <div className="mb-4 rounded-[18px] border border-slate-200 bg-white px-4 py-4">
-            <div className="mb-3 text-sm font-semibold text-slate-900">指标参数设置</div>
+            <div className="mb-1 text-sm font-semibold text-slate-900">指标参数设置</div>
+            <div className="mb-3 text-xs text-slate-500">点击“应用指标参数”后会保存为服务端全局默认值；点击“恢复默认指标”会清除服务端保存并恢复系统默认。</div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               <label className="rounded-[16px] border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="text-xs text-slate-500">EMA</div>
@@ -3190,7 +3446,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         <div className="space-y-4">
           <div className="h-[220px] w-full">
             <div className="mb-2 flex flex-wrap gap-3 text-xs text-slate-500">
-              <button type="button" onClick={() => toggleIndicatorVisibility("bollinger")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bollinger ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#fde047]" />布林线 {hoverPoint ? `${fmtPrice(hoverPoint.bbUpper)} / ${fmtPrice(hoverPoint.bbBasis)} / ${fmtPrice(hoverPoint.bbLower)}` : "-"}</button>
+              <button type="button" onClick={() => toggleIndicatorVisibility("bollinger")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.bollinger ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-black" />布林线 {hoverPoint ? `${fmtPrice(hoverPoint.bbUpper)} / ${fmtPrice(hoverPoint.bbBasis)} / ${fmtPrice(hoverPoint.bbLower)}` : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("ema")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.ema ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#0f766e]" />EMA {hoverPoint ? fmtPrice(hoverPoint.ema21) : "-"}</button>
               <button type="button" onClick={() => toggleIndicatorVisibility("sma")} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 ${indicatorVisibility.sma ? "border-slate-300 bg-white text-slate-700" : "border-slate-200 bg-slate-100 text-slate-400"}`}><span className="h-2.5 w-2.5 rounded-full bg-[#7c3aed]" />SMA {hoverPoint ? fmtPrice(hoverPoint.sma200) : "-"}</button>
               <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />收盘价 {hoverPoint ? fmtPrice(hoverPoint.closePrice) : "-"}</span>
@@ -3202,12 +3458,12 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                 ))}
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="weekStart" hide />
-                <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} />
+                <YAxis domain={[Math.max(priceMin - pricePadding, 0), priceMax + pricePadding]} tick={{ fill: "#64748b", fontSize: 12 }} tickFormatter={(value) => fmtPriceAxisTick(Number(value))} />
                 <Tooltip content={() => null} />
                 <Line type="monotone" dataKey="closePrice" stroke="#2563eb" dot={false} strokeWidth={2.4} />
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbUpper" stroke="#fde047" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbBasis" stroke="#facc15" dot={false} strokeWidth={1.1} /> : null}
-                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbLower" stroke="#fde047" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbUpper" stroke="#000000" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbBasis" stroke="#000000" dot={false} strokeWidth={1.1} /> : null}
+                {indicatorVisibility.bollinger ? <Line type="monotone" dataKey="bbLower" stroke="#000000" dot={false} strokeWidth={1.1} strokeDasharray="5 4" /> : null}
                 {indicatorVisibility.ema ? <Line type="monotone" dataKey="ema21" stroke="#0f766e" dot={false} strokeWidth={1.5} /> : null}
                 {indicatorVisibility.sma ? <Line type="monotone" dataKey="sma200" stroke="#7c3aed" dot={false} strokeWidth={1.2} /> : null}
               </LineChart>
@@ -3317,50 +3573,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
             </ResponsiveContainer>
           </div>
 
-          <div className="h-[90px] w-full rounded-[18px] border border-slate-200 bg-slate-50 px-3 py-2">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-xs text-slate-500">时间截断控制</div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => stepVisibleRange(-1)}
-                  disabled={normalizedRange.endIndex <= normalizedRange.startIndex}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-                >
-                  -
-                </button>
-                <button
-                  type="button"
-                  onClick={() => stepVisibleRange(1)}
-                  disabled={normalizedRange.endIndex >= points.length - 1}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-            <ResponsiveContainer>
-              <LineChart data={points}>
-                <XAxis dataKey="weekStart" hide />
-                <YAxis hide domain={["dataMin", "dataMax"]} />
-                <Line type="monotone" dataKey="closePrice" stroke="#94a3b8" dot={false} strokeWidth={1.2} isAnimationActive={false} />
-                <Brush
-                  dataKey="weekStart"
-                  height={28}
-                  stroke="#2563eb"
-                  startIndex={normalizedRange.startIndex}
-                  endIndex={normalizedRange.endIndex}
-                  travellerWidth={12}
-                  tickFormatter={(value) => value.slice(2, 10)}
-                  onChange={(range) => {
-                    const startIndex = typeof range?.startIndex === "number" ? range.startIndex : normalizedRange.startIndex;
-                    const endIndex = typeof range?.endIndex === "number" ? range.endIndex : normalizedRange.endIndex;
-                    setVisibleRange({ startIndex, endIndex });
-                  }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {renderTimeRangeControls()}
         </div>
       </Card>
 
@@ -3430,8 +3643,9 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         <Card title="七态边界参数" hint="这里展示当前这次分段实际用到的动态阈值和固定规则，所有分位数都来自当前样本段分布。">
           <div className="space-y-4 text-sm text-slate-600">
             <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-4">
-              <div className="mb-3 text-sm font-semibold text-slate-900">参数编辑</div>
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+            <div className="mb-3 text-sm font-semibold text-slate-900">参数编辑</div>
+            <div className="mb-3 text-xs text-slate-500">点击“应用参数”后会保存为服务端全局默认值；点击“恢复默认参数”会清除服务端保存并恢复系统默认。</div>
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.2fr)_minmax(0,0.9fr)_minmax(0,0.9fr)_auto]">
                 <label className="space-y-1">
                   <div className="text-xs text-slate-500">最短区间</div>
                   <input
@@ -3465,18 +3679,18 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                   />
                 </label>
                 <div className="flex items-end">
-                  <div className="flex w-full gap-2">
+                  <div className="flex w-full gap-2 xl:w-[272px]">
                     <button
                       type="button"
                       onClick={applyResearch2Tuning}
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-700"
+                      className="inline-flex h-10 flex-1 whitespace-nowrap items-center justify-center rounded-xl bg-slate-900 px-3 text-sm font-medium text-white transition hover:bg-slate-700"
                     >
                       应用参数
                     </button>
                     <button
                       type="button"
                       onClick={resetResearch2Tuning}
-                      className="inline-flex h-10 flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                      className="inline-flex h-10 flex-1 whitespace-nowrap items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
                     >
                       恢复默认值
                     </button>

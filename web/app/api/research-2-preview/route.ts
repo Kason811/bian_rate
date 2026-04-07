@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBtcWeeklyResearch2Data } from "@/lib/sqlite-workbench-data";
+import type { ResearchMarketType, ResearchTimeframe } from "@/lib/workbench-data";
 
 function parseIntParam(value: string | null, fallback: number) {
   const parsed = Number.parseInt(value ?? "", 10);
@@ -11,9 +12,21 @@ function parseFloatParam(value: string | null, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function parseEnumParam<T extends string>(value: string | null, fallback: T, allowed: readonly T[]) {
+  return allowed.includes((value ?? "") as T) ? ((value ?? "") as T) : fallback;
+}
+
+function parseSymbolParam(value: string | null, fallback: string) {
+  const normalized = (value ?? fallback).trim().toUpperCase();
+  return /^[A-Z0-9_:-]{2,30}$/.test(normalized) ? normalized : fallback;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const data = await getBtcWeeklyResearch2Data({
+    marketType: parseEnumParam<ResearchMarketType>(searchParams.get("market"), "coinm", ["coinm", "usdtm"]),
+    symbol: parseSymbolParam(searchParams.get("symbol"), "BTC"),
+    timeframe: parseEnumParam<ResearchTimeframe>(searchParams.get("timeframe"), "week", ["week", "3day", "day"]),
     tuning: {
       minSegmentWeeks: parseIntParam(searchParams.get("minWeeks"), 5),
       latestSegmentMinWeeks: parseIntParam(searchParams.get("latestMinWeeks"), 5),
