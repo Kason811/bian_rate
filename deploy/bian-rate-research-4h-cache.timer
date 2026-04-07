@@ -1,0 +1,10 @@
+[Unit]
+Description=Run bian_rate 4h research kline cache refresh on schedule
+
+[Timer]
+OnCalendar=*-*-* 00,04,08,12,16,20:03:00
+Persistent=true
+Unit=bian-rate-research-4h-cache.service
+
+[Install]
+WantedBy=timers.target

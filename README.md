@@ -81,6 +81,21 @@ bian_rate/
 - `/research-2` 区间涨跌、最大上冲、最大回撤当前统一按“首周开盘价 -> 末周收盘价”统计，避免分段边界出现价格真空
 - `/research-2` 区间统计当前会同时显示“时间范围 + 起始价/终止价”，低价币价格、EMA、SMA、布林线已保留原始精度并按展示层自适应小数位
 
+## 当前开发优先级
+
+接下来准备按下面顺序继续推进：
+
+1. 最高优先级：补 `4小时 / 8小时` 的真实成交量链路
+2. 第二优先级：让 `费率总览 / 月费率明细` 像 `七态研究` 一样支持 `U本位 / 币本位` 切换
+3. 第三优先级：信号快照层
+4. 第四优先级：标准化回测模板与统一回测框架
+
+当前说明：
+
+- `4h / 8h` 的价格已经是高频真实 K 线
+- 但 `4h / 8h` 的成交量与费率仍有一部分沿用日频口径
+- 其中最先要补的是 `4h / 8h` 的真实成交量
+
 ## 环境要求
 
 ### Python
@@ -206,7 +221,7 @@ npm run start
 - `43126` 是我这次排查时本机未占用的冷门端口
 - 启动时会读取 `/home/ben/server/vibecode/ip_allowlist.json`
 - 只有白名单 IP 和本机 `127.0.0.1 / ::1` 能访问
-- 白名单文件变更后无需重建，重启网页即可生效
+- 白名单文件变更后支持热生效，不需要重启 `bian-rate-web.service`
 
 然后打开：
 
@@ -423,18 +438,26 @@ journalctl -u bian-rate-web.service -f
 
 - `deploy/bian-rate-collector.service`
 - `deploy/bian-rate-collector.timer`
+- `deploy/bian-rate-research-4h-cache.service`
+- `deploy/bian-rate-research-4h-cache.timer`
 
-定时策略现在默认是每天 `08:20` 运行一次日频增量采集。
+定时策略现在默认是：
+
+- `bian-rate-research-4h-cache.timer`：每天 `00:03 / 04:03 / 08:03 / 12:03 / 16:03 / 20:03`
+- `bian-rate-collector.timer`：每天 `08:06`
 
 说明：
 
 - 这个时间按服务器本地时区解释
 - 当前默认假设你的机器时区就是 `Asia/Shanghai`
 - 如果服务器时区不是 `Asia/Shanghai`，要么改系统时区，要么改 timer
+- `4h` 研究缓存定时刷新；`8h` 由本地 `4h` 缓存派生，不单独抓
 - 采集脚本带文件锁，若上一次还没跑完，本次会自动跳过，不会重入
 - `funding` 默认回补最近 `14` 天
 - `volume` 默认回补最近 `45` 天
 - 采集完成后会追加一轮最近 `30` 天完整性审计，结果落到 `run/collector-recent-integrity.json`
+- 如果最近窗口存在缺口，`run-collector.sh` 当前会自动计算更大的回补窗口，并最多自动补抓一轮后重跑审计
+- 自动补抓开关和上限由 `COLLECTOR_AUTO_REMEDIATE`、`COLLECTOR_REMEDIATE_MAX_LOOKBACK_DAYS` 控制
 - 这套日常任务是“增量补抓 + 最近窗口重刷”，不是每次全量重抓 3 年
 
 安装方式：
@@ -442,9 +465,13 @@ journalctl -u bian-rate-web.service -f
 ```bash
 sudo cp deploy/bian-rate-collector.service /etc/systemd/system/bian-rate-collector.service
 sudo cp deploy/bian-rate-collector.timer /etc/systemd/system/bian-rate-collector.timer
+sudo cp deploy/bian-rate-research-4h-cache.service /etc/systemd/system/bian-rate-research-4h-cache.service
+sudo cp deploy/bian-rate-research-4h-cache.timer /etc/systemd/system/bian-rate-research-4h-cache.timer
 sudo systemctl daemon-reload
 sudo systemctl enable --now bian-rate-collector.timer
+sudo systemctl enable --now bian-rate-research-4h-cache.timer
 sudo systemctl list-timers bian-rate-collector.timer
+sudo systemctl list-timers bian-rate-research-4h-cache.timer
 ```
 
 手动触发一次采集：
@@ -459,6 +486,62 @@ journalctl -u bian-rate-collector.service -n 100 --no-pager
 ```bash
 python3 scripts/audit_recent_daily_integrity.py --output run/collector-recent-integrity.json
 ```
+
+自动根据最近窗口缺口计算回补窗口并补抓一轮：
+
+```bash
+python3 scripts/remediate_recent_daily_integrity.py \
+  --report run/collector-recent-integrity.json \
+  --timezone Asia/Shanghai \
+  --window-days 30 \
+  --end-offset-days 1 \
+  --current-lookback-days 14 \
+  --current-volume-lookback-days 45 \
+  --max-lookback-days 90 \
+  --execute
+```
+
+当前运行状态文件与日志：
+
+- `run/web-service.log`
+- `run/web-service-status.json`
+- `run/collector.log`
+- `run/collector-status.json`
+- `run/collector-recent-integrity.json`
+- `run/research-4h-cache.log`
+- `run/research-4h-cache-status.json`
+- `run/research-4h-cache-integrity.json`
+
+`4h/8h` 当前也已经接入完整性闭环：
+
+- `4h` 缓存刷新完成后，会自动审计最近窗口的 `4h / 8h` 连续性
+- `8h` 不单独抓，直接按 `4h` 缓存派生，并检查最近窗口内每个 `8h` 桶是否由完整的两个 `4h` 桶组成
+- 若最近窗口发现缺口，`run-research-4h-cache.sh` 会按 `RESEARCH_4H_AUTO_REMEDIATE=true` 最多自动重刷一轮
+- 审计脚本：`python3 scripts/audit_recent_research_intraday_integrity.py --output run/research-4h-cache-integrity.json`
+- 自动重刷脚本：`python3 scripts/remediate_research_4h_cache_integrity.py --report run/research-4h-cache-integrity.json --execute`
+
+## Taskboard 接入
+
+当前项目已经接入独立任务面板：
+
+- 面板项目：`/home/ben/server/vibecode/taskboard`
+- 面板地址：`http://100.94.105.9:8788/`
+- 面板注册文件：`/home/ben/server/vibecode/taskboard/tasks.json`
+
+当前接入的对象：
+
+- `bian-rate-web`
+- `bian-rate-collector`
+- `bian-rate-research-4h-cache`
+
+以后如果下面任意信息变更，必须同步更新 taskboard 登记信息：
+
+- 运行方式或启动命令
+- `systemd service/timer` 名称
+- 访问地址、监听地址、健康检查地址
+- 日志路径或状态文件路径
+- 定时频率、提醒阈值、漏跑阈值
+- 白名单文件或认证策略
 
 ## IP 白名单
 

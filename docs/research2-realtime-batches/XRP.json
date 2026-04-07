@@ -1,0 +1,3495 @@
+{
+  "generatedAt": "2026-04-07T13:49:00.768Z",
+  "mode": "realtime-window-rebuild-candidates-batched",
+  "symbol": "XRP",
+  "totalEvents": 127,
+  "summaryRows": [
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 14,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 1.205,
+      "avgLeverageScore": 0.274,
+      "avgParticipationScore": 1.925,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 5,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.928,
+          "avgLeverageScore": 0.257,
+          "avgParticipationScore": 2.281
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 4,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.76,
+          "avgLeverageScore": 1.116,
+          "avgParticipationScore": 3.081
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.004,
+          "avgLeverageScore": -0.589,
+          "avgParticipationScore": 1.007
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.103,
+          "avgLeverageScore": -0.073,
+          "avgParticipationScore": 0.102
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 7,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": -0.008,
+      "avgLeverageScore": -0.418,
+      "avgParticipationScore": 0.624,
+      "transitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.16,
+          "avgLeverageScore": -0.613,
+          "avgParticipationScore": 1.047
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.269,
+          "avgLeverageScore": -0.235,
+          "avgParticipationScore": 0.077
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": -0.309,
+          "avgParticipationScore": 0.538
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 8,
+      "familyContinuationRate": 0.875,
+      "familyReversionRate": 0,
+      "avgTrendScore": 0.239,
+      "avgLeverageScore": -0.331,
+      "avgParticipationScore": 0.778,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.404,
+          "avgLeverageScore": -0.278,
+          "avgParticipationScore": -0.006
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.428,
+          "avgLeverageScore": -0.031,
+          "avgParticipationScore": 0.834
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.419,
+          "avgLeverageScore": -0.778,
+          "avgParticipationScore": 0.551
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 1,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 2.263,
+          "avgLeverageScore": -0.947,
+          "avgParticipationScore": 3.186
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 12,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 0.816,
+      "avgLeverageScore": 0.226,
+      "avgParticipationScore": 1.262,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 4,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.924,
+          "avgLeverageScore": 0.319,
+          "avgParticipationScore": 1.387
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.269,
+          "avgLeverageScore": -0.101,
+          "avgParticipationScore": 0.401
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.475,
+          "avgLeverageScore": 0.926,
+          "avgParticipationScore": 2.117
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.46,
+          "avgLeverageScore": -0.642,
+          "avgParticipationScore": 0.377
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.329,
+          "avgLeverageScore": -0.403,
+          "avgParticipationScore": 1.664
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 8,
+      "familyContinuationRate": 0.875,
+      "familyReversionRate": 0.125,
+      "avgTrendScore": 0.909,
+      "avgLeverageScore": -0.022,
+      "avgParticipationScore": 1.522,
+      "transitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.35,
+          "avgLeverageScore": -0.564,
+          "avgParticipationScore": 1.176
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.685,
+          "avgLeverageScore": 0.508,
+          "avgParticipationScore": 1.66
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.236,
+          "avgLeverageScore": -0.205,
+          "avgParticipationScore": 0.903
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 0.6667,
+          "revertedRate": 0.3333,
+          "avgTrendScore": 1.102,
+          "avgLeverageScore": 0.405,
+          "avgParticipationScore": 2.028
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 6,
+      "familyContinuationRate": 0.6667,
+      "familyReversionRate": 0.3333,
+      "avgTrendScore": 1.368,
+      "avgLeverageScore": -1.133,
+      "avgParticipationScore": 3.546,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.206,
+          "avgLeverageScore": 1.428,
+          "avgParticipationScore": 4.824
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 2,
+          "continuedRate": 0.5,
+          "revertedRate": 0.5,
+          "avgTrendScore": 0.494,
+          "avgLeverageScore": -5.246,
+          "avgParticipationScore": 1.355
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 0,
+          "revertedRate": 1,
+          "avgTrendScore": 0.604,
+          "avgLeverageScore": -0.587,
+          "avgParticipationScore": 4.095
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 12,
+      "familyContinuationRate": 0.8333,
+      "familyReversionRate": 0,
+      "avgTrendScore": 2.426,
+      "avgLeverageScore": 0.483,
+      "avgParticipationScore": 2.478,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 6,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.776,
+          "avgLeverageScore": 1.162,
+          "avgParticipationScore": 3.371
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 3.192,
+          "avgLeverageScore": 0.075,
+          "avgParticipationScore": 2.464
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.073,
+          "avgLeverageScore": -0.781,
+          "avgParticipationScore": 0.631
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 2,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 1.405,
+          "avgLeverageScore": -0.311,
+          "avgParticipationScore": 0.744
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 11,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 2.307,
+      "avgLeverageScore": 0.632,
+      "avgParticipationScore": 2.902,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 6,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.161,
+          "avgLeverageScore": 1.106,
+          "avgParticipationScore": 3.127
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 4.178,
+          "avgLeverageScore": 0.535,
+          "avgParticipationScore": 4.893
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.509,
+          "avgLeverageScore": -0.377,
+          "avgParticipationScore": 1.162
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.03,
+          "avgLeverageScore": -0.002,
+          "avgParticipationScore": 1.05
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 2,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 3.354,
+      "avgLeverageScore": 1.758,
+      "avgParticipationScore": 4.256,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 3.354,
+          "avgLeverageScore": 1.758,
+          "avgParticipationScore": 4.256
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 4,
+      "familyContinuationRate": 0.75,
+      "familyReversionRate": 0.25,
+      "avgTrendScore": 2.325,
+      "avgLeverageScore": 0.999,
+      "avgParticipationScore": 2.888,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 3.695,
+          "avgLeverageScore": 2.014,
+          "avgParticipationScore": 4.915
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.123,
+          "avgLeverageScore": 0.045,
+          "avgParticipationScore": 0.972
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 0,
+          "revertedRate": 1,
+          "avgTrendScore": 0.788,
+          "avgLeverageScore": -0.077,
+          "avgParticipationScore": 0.75
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 7,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 1.796,
+      "avgLeverageScore": 0.435,
+      "avgParticipationScore": 2.326,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 4,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.131,
+          "avgLeverageScore": 0.951,
+          "avgParticipationScore": 3.228
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.509,
+          "avgLeverageScore": -0.377,
+          "avgParticipationScore": 1.162
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.03,
+          "avgLeverageScore": -0.002,
+          "avgParticipationScore": 1.05
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 5,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 2.028,
+      "avgLeverageScore": 0.285,
+      "avgParticipationScore": 3.461,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 3.707,
+          "avgLeverageScore": 2.173,
+          "avgParticipationScore": 4.418
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.39,
+          "avgLeverageScore": -0.964,
+          "avgParticipationScore": 3.592
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.051,
+          "avgLeverageScore": -0.994,
+          "avgParticipationScore": 1.285
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 3,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 2.159,
+      "avgLeverageScore": 0.434,
+      "avgParticipationScore": 3.166,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.159,
+          "avgLeverageScore": 0.434,
+          "avgParticipationScore": 3.166
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 3,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 2.551,
+      "avgLeverageScore": 1.05,
+      "avgParticipationScore": 1.716,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.551,
+          "avgLeverageScore": 1.05,
+          "avgParticipationScore": 1.716
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 4,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 1.636,
+      "avgLeverageScore": 0.392,
+      "avgParticipationScore": 1.143,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.027,
+          "avgLeverageScore": -0.56,
+          "avgParticipationScore": 0.126
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 3.3,
+          "avgLeverageScore": 1.344,
+          "avgParticipationScore": 2.159
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 5,
+      "familyContinuationRate": 1,
+      "familyReversionRate": 0,
+      "avgTrendScore": 1.497,
+      "avgLeverageScore": -0.132,
+      "avgParticipationScore": 2.248,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.497,
+          "avgLeverageScore": -0.726,
+          "avgParticipationScore": 0.782
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 2,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.998,
+          "avgLeverageScore": 0.759,
+          "avgParticipationScore": 4.448
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 8,
+      "familyContinuationRate": 0.875,
+      "familyReversionRate": 0.125,
+      "avgTrendScore": 1.617,
+      "avgLeverageScore": 0.173,
+      "avgParticipationScore": 1.24,
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 2.551,
+          "avgLeverageScore": 1.05,
+          "avgParticipationScore": 1.716
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": -0.602,
+          "avgLeverageScore": -0.734,
+          "avgParticipationScore": 0.642
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 4,
+          "continuedRate": 0.75,
+          "revertedRate": 0.25,
+          "avgTrendScore": 1.471,
+          "avgLeverageScore": -0.257,
+          "avgParticipationScore": 1.033
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 8,
+      "familyContinuationRate": 0.875,
+      "familyReversionRate": 0.125,
+      "avgTrendScore": 1.6,
+      "avgLeverageScore": 0.485,
+      "avgParticipationScore": 1.691,
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 4,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 1.555,
+          "avgLeverageScore": -0.155,
+          "avgParticipationScore": 1.115
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 1,
+          "continuedRate": 1,
+          "revertedRate": 0,
+          "avgTrendScore": 0.516,
+          "avgLeverageScore": 0.673,
+          "avgParticipationScore": 1.348
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 3,
+          "continuedRate": 0.6667,
+          "revertedRate": 0.3333,
+          "avgTrendScore": 2.021,
+          "avgLeverageScore": 1.275,
+          "avgParticipationScore": 2.574
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 0,
+          "continuedRate": 0,
+          "revertedRate": 0,
+          "avgTrendScore": 0,
+          "avgLeverageScore": 0,
+          "avgParticipationScore": 0
+        }
+      ]
+    }
+  ],
+  "bestByTimeframe": [
+    {
+      "timeframe": "day",
+      "best": {
+        "timeframe": "day",
+        "tuning": {
+          "minSegmentWeeks": 7,
+          "latestSegmentMinWeeks": 4,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "7-4-7.8-40",
+        "totalEvents": 14,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 1.205,
+        "avgLeverageScore": 0.274,
+        "avgParticipationScore": 1.925,
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 5,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.928,
+            "avgLeverageScore": 0.257,
+            "avgParticipationScore": 2.281
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 4,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.76,
+            "avgLeverageScore": 1.116,
+            "avgParticipationScore": 3.081
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 3,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": -0.004,
+            "avgLeverageScore": -0.589,
+            "avgParticipationScore": 1.007
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 0.103,
+            "avgLeverageScore": -0.073,
+            "avgParticipationScore": 0.102
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "day",
+        "tuning": {
+          "minSegmentWeeks": 8,
+          "latestSegmentMinWeeks": 4,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "8-4-7.8-40",
+        "totalEvents": 12,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 0.816,
+        "avgLeverageScore": 0.226,
+        "avgParticipationScore": 1.262,
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 4,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 0.924,
+            "avgLeverageScore": 0.319,
+            "avgParticipationScore": 1.387
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 3,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 0.269,
+            "avgLeverageScore": -0.101,
+            "avgParticipationScore": 0.401
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 3,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.475,
+            "avgLeverageScore": 0.926,
+            "avgParticipationScore": 2.117
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 1,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": -0.46,
+            "avgLeverageScore": -0.642,
+            "avgParticipationScore": 0.377
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 1,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.329,
+            "avgLeverageScore": -0.403,
+            "avgParticipationScore": 1.664
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      }
+    },
+    {
+      "timeframe": "3day",
+      "best": {
+        "timeframe": "3day",
+        "tuning": {
+          "minSegmentWeeks": 7,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "7-3-7.8-40",
+        "totalEvents": 11,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 2.307,
+        "avgLeverageScore": 0.632,
+        "avgParticipationScore": 2.902,
+        "transitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 6,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 2.161,
+            "avgLeverageScore": 1.106,
+            "avgParticipationScore": 3.127
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 4.178,
+            "avgLeverageScore": 0.535,
+            "avgParticipationScore": 4.893
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.509,
+            "avgLeverageScore": -0.377,
+            "avgParticipationScore": 1.162
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 1,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.03,
+            "avgLeverageScore": -0.002,
+            "avgParticipationScore": 1.05
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "3day",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-3-7.8-40",
+        "totalEvents": 7,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 1.796,
+        "avgLeverageScore": 0.435,
+        "avgParticipationScore": 2.326,
+        "transitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 4,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 2.131,
+            "avgLeverageScore": 0.951,
+            "avgParticipationScore": 3.228
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.509,
+            "avgLeverageScore": -0.377,
+            "avgParticipationScore": 1.162
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 1,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 1.03,
+            "avgLeverageScore": -0.002,
+            "avgParticipationScore": 1.05
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      }
+    },
+    {
+      "timeframe": "week",
+      "best": {
+        "timeframe": "week",
+        "tuning": {
+          "minSegmentWeeks": 8,
+          "latestSegmentMinWeeks": 4,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "8-4-7.8-40",
+        "totalEvents": 5,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 1.497,
+        "avgLeverageScore": -0.132,
+        "avgParticipationScore": 2.248,
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 3,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 0.497,
+            "avgLeverageScore": -0.726,
+            "avgParticipationScore": 0.782
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 2.998,
+            "avgLeverageScore": 0.759,
+            "avgParticipationScore": 4.448
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "week",
+        "tuning": {
+          "minSegmentWeeks": 8,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "8-3-7.8-40",
+        "totalEvents": 4,
+        "familyContinuationRate": 1,
+        "familyReversionRate": 0,
+        "avgTrendScore": 1.636,
+        "avgLeverageScore": 0.392,
+        "avgParticipationScore": 1.143,
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": -0.027,
+            "avgLeverageScore": -0.56,
+            "avgParticipationScore": 0.126
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 2,
+            "continuedRate": 1,
+            "revertedRate": 0,
+            "avgTrendScore": 3.3,
+            "avgLeverageScore": 1.344,
+            "avgParticipationScore": 2.159
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 0,
+            "continuedRate": 0,
+            "revertedRate": 0,
+            "avgTrendScore": 0,
+            "avgLeverageScore": 0,
+            "avgParticipationScore": 0
+          }
+        ]
+      }
+    }
+  ],
+  "bestOverall": {
+    "timeframe": "day",
+    "tuning": {
+      "minSegmentWeeks": 7,
+      "latestSegmentMinWeeks": 4,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    "tuningKey": "7-4-7.8-40",
+    "totalEvents": 14,
+    "familyContinuationRate": 1,
+    "familyReversionRate": 0,
+    "avgTrendScore": 1.205,
+    "avgLeverageScore": 0.274,
+    "avgParticipationScore": 1.925,
+    "transitions": [
+      {
+        "transition": "Bull->Sideways",
+        "transitionLabel": "牛 -> 震荡灰",
+        "count": 5,
+        "continuedRate": 1,
+        "revertedRate": 0,
+        "avgTrendScore": 1.928,
+        "avgLeverageScore": 0.257,
+        "avgParticipationScore": 2.281
+      },
+      {
+        "transition": "Sideways->Bull",
+        "transitionLabel": "震荡灰 -> 牛",
+        "count": 4,
+        "continuedRate": 1,
+        "revertedRate": 0,
+        "avgTrendScore": 1.76,
+        "avgLeverageScore": 1.116,
+        "avgParticipationScore": 3.081
+      },
+      {
+        "transition": "Sideways->Bear",
+        "transitionLabel": "震荡灰 -> 熊",
+        "count": 3,
+        "continuedRate": 1,
+        "revertedRate": 0,
+        "avgTrendScore": -0.004,
+        "avgLeverageScore": -0.589,
+        "avgParticipationScore": 1.007
+      },
+      {
+        "transition": "Bear->Sideways",
+        "transitionLabel": "熊 -> 震荡灰",
+        "count": 2,
+        "continuedRate": 1,
+        "revertedRate": 0,
+        "avgTrendScore": 0.103,
+        "avgLeverageScore": -0.073,
+        "avgParticipationScore": 0.102
+      },
+      {
+        "transition": "Bull->Bear",
+        "transitionLabel": "牛 -> 熊",
+        "count": 0,
+        "continuedRate": 0,
+        "revertedRate": 0,
+        "avgTrendScore": 0,
+        "avgLeverageScore": 0,
+        "avgParticipationScore": 0
+      },
+      {
+        "transition": "Bear->Bull",
+        "transitionLabel": "熊 -> 牛",
+        "count": 0,
+        "continuedRate": 0,
+        "revertedRate": 0,
+        "avgTrendScore": 0,
+        "avgLeverageScore": 0,
+        "avgParticipationScore": 0
+      }
+    ]
+  },
+  "rows": [
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.396,
+      "leverageScore": 1.109,
+      "participationScore": 1.874
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.242,
+      "leverageScore": 0.998,
+      "participationScore": 2.798
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.904,
+      "leverageScore": -0.631,
+      "participationScore": 2.129
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.46,
+      "leverageScore": -0.642,
+      "participationScore": 0.377
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.038,
+      "leverageScore": 0.786,
+      "participationScore": 1.854
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.18,
+      "leverageScore": 0.426,
+      "participationScore": 0.3
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.263,
+      "leverageScore": -0.947,
+      "participationScore": 3.186
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.329,
+      "leverageScore": -0.403,
+      "participationScore": 1.664
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.419,
+      "leverageScore": -0.778,
+      "participationScore": 0.551
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.286,
+      "leverageScore": -0.263,
+      "participationScore": -0.078
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.031,
+      "leverageScore": -0.073,
+      "participationScore": 1.371
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.419,
+      "leverageScore": -0.778,
+      "participationScore": 0.551
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.286,
+      "leverageScore": -0.263,
+      "participationScore": -0.078
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": false,
+      "familyReverted": false,
+      "trendScore": 2.263,
+      "leverageScore": -0.947,
+      "participationScore": 3.186
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.396,
+      "leverageScore": 1.109,
+      "participationScore": 1.874
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.329,
+      "leverageScore": -0.403,
+      "participationScore": 1.664
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.166,
+      "leverageScore": 0.152,
+      "participationScore": 0.923
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.46,
+      "leverageScore": -0.642,
+      "participationScore": 0.377
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.038,
+      "leverageScore": 0.786,
+      "participationScore": 1.854
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.18,
+      "leverageScore": 0.426,
+      "participationScore": 0.3
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.897,
+      "leverageScore": -0.257,
+      "participationScore": 2.052
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.419,
+      "leverageScore": -0.778,
+      "participationScore": 0.551
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.286,
+      "leverageScore": -0.263,
+      "participationScore": -0.078
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.738,
+      "leverageScore": 2.725,
+      "participationScore": 5.984
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.579,
+      "leverageScore": -0.582,
+      "participationScore": 2.475
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.614,
+      "leverageScore": 1.683,
+      "participationScore": 5.97
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.457,
+      "leverageScore": -0.493,
+      "participationScore": 0.514
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.991,
+      "leverageScore": 0.884,
+      "participationScore": 2.624
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.237,
+      "leverageScore": 0.403,
+      "participationScore": 0.886
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.718,
+      "leverageScore": 0.406,
+      "participationScore": 4.235
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.184,
+      "leverageScore": -0.191,
+      "participationScore": 0.271
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.022,
+      "leverageScore": 0.045,
+      "participationScore": -0.067
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.429,
+      "leverageScore": -0.657,
+      "participationScore": 0.925
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.252,
+      "leverageScore": -0.207,
+      "participationScore": 0.231
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.232,
+      "leverageScore": -0.065,
+      "participationScore": 1.199
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.232,
+      "leverageScore": -0.553,
+      "participationScore": -0.123
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.252,
+      "leverageScore": -0.207,
+      "participationScore": 0.231
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.232,
+      "leverageScore": -0.065,
+      "participationScore": 1.199
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.022,
+      "leverageScore": 0.045,
+      "participationScore": -0.067
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.675,
+      "leverageScore": -0.364,
+      "participationScore": -0.171
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.991,
+      "leverageScore": 0.884,
+      "participationScore": 2.624
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.237,
+      "leverageScore": 0.403,
+      "participationScore": 0.886
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.718,
+      "leverageScore": 0.406,
+      "participationScore": 4.235
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.184,
+      "leverageScore": -0.191,
+      "participationScore": 0.271
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.544,
+      "leverageScore": -0.265,
+      "participationScore": 0.01
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.439,
+      "leverageScore": 0.043,
+      "participationScore": 0.127
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": 3.843,
+      "leverageScore": 1.685,
+      "participationScore": 5.931
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.685,
+      "leverageScore": 0.508,
+      "participationScore": 1.66
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.429,
+      "leverageScore": -0.657,
+      "participationScore": 0.925
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.252,
+      "leverageScore": -0.207,
+      "participationScore": 0.231
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.236,
+      "leverageScore": -0.205,
+      "participationScore": 0.903
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.614,
+      "leverageScore": 1.683,
+      "participationScore": 5.97
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.265,
+      "leverageScore": -0.125,
+      "participationScore": 2.517
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": 0.604,
+      "leverageScore": -0.587,
+      "participationScore": 4.095
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": -0.591,
+      "leverageScore": -9.91,
+      "participationScore": 0.234
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.648,
+      "leverageScore": 1.681,
+      "participationScore": 4.362
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.073,
+      "leverageScore": -0.781,
+      "participationScore": 0.631
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.271,
+      "leverageScore": 1.426,
+      "participationScore": 4.277
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.221,
+      "leverageScore": 0.02,
+      "participationScore": 2.958
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": false,
+      "familyReverted": false,
+      "trendScore": 1.395,
+      "leverageScore": -0.299,
+      "participationScore": 0.697
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.754,
+      "leverageScore": 0.369,
+      "participationScore": 1.605
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.858,
+      "leverageScore": 1.653,
+      "participationScore": 5.104
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.03,
+      "leverageScore": -0.002,
+      "participationScore": 1.05
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.165,
+      "leverageScore": 0.617,
+      "participationScore": 3.187
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.165,
+      "leverageScore": 0.081,
+      "participationScore": 4.419
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.497,
+      "leverageScore": -0.417,
+      "participationScore": 1.104
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.385,
+      "leverageScore": 1.002,
+      "participationScore": 1.7
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.648,
+      "leverageScore": 1.681,
+      "participationScore": 4.362
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.41,
+      "leverageScore": 2.566,
+      "participationScore": 5.178
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": 0.788,
+      "leverageScore": -0.077,
+      "participationScore": 0.75
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.858,
+      "leverageScore": 1.653,
+      "participationScore": 5.104
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.03,
+      "leverageScore": -0.002,
+      "participationScore": 1.05
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.165,
+      "leverageScore": 0.617,
+      "participationScore": 3.187
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.497,
+      "leverageScore": -0.417,
+      "participationScore": 1.104
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.051,
+      "leverageScore": -0.994,
+      "participationScore": 1.285
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.718,
+      "leverageScore": 2.228,
+      "participationScore": 5.358
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.375,
+      "leverageScore": -0.836,
+      "participationScore": 3.048
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.979,
+      "leverageScore": 1.462,
+      "participationScore": 4.651
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.123,
+      "leverageScore": 0.045,
+      "participationScore": 0.972
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.255,
+      "leverageScore": 1.348,
+      "participationScore": 3.668
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.231,
+      "leverageScore": 0.159,
+      "participationScore": 3.461
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": false,
+      "familyReverted": false,
+      "trendScore": 1.414,
+      "leverageScore": -0.323,
+      "participationScore": 0.791
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.75,
+      "leverageScore": 0.689,
+      "participationScore": 1.661
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.059,
+      "leverageScore": 1.835,
+      "participationScore": 4.151
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.145,
+      "leverageScore": 0.499,
+      "participationScore": 2.435
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 4.192,
+      "leverageScore": 0.99,
+      "participationScore": 5.368
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.52,
+      "leverageScore": -0.337,
+      "participationScore": 1.219
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.357,
+      "leverageScore": 1.033,
+      "participationScore": 2.184
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.059,
+      "leverageScore": 1.835,
+      "participationScore": 4.151
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.979,
+      "leverageScore": 1.462,
+      "participationScore": 4.651
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.123,
+      "leverageScore": 0.045,
+      "participationScore": 0.972
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.145,
+      "leverageScore": 0.499,
+      "participationScore": 2.435
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.52,
+      "leverageScore": -0.337,
+      "participationScore": 1.219
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.357,
+      "leverageScore": 1.033,
+      "participationScore": 2.184
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.695,
+      "leverageScore": 2.118,
+      "participationScore": 3.478
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "3day",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Bear",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.405,
+      "leverageScore": -1.092,
+      "participationScore": 4.137
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.482,
+      "leverageScore": -0.216,
+      "participationScore": 0.601
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.597,
+      "leverageScore": 0.375,
+      "participationScore": 5.698
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.054,
+      "leverageScore": 0.462,
+      "participationScore": 0.83
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.835,
+      "leverageScore": 1.028,
+      "participationScore": 2.947
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.218,
+      "leverageScore": -0.622,
+      "participationScore": 0.238
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.835,
+      "leverageScore": 1.028,
+      "participationScore": 2.947
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.08,
+      "leverageScore": -0.685,
+      "participationScore": 0.406
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.597,
+      "leverageScore": 0.375,
+      "participationScore": 5.698
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.758,
+      "leverageScore": -0.433,
+      "participationScore": 0.852
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.054,
+      "leverageScore": 0.462,
+      "participationScore": 0.83
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.602,
+      "leverageScore": -0.734,
+      "participationScore": 0.642
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.835,
+      "leverageScore": 1.028,
+      "participationScore": 2.947
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.284,
+      "leverageScore": -0.187,
+      "participationScore": 1.694
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": 2.661,
+      "leverageScore": 1.933,
+      "participationScore": 4.123
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.847,
+      "leverageScore": -0.403,
+      "participationScore": 1.169
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bear->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.516,
+      "leverageScore": 0.673,
+      "participationScore": 1.348
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 1.377,
+      "leverageScore": 0.759,
+      "participationScore": 2.461
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "usdtm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.337,
+      "leverageScore": 0,
+      "participationScore": 1.441
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "7-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.398,
+      "leverageScore": 1.144,
+      "participationScore": 3.198
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "7-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.764,
+      "leverageScore": 1.659,
+      "participationScore": 1.371
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.272,
+      "leverageScore": -0.499,
+      "participationScore": 0.014
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "8-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.764,
+      "leverageScore": 1.659,
+      "participationScore": 1.371
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": -0.536,
+      "leverageScore": -1.019,
+      "participationScore": 0.454
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.398,
+      "leverageScore": 1.144,
+      "participationScore": 3.198
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "8-4-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.106,
+      "leverageScore": -0.474,
+      "participationScore": 1.486
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.215,
+      "leverageScore": -0.34,
+      "participationScore": 0.507
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 3.764,
+      "leverageScore": 1.659,
+      "participationScore": 1.371
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-3-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": false,
+      "familyReverted": true,
+      "trendScore": 2.628,
+      "leverageScore": -0.069,
+      "participationScore": 1.08
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 0.296,
+      "leverageScore": -0.405,
+      "participationScore": 0.843
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Sideways->Bull",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.025,
+      "leverageScore": 1.132,
+      "participationScore": 1.138
+    },
+    {
+      "symbol": "XRP",
+      "timeframe": "week",
+      "marketType": "coinm",
+      "tuningKey": "6-2-7.8-40",
+      "transition": "Bull->Sideways",
+      "familyContinuedNew": true,
+      "familyReverted": false,
+      "trendScore": 2.739,
+      "leverageScore": 0.19,
+      "participationScore": 1.006
+    }
+  ]
+}

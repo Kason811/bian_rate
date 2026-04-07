@@ -657,6 +657,24 @@ function formatAuditNotes(...notes: Array<string | undefined>) {
     .replaceAll("ok", "正常");
 }
 
+function formatAuditLatest(value: string) {
+  if (!value || value === "-") return "-";
+  if (value.includes("T")) {
+    const normalized = value.length === 16 ? `${value}:00Z` : value;
+    const parsed = new Date(normalized);
+    if (!Number.isNaN(parsed.getTime())) {
+      const year = parsed.getFullYear();
+      const month = `${parsed.getMonth() + 1}`.padStart(2, "0");
+      const day = `${parsed.getDate()}`.padStart(2, "0");
+      const hours = `${parsed.getHours()}`.padStart(2, "0");
+      const minutes = `${parsed.getMinutes()}`.padStart(2, "0");
+      return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+    return value.slice(0, 16).replace("T", " ");
+  }
+  return value;
+}
+
 function AuditCell({
   status,
   candleCount,
@@ -681,7 +699,7 @@ function AuditCell({
         <div>K线 {candleCount}</div>
         <div>费率 {fundingCount}</div>
         <div>成交量 {volumeCount}</div>
-        <div>最新 {latest}</div>
+        <div>最新 {formatAuditLatest(latest)}</div>
       </div>
       <div className="text-xs leading-5 text-slate-500">{notes}</div>
     </div>

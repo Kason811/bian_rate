@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from copy import copy
+import math
 import tempfile
 import shutil
 import time
@@ -30,6 +31,7 @@ from sqlite_store import (
     create_collector_run,
     finalize_collector_run,
     initialize_database,
+    load_daily_funding_metrics,
     persist_daily_funding_metrics,
     persist_daily_volume_metrics,
     persist_funding_quality_audit,
@@ -42,7 +44,8 @@ from sqlite_store import (
     upsert_symbols,
 )
 
-LOOKBACK_YEARS = 3
+FULL_LOOKBACK_YEARS = 3
+DEFAULT_VOLUME_LOOKBACK_EXTRA_DAYS = 7
 API_BATCH_LIMIT = 1000
 REQUEST_SLEEP_SECONDS = 0.2
 MAX_RETRIES = 5
@@ -238,7 +241,7 @@ def build_funding_quality_audit(symbol: str, funding_df: pd.DataFrame, daily_df:
     }
 
 
-def build_volume_quality_audit(symbol: str, volume_df: pd.DataFrame) -> Dict[str, object]:
+def build_volume_quality_audit(symbol: str, volume_df: pd.DataFrame, expected_window_days: int) -> Dict[str, object]:
     if volume_df.empty:
         return {
             "symbol": symbol,
@@ -276,8 +279,8 @@ def build_volume_quality_audit(symbol: str, volume_df: pd.DataFrame) -> Dict[str
     if gap_count:
         status = "warning"
         notes.append(f"gaps={gap_count}")
-    if len(sorted_volume) < LOOKBACK_YEARS * 365:
-        notes.append("short_history_or_new_listing")
+    if len(sorted_volume) < expected_window_days:
+        notes.append("short_window_or_new_listing")
 
     return {
         "symbol": symbol,
@@ -447,10 +450,9 @@ def fetch_volume_metrics(
     client: Client,
     symbols: List[str],
     contract_sizes: Dict[str, float],
+    start_ts: int,
     group_timezone: str = GROUP_TIMEZONE,
 ) -> Tuple[pd.DataFrame, Dict[str, pd.DataFrame]]:
-    start_time = datetime.now(timezone.utc) - timedelta(days=365 * LOOKBACK_YEARS)
-    start_ts = int(start_time.timestamp() * 1000)
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     window_span_ms = VOLUME_KLINE_MAX_WINDOW_DAYS * 86_400_000 - 1
     records: List[dict] = []
@@ -543,6 +545,49 @@ def fetch_volume_metrics(
     df.sort_values(["StatusOrder", "AvgDailyUSDVolume"], ascending=[True, False], na_position="last", inplace=True)
     df.drop(columns=["StatusOrder"], inplace=True)
     return df, volume_history
+
+
+def resolve_lookback_days(lookback_days: int | None) -> int:
+    if lookback_days is None:
+        return FULL_LOOKBACK_YEARS * 365
+    return max(int(lookback_days), 1)
+
+
+def build_time_window(lookback_days: int) -> Tuple[datetime, int]:
+    utc_now = datetime.now(timezone.utc)
+    start_time = utc_now - timedelta(days=lookback_days)
+    return start_time, int(start_time.timestamp() * 1000)
+
+
+def compute_aggregate_refresh_bounds(daily_df: pd.DataFrame) -> Tuple[str, str]:
+    if daily_df.empty:
+        raise ValueError("daily_df must not be empty")
+
+    min_date = pd.Timestamp(daily_df["date"].min()).normalize()
+    max_date = pd.Timestamp(daily_df["date"].max()).normalize()
+    week_start = min_date - pd.Timedelta(days=min_date.weekday())
+    month_start = min_date.replace(day=1)
+    agg_start = min(week_start, month_start)
+
+    week_end = max_date + pd.Timedelta(days=(6 - max_date.weekday()))
+    month_end = (max_date + pd.offsets.MonthEnd(0)).normalize()
+    agg_end = max(week_end, month_end)
+    return agg_start.strftime("%Y-%m-%d"), agg_end.strftime("%Y-%m-%d")
+
+
+def refresh_symbol_aggregates(
+    conn,
+    symbol: str,
+    changed_daily_df: pd.DataFrame,
+    run_id: int,
+) -> None:
+    if changed_daily_df.empty:
+        return
+
+    agg_start, agg_end = compute_aggregate_refresh_bounds(changed_daily_df)
+    aggregate_source = load_daily_funding_metrics(conn, symbol, start_date=agg_start, end_date=agg_end)
+    persist_weekly_funding_metrics(conn, symbol, build_weekly_symbol_metrics(aggregate_source), run_id)
+    persist_monthly_funding_metrics(conn, symbol, build_monthly_symbol_metrics(aggregate_source), run_id)
 
 
 def auto_fit_columns(sheet, min_width: int = 9, max_width: int = 40, padding: int = 2) -> None:
@@ -864,13 +909,32 @@ def save_monthly_summary(monthly_summary: pd.DataFrame, stats_table: pd.DataFram
 def main() -> None:
     parser = argparse.ArgumentParser(description="Collect Binance COIN-M funding and volume into Excel + SQLite.")
     parser.add_argument("--timezone", default=GROUP_TIMEZONE, help="Aggregation timezone, e.g. Asia/Shanghai or UTC.")
+    parser.add_argument(
+        "--lookback-days",
+        type=int,
+        default=None,
+        help="Funding incremental window in days. Omit to keep the old 3-year full refresh behavior.",
+    )
+    parser.add_argument(
+        "--volume-lookback-days",
+        type=int,
+        default=None,
+        help="Volume incremental window in days. Defaults to max(lookback_days, 30 + buffer).",
+    )
     args = parser.parse_args()
 
     client = Client()
+    funding_lookback_days = resolve_lookback_days(args.lookback_days)
+    volume_lookback_days = resolve_lookback_days(args.volume_lookback_days)
+    volume_lookback_days = max(volume_lookback_days, funding_lookback_days, AVG_VOLUME_WINDOW_DAYS + DEFAULT_VOLUME_LOOKBACK_EXTRA_DAYS)
     utc_now = datetime.now(timezone.utc)
-    start_time = utc_now - timedelta(days=365 * LOOKBACK_YEARS)
-    start_ts = int(start_time.timestamp() * 1000)
-    print(f"\u5f00\u59cb\u6293\u53d6\u5e01\u672c\u4f4d\u5408\u7ea6\u8d44\u91d1\u8d39\u7387\uff0c\u65f6\u95f4\u8303\u56f4: {start_time.date()} - {utc_now.date()}")
+    funding_start_time, funding_start_ts = build_time_window(funding_lookback_days)
+    volume_start_time, volume_start_ts = build_time_window(volume_lookback_days)
+    print(
+        f"\u5f00\u59cb\u6293\u53d6\u5e01\u672c\u4f4d\u5408\u7ea6\u8d44\u91d1\u8d39\u7387\uff0c"
+        f"funding\u7a97\u53e3: {funding_start_time.date()} - {utc_now.date()} ; "
+        f"volume\u7a97\u53e3: {volume_start_time.date()} - {utc_now.date()}"
+    )
 
     symbols, contract_sizes = get_coin_perpetual_symbols(client)
     if not symbols:
@@ -885,13 +949,17 @@ def main() -> None:
     try:
         with sqlite_connection() as conn:
             initialize_database(conn)
-            run_id = create_collector_run(conn, lookback_years=LOOKBACK_YEARS, symbol_count=len(symbols))
+            run_id = create_collector_run(
+                conn,
+                lookback_years=max(1, math.ceil(funding_lookback_days / 365)),
+                symbol_count=len(symbols),
+            )
             upsert_symbols(conn, symbols, contract_sizes)
 
             for idx, symbol in enumerate(symbols, start=1):
                 print(f"[{idx}/{len(symbols)}] \u6293\u53d6 {symbol} ...")
                 try:
-                    funding_df = fetch_symbol_funding_history(client, symbol, start_ts=start_ts)
+                    funding_df = fetch_symbol_funding_history(client, symbol, start_ts=funding_start_ts)
                 except DataFetchIncompleteError as exc:
                     print(str(exc))
                     skipped_symbols.append(symbol)
@@ -909,8 +977,7 @@ def main() -> None:
 
                 persist_raw_funding_rates(conn, symbol, funding_df, run_id)
                 persist_daily_funding_metrics(conn, symbol, symbol_daily[symbol], run_id)
-                persist_weekly_funding_metrics(conn, symbol, build_weekly_symbol_metrics(symbol_daily[symbol]), run_id)
-                persist_monthly_funding_metrics(conn, symbol, build_monthly_symbol_metrics(symbol_daily[symbol]), run_id)
+                refresh_symbol_aggregates(conn, symbol, symbol_daily[symbol], run_id)
                 persist_funding_quality_audit(conn, run_id, quality_audits[-1])
 
             if not symbol_daily:
@@ -928,22 +995,31 @@ def main() -> None:
                 print(f"\u5df2\u8df3\u8fc7 {len(skipped_symbols)} \u4e2a\u6570\u636e\u4e0d\u5b8c\u6574\u7684\u4ea4\u6613\u5bf9: {', '.join(skipped_symbols)}")
             warning_symbols = [str(entry["symbol"]) for entry in quality_audits if str(entry["status"]) != "ok"]
 
-            save_daily_excels(symbol_daily)
+            full_symbol_daily = {
+                symbol: load_daily_funding_metrics(conn, symbol)
+                for symbol in symbol_daily.keys()
+            }
+            save_daily_excels(full_symbol_daily)
             avg_volume_table, volume_history = fetch_volume_metrics(
                 client,
-                list(symbol_daily.keys()),
+                list(full_symbol_daily.keys()),
                 contract_sizes,
+                start_ts=volume_start_ts,
                 group_timezone=args.timezone,
             )
             for symbol, volume_df in volume_history.items():
                 persist_daily_volume_metrics(conn, symbol, volume_df, run_id)
-                persist_volume_quality_audit(conn, run_id, build_volume_quality_audit(symbol, volume_df))
+                persist_volume_quality_audit(
+                    conn,
+                    run_id,
+                    build_volume_quality_audit(symbol, volume_df, expected_window_days=volume_lookback_days),
+                )
             for row in avg_volume_table.itertuples(index=False):
                 if str(row.FetchStatus) != "OK":
                     failed_symbol = f"{str(row.Symbol)}USD_PERP"
                     persist_volume_quality_audit(conn, run_id, build_failed_volume_quality_audit(failed_symbol, "volume fetch failed or no kline rows"))
 
-            monthly_37 = compute_monthly_summary(symbol_daily, periods=37, group_timezone=args.timezone)
+            monthly_37 = compute_monthly_summary(full_symbol_daily, periods=37, group_timezone=args.timezone)
             if monthly_37.empty:
                 finalize_collector_run(
                     conn,
@@ -979,7 +1055,11 @@ def main() -> None:
                 run_id=run_id,
                 status="completed",
                 skipped_symbol_count=len(skipped_symbols),
-                notes=f"persisted {len(symbol_daily)} symbols; audit warnings={len(warning_symbols)}; timezone={args.timezone}",
+                notes=(
+                    f"persisted {len(symbol_daily)} symbols; audit warnings={len(warning_symbols)}; "
+                    f"timezone={args.timezone}; funding_lookback_days={funding_lookback_days}; "
+                    f"volume_lookback_days={volume_lookback_days}"
+                ),
             )
             print("\u5df2\u5b8c\u6210 SQLite \u5199\u5165\u4e0e Excel \u5bfc\u51fa\u3002")
     except Exception as exc:

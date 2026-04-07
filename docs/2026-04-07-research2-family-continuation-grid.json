@@ -1,0 +1,4159 @@
+{
+  "generatedAt": "2026-04-07T11:22:53.246Z",
+  "markets": [
+    "usdtm",
+    "coinm"
+  ],
+  "timeframes": [
+    "day",
+    "3day",
+    "week"
+  ],
+  "tuningGrid": [
+    {
+      "minSegmentWeeks": 7,
+      "latestSegmentMinWeeks": 4,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    {
+      "minSegmentWeeks": 7,
+      "latestSegmentMinWeeks": 3,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    {
+      "minSegmentWeeks": 8,
+      "latestSegmentMinWeeks": 3,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    {
+      "minSegmentWeeks": 8,
+      "latestSegmentMinWeeks": 4,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    {
+      "minSegmentWeeks": 6,
+      "latestSegmentMinWeeks": 3,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    {
+      "minSegmentWeeks": 6,
+      "latestSegmentMinWeeks": 2,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    }
+  ],
+  "datasetCount": 132,
+  "totalEvents": 22415,
+  "bestOverall": {
+    "timeframe": "day",
+    "tuning": {
+      "minSegmentWeeks": 6,
+      "latestSegmentMinWeeks": 3,
+      "splitPenalty": 7.8,
+      "maxSegmentWeeks": 40
+    },
+    "tuningKey": "6-3-7.8-40",
+    "totalEvents": 2326,
+    "continued1Rate": 1,
+    "continued2Rate": 1,
+    "continued3Rate": 1,
+    "revertedToPreviousRate": 0,
+    "avgTrendScore": 0.137,
+    "avgLeverageScore": -0.02,
+    "avgParticipationScore": 0.243,
+    "avgVolScore": 0.147,
+    "opportunitiesPerDatasetYear": 10.3,
+    "topTransitions": [
+      {
+        "transition": "Bear->Sideways",
+        "transitionLabel": "熊 -> 震荡灰",
+        "count": 460,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": -0.224,
+        "avgLeverageScore": -0.181,
+        "avgParticipationScore": 0.132
+      },
+      {
+        "transition": "Sideways->Bull",
+        "transitionLabel": "震荡灰 -> 牛",
+        "count": 428,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.287,
+        "avgLeverageScore": 0.312,
+        "avgParticipationScore": 0.186
+      },
+      {
+        "transition": "Sideways->Bear",
+        "transitionLabel": "震荡灰 -> 熊",
+        "count": 421,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": -0.1,
+        "avgLeverageScore": -0.326,
+        "avgParticipationScore": 0.148
+      }
+    ],
+    "transitions": [
+      {
+        "transition": "Bear->Sideways",
+        "transitionLabel": "熊 -> 震荡灰",
+        "count": 460,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": -0.224,
+        "avgLeverageScore": -0.181,
+        "avgParticipationScore": 0.132
+      },
+      {
+        "transition": "Sideways->Bull",
+        "transitionLabel": "震荡灰 -> 牛",
+        "count": 428,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.287,
+        "avgLeverageScore": 0.312,
+        "avgParticipationScore": 0.186
+      },
+      {
+        "transition": "Sideways->Bear",
+        "transitionLabel": "震荡灰 -> 熊",
+        "count": 421,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": -0.1,
+        "avgLeverageScore": -0.326,
+        "avgParticipationScore": 0.148
+      },
+      {
+        "transition": "Bull->Sideways",
+        "transitionLabel": "牛 -> 震荡灰",
+        "count": 396,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.627,
+        "avgLeverageScore": 0.162,
+        "avgParticipationScore": 0.499
+      },
+      {
+        "transition": "Bull->Bear",
+        "transitionLabel": "牛 -> 熊",
+        "count": 330,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.353,
+        "avgLeverageScore": -0.128,
+        "avgParticipationScore": 0.406
+      },
+      {
+        "transition": "Bear->Bull",
+        "transitionLabel": "熊 -> 牛",
+        "count": 291,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": -0.085,
+        "avgLeverageScore": 0.063,
+        "avgParticipationScore": 0.107
+      }
+    ]
+  },
+  "bestByTimeframe": [
+    {
+      "timeframe": "day",
+      "best": {
+        "timeframe": "day",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-3-7.8-40",
+        "totalEvents": 2326,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.137,
+        "avgLeverageScore": -0.02,
+        "avgParticipationScore": 0.243,
+        "avgVolScore": 0.147,
+        "opportunitiesPerDatasetYear": 10.3,
+        "topTransitions": [
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 460,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.224,
+            "avgLeverageScore": -0.181,
+            "avgParticipationScore": 0.132
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 428,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.287,
+            "avgLeverageScore": 0.312,
+            "avgParticipationScore": 0.186
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 421,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.1,
+            "avgLeverageScore": -0.326,
+            "avgParticipationScore": 0.148
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 460,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.224,
+            "avgLeverageScore": -0.181,
+            "avgParticipationScore": 0.132
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 428,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.287,
+            "avgLeverageScore": 0.312,
+            "avgParticipationScore": 0.186
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 421,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.1,
+            "avgLeverageScore": -0.326,
+            "avgParticipationScore": 0.148
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 396,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.627,
+            "avgLeverageScore": 0.162,
+            "avgParticipationScore": 0.499
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 330,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.353,
+            "avgLeverageScore": -0.128,
+            "avgParticipationScore": 0.406
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 291,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.085,
+            "avgLeverageScore": 0.063,
+            "avgParticipationScore": 0.107
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "day",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 2,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-2-7.8-40",
+        "totalEvents": 2326,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.134,
+        "avgLeverageScore": -0.037,
+        "avgParticipationScore": 0.311,
+        "avgVolScore": 0.156,
+        "opportunitiesPerDatasetYear": 10.3,
+        "topTransitions": [
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 460,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.199,
+            "avgLeverageScore": -0.224,
+            "avgParticipationScore": 0.239
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 428,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.29,
+            "avgLeverageScore": 0.404,
+            "avgParticipationScore": 0.211
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 421,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.106,
+            "avgLeverageScore": -0.393,
+            "avgParticipationScore": 0.213
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 460,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.199,
+            "avgLeverageScore": -0.224,
+            "avgParticipationScore": 0.239
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 428,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.29,
+            "avgLeverageScore": 0.404,
+            "avgParticipationScore": 0.211
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 421,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.106,
+            "avgLeverageScore": -0.393,
+            "avgParticipationScore": 0.213
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 396,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.614,
+            "avgLeverageScore": 0.157,
+            "avgParticipationScore": 0.537
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 330,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.285,
+            "avgLeverageScore": -0.229,
+            "avgParticipationScore": 0.582
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 291,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.043,
+            "avgLeverageScore": 0.079,
+            "avgParticipationScore": 0.096
+          }
+        ]
+      }
+    },
+    {
+      "timeframe": "3day",
+      "best": {
+        "timeframe": "3day",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-3-7.8-40",
+        "totalEvents": 1015,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.184,
+        "avgLeverageScore": 0.017,
+        "avgParticipationScore": 0.311,
+        "avgVolScore": 0.182,
+        "opportunitiesPerDatasetYear": 4.49,
+        "topTransitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 199,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.802,
+            "avgLeverageScore": 0.123,
+            "avgParticipationScore": 0.831
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 184,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.134,
+            "avgLeverageScore": -0.43,
+            "avgParticipationScore": 0.168
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 169,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.438,
+            "avgLeverageScore": 0.676,
+            "avgParticipationScore": 0.427
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 199,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.802,
+            "avgLeverageScore": 0.123,
+            "avgParticipationScore": 0.831
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 184,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.134,
+            "avgLeverageScore": -0.43,
+            "avgParticipationScore": 0.168
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 169,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.438,
+            "avgLeverageScore": 0.676,
+            "avgParticipationScore": 0.427
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 163,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.125,
+            "avgLeverageScore": 0.057,
+            "avgParticipationScore": 0.089
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 161,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.208,
+            "avgLeverageScore": -0.104,
+            "avgParticipationScore": -0.056
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 139,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.227,
+            "avgLeverageScore": -0.252,
+            "avgParticipationScore": 0.302
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "3day",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 2,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-2-7.8-40",
+        "totalEvents": 1015,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 1,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.221,
+        "avgLeverageScore": 0.067,
+        "avgParticipationScore": 0.323,
+        "avgVolScore": 0.184,
+        "opportunitiesPerDatasetYear": 4.49,
+        "topTransitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 199,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.787,
+            "avgLeverageScore": 0.188,
+            "avgParticipationScore": 0.897
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 184,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.117,
+            "avgLeverageScore": -0.493,
+            "avgParticipationScore": 0.295
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 169,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.551,
+            "avgLeverageScore": 0.834,
+            "avgParticipationScore": 0.309
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 199,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.787,
+            "avgLeverageScore": 0.188,
+            "avgParticipationScore": 0.897
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 184,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.117,
+            "avgLeverageScore": -0.493,
+            "avgParticipationScore": 0.295
+          },
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 169,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.551,
+            "avgLeverageScore": 0.834,
+            "avgParticipationScore": 0.309
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 163,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.015,
+            "avgLeverageScore": 0.159,
+            "avgParticipationScore": 0.049
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 161,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.219,
+            "avgLeverageScore": -0.142,
+            "avgParticipationScore": -0.08
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 139,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.247,
+            "avgLeverageScore": -0.16,
+            "avgParticipationScore": 0.348
+          }
+        ]
+      }
+    },
+    {
+      "timeframe": "week",
+      "best": {
+        "timeframe": "week",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 3,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-3-7.8-40",
+        "totalEvents": 569,
+        "continued1Rate": 1,
+        "continued2Rate": 0.9965,
+        "continued3Rate": 0.9965,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.194,
+        "avgLeverageScore": 0.019,
+        "avgParticipationScore": 0.209,
+        "avgVolScore": 0.209,
+        "opportunitiesPerDatasetYear": 2.52,
+        "topTransitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 108,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.418,
+            "avgLeverageScore": 0.443,
+            "avgParticipationScore": 0.414
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 104,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.794,
+            "avgLeverageScore": 0.268,
+            "avgParticipationScore": 0.483
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 95,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.026,
+            "avgLeverageScore": -0.372,
+            "avgParticipationScore": 0.037
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 108,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.418,
+            "avgLeverageScore": 0.443,
+            "avgParticipationScore": 0.414
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 104,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.794,
+            "avgLeverageScore": 0.268,
+            "avgParticipationScore": 0.483
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 95,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.026,
+            "avgLeverageScore": -0.372,
+            "avgParticipationScore": 0.037
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 94,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.341,
+            "avgLeverageScore": -0.256,
+            "avgParticipationScore": 0.356
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 89,
+            "continued1Rate": 1,
+            "continued2Rate": 0.9775,
+            "continued3Rate": 0.9775,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.381,
+            "avgLeverageScore": -0.192,
+            "avgParticipationScore": -0.143
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 79,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.164,
+            "avgLeverageScore": 0.144,
+            "avgParticipationScore": -0.002
+          }
+        ]
+      },
+      "runnerUp": {
+        "timeframe": "week",
+        "tuning": {
+          "minSegmentWeeks": 6,
+          "latestSegmentMinWeeks": 2,
+          "splitPenalty": 7.8,
+          "maxSegmentWeeks": 40
+        },
+        "tuningKey": "6-2-7.8-40",
+        "totalEvents": 569,
+        "continued1Rate": 1,
+        "continued2Rate": 1,
+        "continued3Rate": 0.9965,
+        "revertedToPreviousRate": 0,
+        "avgTrendScore": 0.143,
+        "avgLeverageScore": -0.029,
+        "avgParticipationScore": 0.312,
+        "avgVolScore": 0.225,
+        "opportunitiesPerDatasetYear": 2.52,
+        "topTransitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 108,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.381,
+            "avgLeverageScore": 0.678,
+            "avgParticipationScore": 0.411
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 104,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.691,
+            "avgLeverageScore": -0.018,
+            "avgParticipationScore": 0.69
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 95,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.048,
+            "avgLeverageScore": -0.392,
+            "avgParticipationScore": 0.192
+          }
+        ],
+        "transitions": [
+          {
+            "transition": "Sideways->Bull",
+            "transitionLabel": "震荡灰 -> 牛",
+            "count": 108,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.381,
+            "avgLeverageScore": 0.678,
+            "avgParticipationScore": 0.411
+          },
+          {
+            "transition": "Bull->Sideways",
+            "transitionLabel": "牛 -> 震荡灰",
+            "count": 104,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.691,
+            "avgLeverageScore": -0.018,
+            "avgParticipationScore": 0.69
+          },
+          {
+            "transition": "Sideways->Bear",
+            "transitionLabel": "震荡灰 -> 熊",
+            "count": 95,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.048,
+            "avgLeverageScore": -0.392,
+            "avgParticipationScore": 0.192
+          },
+          {
+            "transition": "Bull->Bear",
+            "transitionLabel": "牛 -> 熊",
+            "count": 94,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": 0.18,
+            "avgLeverageScore": -0.371,
+            "avgParticipationScore": 0.555
+          },
+          {
+            "transition": "Bear->Sideways",
+            "transitionLabel": "熊 -> 震荡灰",
+            "count": 89,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 0.9775,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.305,
+            "avgLeverageScore": -0.178,
+            "avgParticipationScore": -0.057
+          },
+          {
+            "transition": "Bear->Bull",
+            "transitionLabel": "熊 -> 牛",
+            "count": 79,
+            "continued1Rate": 1,
+            "continued2Rate": 1,
+            "continued3Rate": 1,
+            "revertedToPreviousRate": 0,
+            "avgTrendScore": -0.21,
+            "avgLeverageScore": -0.001,
+            "avgParticipationScore": -0.048
+          }
+        ]
+      }
+    }
+  ],
+  "practicalRows": [
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 2326,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.137,
+      "avgLeverageScore": -0.02,
+      "avgParticipationScore": 0.243,
+      "avgVolScore": 0.147,
+      "opportunitiesPerDatasetYear": 10.3,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.224,
+          "avgLeverageScore": -0.181,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.287,
+          "avgLeverageScore": 0.312,
+          "avgParticipationScore": 0.186
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.1,
+          "avgLeverageScore": -0.326,
+          "avgParticipationScore": 0.148
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.224,
+          "avgLeverageScore": -0.181,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.287,
+          "avgLeverageScore": 0.312,
+          "avgParticipationScore": 0.186
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.1,
+          "avgLeverageScore": -0.326,
+          "avgParticipationScore": 0.148
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 396,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.627,
+          "avgLeverageScore": 0.162,
+          "avgParticipationScore": 0.499
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 330,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.353,
+          "avgLeverageScore": -0.128,
+          "avgParticipationScore": 0.406
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 291,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.085,
+          "avgLeverageScore": 0.063,
+          "avgParticipationScore": 0.107
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 2326,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.134,
+      "avgLeverageScore": -0.037,
+      "avgParticipationScore": 0.311,
+      "avgVolScore": 0.156,
+      "opportunitiesPerDatasetYear": 10.3,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.199,
+          "avgLeverageScore": -0.224,
+          "avgParticipationScore": 0.239
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.29,
+          "avgLeverageScore": 0.404,
+          "avgParticipationScore": 0.211
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.106,
+          "avgLeverageScore": -0.393,
+          "avgParticipationScore": 0.213
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.199,
+          "avgLeverageScore": -0.224,
+          "avgParticipationScore": 0.239
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.29,
+          "avgLeverageScore": 0.404,
+          "avgParticipationScore": 0.211
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.106,
+          "avgLeverageScore": -0.393,
+          "avgParticipationScore": 0.213
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 396,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.614,
+          "avgLeverageScore": 0.157,
+          "avgParticipationScore": 0.537
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 330,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.285,
+          "avgLeverageScore": -0.229,
+          "avgParticipationScore": 0.582
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 291,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.043,
+          "avgLeverageScore": 0.079,
+          "avgParticipationScore": 0.096
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 2236,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.107,
+      "avgLeverageScore": -0.018,
+      "avgParticipationScore": 0.201,
+      "avgVolScore": 0.135,
+      "opportunitiesPerDatasetYear": 9.9,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.25,
+          "avgLeverageScore": -0.145,
+          "avgParticipationScore": 0.109
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.132,
+          "avgLeverageScore": -0.322,
+          "avgParticipationScore": 0.146
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.267,
+          "avgLeverageScore": 0.29,
+          "avgParticipationScore": 0.132
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.25,
+          "avgLeverageScore": -0.145,
+          "avgParticipationScore": 0.109
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.132,
+          "avgLeverageScore": -0.322,
+          "avgParticipationScore": 0.146
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.267,
+          "avgLeverageScore": 0.29,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.64,
+          "avgLeverageScore": 0.183,
+          "avgParticipationScore": 0.469
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 309,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.283,
+          "avgLeverageScore": -0.154,
+          "avgParticipationScore": 0.308
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 281,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": 0.059,
+          "avgParticipationScore": 0.042
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 2236,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.123,
+      "avgLeverageScore": -0.019,
+      "avgParticipationScore": 0.248,
+      "avgVolScore": 0.137,
+      "opportunitiesPerDatasetYear": 9.9,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": -0.187,
+          "avgParticipationScore": 0.129
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.097,
+          "avgLeverageScore": -0.308,
+          "avgParticipationScore": 0.22
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.191
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": -0.187,
+          "avgParticipationScore": 0.129
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.097,
+          "avgLeverageScore": -0.308,
+          "avgParticipationScore": 0.22
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.191
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.611,
+          "avgLeverageScore": 0.14,
+          "avgParticipationScore": 0.479
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 309,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.348,
+          "avgLeverageScore": -0.116,
+          "avgParticipationScore": 0.374
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 281,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.082,
+          "avgLeverageScore": 0.107,
+          "avgParticipationScore": 0.101
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 2141,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.106,
+      "avgLeverageScore": -0.032,
+      "avgParticipationScore": 0.212,
+      "avgVolScore": 0.15,
+      "opportunitiesPerDatasetYear": 9.48,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 424,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.255,
+          "avgLeverageScore": -0.168,
+          "avgParticipationScore": 0.165
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 405,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.106
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.286,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.167
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 424,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.255,
+          "avgLeverageScore": -0.168,
+          "avgParticipationScore": 0.165
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 405,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.106
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.286,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.167
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 376,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.65,
+          "avgLeverageScore": 0.153,
+          "avgParticipationScore": 0.484
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 284,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": -0.186,
+          "avgParticipationScore": 0.339
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 267,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.14,
+          "avgLeverageScore": 0.042,
+          "avgParticipationScore": -0.009
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 2131,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.113,
+      "avgLeverageScore": -0.026,
+      "avgParticipationScore": 0.237,
+      "avgVolScore": 0.153,
+      "opportunitiesPerDatasetYear": 9.44,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.237,
+          "avgLeverageScore": -0.216,
+          "avgParticipationScore": 0.169
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 404,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.147,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": 0.144
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 381,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.243,
+          "avgLeverageScore": 0.26,
+          "avgParticipationScore": 0.195
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.237,
+          "avgLeverageScore": -0.216,
+          "avgParticipationScore": 0.169
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 404,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.147,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": 0.144
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 381,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.243,
+          "avgLeverageScore": 0.26,
+          "avgParticipationScore": 0.195
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 374,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.63,
+          "avgLeverageScore": 0.136,
+          "avgParticipationScore": 0.465
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 283,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.357,
+          "avgLeverageScore": -0.132,
+          "avgParticipationScore": 0.428
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 268,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.109,
+          "avgLeverageScore": 0.092,
+          "avgParticipationScore": 0.026
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 2236,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.107,
+      "avgLeverageScore": -0.018,
+      "avgParticipationScore": 0.201,
+      "avgVolScore": 0.135,
+      "opportunitiesPerDatasetYear": 9.9,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.25,
+          "avgLeverageScore": -0.145,
+          "avgParticipationScore": 0.109
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.132,
+          "avgLeverageScore": -0.322,
+          "avgParticipationScore": 0.146
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.267,
+          "avgLeverageScore": 0.29,
+          "avgParticipationScore": 0.132
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.25,
+          "avgLeverageScore": -0.145,
+          "avgParticipationScore": 0.109
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.132,
+          "avgLeverageScore": -0.322,
+          "avgParticipationScore": 0.146
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.267,
+          "avgLeverageScore": 0.29,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.64,
+          "avgLeverageScore": 0.183,
+          "avgParticipationScore": 0.469
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 309,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.283,
+          "avgLeverageScore": -0.154,
+          "avgParticipationScore": 0.308
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 281,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": 0.059,
+          "avgParticipationScore": 0.042
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 967,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 0.9948,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.192,
+      "avgLeverageScore": 0.038,
+      "avgParticipationScore": 0.216,
+      "avgVolScore": 0.161,
+      "opportunitiesPerDatasetYear": 4.28,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 181,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9945,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.807,
+          "avgLeverageScore": 0.173,
+          "avgParticipationScore": 0.631
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 170,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9765,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.186,
+          "avgLeverageScore": -0.413,
+          "avgParticipationScore": 0.026
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.515,
+          "avgLeverageScore": 0.745,
+          "avgParticipationScore": 0.377
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 181,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9945,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.807,
+          "avgLeverageScore": 0.173,
+          "avgParticipationScore": 0.631
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 170,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9765,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.186,
+          "avgLeverageScore": -0.413,
+          "avgParticipationScore": 0.026
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.515,
+          "avgLeverageScore": 0.745,
+          "avgParticipationScore": 0.377
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 162,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": -0.122,
+          "avgParticipationScore": -0.039
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 150,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.073,
+          "avgLeverageScore": 0.079,
+          "avgParticipationScore": -0.021
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 141,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.271,
+          "avgLeverageScore": -0.266,
+          "avgParticipationScore": 0.273
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-4-7.8-40",
+      "totalEvents": 542,
+      "continued1Rate": 0.9963,
+      "continued2Rate": 0.9963,
+      "continued3Rate": 0.9963,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.117,
+      "avgLeverageScore": -0.001,
+      "avgParticipationScore": 0.177,
+      "avgVolScore": 0.171,
+      "opportunitiesPerDatasetYear": 2.4,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.696,
+          "avgLeverageScore": 0.203,
+          "avgParticipationScore": 0.489
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.131,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.009
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.308,
+          "avgLeverageScore": -0.231,
+          "avgParticipationScore": 0.322
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.696,
+          "avgLeverageScore": 0.203,
+          "avgParticipationScore": 0.489
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.131,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.009
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.308,
+          "avgLeverageScore": -0.231,
+          "avgParticipationScore": 0.322
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 90,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.383,
+          "avgLeverageScore": 0.418,
+          "avgParticipationScore": 0.326
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.131,
+          "avgLeverageScore": 0.185,
+          "avgParticipationScore": 0.067
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 0.9765,
+          "continued2Rate": 0.9765,
+          "continued3Rate": 0.9765,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.494,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": -0.192
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 2236,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.123,
+      "avgLeverageScore": -0.019,
+      "avgParticipationScore": 0.248,
+      "avgVolScore": 0.137,
+      "opportunitiesPerDatasetYear": 9.9,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": -0.187,
+          "avgParticipationScore": 0.129
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.097,
+          "avgLeverageScore": -0.308,
+          "avgParticipationScore": 0.22
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.191
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 442,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": -0.187,
+          "avgParticipationScore": 0.129
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 413,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.097,
+          "avgLeverageScore": -0.308,
+          "avgParticipationScore": 0.22
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 406,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.191
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.611,
+          "avgLeverageScore": 0.14,
+          "avgParticipationScore": 0.479
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 309,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.348,
+          "avgLeverageScore": -0.116,
+          "avgParticipationScore": 0.374
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 281,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.082,
+          "avgLeverageScore": 0.107,
+          "avgParticipationScore": 0.101
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 967,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.185,
+      "avgLeverageScore": 0.011,
+      "avgParticipationScore": 0.306,
+      "avgVolScore": 0.166,
+      "opportunitiesPerDatasetYear": 4.28,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 181,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.796,
+          "avgLeverageScore": 0.167,
+          "avgParticipationScore": 0.843
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 170,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.126,
+          "avgLeverageScore": -0.417,
+          "avgParticipationScore": 0.102
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.417,
+          "avgLeverageScore": 0.707,
+          "avgParticipationScore": 0.38
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 181,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.796,
+          "avgLeverageScore": 0.167,
+          "avgParticipationScore": 0.843
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 170,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.126,
+          "avgLeverageScore": -0.417,
+          "avgParticipationScore": 0.102
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.417,
+          "avgLeverageScore": 0.707,
+          "avgParticipationScore": 0.38
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 162,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.242,
+          "avgLeverageScore": -0.143,
+          "avgParticipationScore": -0.01
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 150,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.144,
+          "avgLeverageScore": -0.015,
+          "avgParticipationScore": 0.027
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 141,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.348,
+          "avgLeverageScore": -0.272,
+          "avgParticipationScore": 0.434
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 7,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "7-3-7.8-40",
+      "totalEvents": 542,
+      "continued1Rate": 1,
+      "continued2Rate": 0.9963,
+      "continued3Rate": 0.9963,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.134,
+      "avgLeverageScore": 0.008,
+      "avgParticipationScore": 0.191,
+      "avgVolScore": 0.18,
+      "opportunitiesPerDatasetYear": 2.4,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.707,
+          "avgLeverageScore": 0.229,
+          "avgParticipationScore": 0.554
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.081,
+          "avgLeverageScore": -0.367,
+          "avgParticipationScore": 0.081
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.355,
+          "avgLeverageScore": -0.188,
+          "avgParticipationScore": 0.399
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.707,
+          "avgLeverageScore": 0.229,
+          "avgParticipationScore": 0.554
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.081,
+          "avgLeverageScore": -0.367,
+          "avgParticipationScore": 0.081
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.355,
+          "avgLeverageScore": -0.188,
+          "avgParticipationScore": 0.399
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 90,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.387,
+          "avgLeverageScore": 0.534,
+          "avgParticipationScore": 0.229
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 0.9765,
+          "continued3Rate": 0.9765,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.42,
+          "avgLeverageScore": -0.264,
+          "avgParticipationScore": -0.148
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.218,
+          "avgLeverageScore": 0.107,
+          "avgParticipationScore": -0.019
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 2131,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.113,
+      "avgLeverageScore": -0.026,
+      "avgParticipationScore": 0.237,
+      "avgVolScore": 0.153,
+      "opportunitiesPerDatasetYear": 9.44,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.237,
+          "avgLeverageScore": -0.216,
+          "avgParticipationScore": 0.169
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 404,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.147,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": 0.144
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 381,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.243,
+          "avgLeverageScore": 0.26,
+          "avgParticipationScore": 0.195
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.237,
+          "avgLeverageScore": -0.216,
+          "avgParticipationScore": 0.169
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 404,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.147,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": 0.144
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 381,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.243,
+          "avgLeverageScore": 0.26,
+          "avgParticipationScore": 0.195
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 374,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.63,
+          "avgLeverageScore": 0.136,
+          "avgParticipationScore": 0.465
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 283,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.357,
+          "avgLeverageScore": -0.132,
+          "avgParticipationScore": 0.428
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 268,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.109,
+          "avgLeverageScore": 0.092,
+          "avgParticipationScore": 0.026
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 912,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 0.9989,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.154,
+      "avgLeverageScore": -0.016,
+      "avgParticipationScore": 0.297,
+      "avgVolScore": 0.171,
+      "opportunitiesPerDatasetYear": 4.04,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 176,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9943,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.765,
+          "avgLeverageScore": 0.068,
+          "avgParticipationScore": 0.81
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.179,
+          "avgLeverageScore": -0.48,
+          "avgParticipationScore": 0.118
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 152,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.408,
+          "avgLeverageScore": 0.711,
+          "avgParticipationScore": 0.336
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 176,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9943,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.765,
+          "avgLeverageScore": 0.068,
+          "avgParticipationScore": 0.81
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.179,
+          "avgLeverageScore": -0.48,
+          "avgParticipationScore": 0.118
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 152,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.408,
+          "avgLeverageScore": 0.711,
+          "avgParticipationScore": 0.336
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 149,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.262,
+          "avgLeverageScore": -0.134,
+          "avgParticipationScore": -0.09
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 145,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.169,
+          "avgLeverageScore": -0.035,
+          "avgParticipationScore": 0.111
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 129,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.279,
+          "avgLeverageScore": -0.254,
+          "avgParticipationScore": 0.431
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-3-7.8-40",
+      "totalEvents": 504,
+      "continued1Rate": 1,
+      "continued2Rate": 0.996,
+      "continued3Rate": 0.996,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.144,
+      "avgLeverageScore": -0.003,
+      "avgParticipationScore": 0.18,
+      "avgVolScore": 0.175,
+      "opportunitiesPerDatasetYear": 2.23,
+      "topTransitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 91,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.07,
+          "avgLeverageScore": -0.323,
+          "avgParticipationScore": 0.102
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 88,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.409,
+          "avgLeverageScore": -0.229,
+          "avgParticipationScore": 0.378
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.664,
+          "avgLeverageScore": 0.114,
+          "avgParticipationScore": 0.44
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 91,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.07,
+          "avgLeverageScore": -0.323,
+          "avgParticipationScore": 0.102
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 88,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.409,
+          "avgLeverageScore": -0.229,
+          "avgParticipationScore": 0.378
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.664,
+          "avgLeverageScore": 0.114,
+          "avgParticipationScore": 0.44
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 84,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.434,
+          "avgLeverageScore": 0.557,
+          "avgParticipationScore": 0.194
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 80,
+          "continued1Rate": 1,
+          "continued2Rate": 0.975,
+          "continued3Rate": 0.975,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.395,
+          "avgLeverageScore": -0.202,
+          "avgParticipationScore": -0.036
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 76,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.244,
+          "avgLeverageScore": 0.102,
+          "avgParticipationScore": -0.034
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 2141,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.106,
+      "avgLeverageScore": -0.032,
+      "avgParticipationScore": 0.212,
+      "avgVolScore": 0.15,
+      "opportunitiesPerDatasetYear": 9.48,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 424,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.255,
+          "avgLeverageScore": -0.168,
+          "avgParticipationScore": 0.165
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 405,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.106
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.286,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.167
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 424,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.255,
+          "avgLeverageScore": -0.168,
+          "avgParticipationScore": 0.165
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 405,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.317,
+          "avgParticipationScore": 0.106
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 385,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.286,
+          "avgLeverageScore": 0.296,
+          "avgParticipationScore": 0.167
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 376,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.65,
+          "avgLeverageScore": 0.153,
+          "avgParticipationScore": 0.484
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 284,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.255,
+          "avgLeverageScore": -0.186,
+          "avgParticipationScore": 0.339
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 267,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.14,
+          "avgLeverageScore": 0.042,
+          "avgParticipationScore": -0.009
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 913,
+      "continued1Rate": 1,
+      "continued2Rate": 0.9989,
+      "continued3Rate": 0.9956,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.158,
+      "avgLeverageScore": 0.032,
+      "avgParticipationScore": 0.204,
+      "avgVolScore": 0.162,
+      "opportunitiesPerDatasetYear": 4.04,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 177,
+          "continued1Rate": 1,
+          "continued2Rate": 0.9944,
+          "continued3Rate": 0.9887,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.779,
+          "avgLeverageScore": 0.141,
+          "avgParticipationScore": 0.65
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9876,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.192,
+          "avgLeverageScore": -0.377,
+          "avgParticipationScore": 0.031
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 152,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.456,
+          "avgLeverageScore": 0.736,
+          "avgParticipationScore": 0.312
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 177,
+          "continued1Rate": 1,
+          "continued2Rate": 0.9944,
+          "continued3Rate": 0.9887,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.779,
+          "avgLeverageScore": 0.141,
+          "avgParticipationScore": 0.65
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9876,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.192,
+          "avgLeverageScore": -0.377,
+          "avgParticipationScore": 0.031
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 152,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.456,
+          "avgLeverageScore": 0.736,
+          "avgParticipationScore": 0.312
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 148,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.293,
+          "avgLeverageScore": -0.142,
+          "avgParticipationScore": -0.167
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 146,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.103,
+          "avgLeverageScore": 0.024,
+          "avgParticipationScore": 0.047
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 129,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.203,
+          "avgLeverageScore": -0.225,
+          "avgParticipationScore": 0.281
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 8,
+        "latestSegmentMinWeeks": 4,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "8-4-7.8-40",
+      "totalEvents": 504,
+      "continued1Rate": 0.996,
+      "continued2Rate": 0.996,
+      "continued3Rate": 0.996,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.138,
+      "avgLeverageScore": 0.003,
+      "avgParticipationScore": 0.171,
+      "avgVolScore": 0.168,
+      "opportunitiesPerDatasetYear": 2.23,
+      "topTransitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 91,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.14,
+          "avgLeverageScore": -0.271,
+          "avgParticipationScore": 0.046
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 88,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.386,
+          "avgLeverageScore": -0.17,
+          "avgParticipationScore": 0.289
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.668,
+          "avgLeverageScore": 0.097,
+          "avgParticipationScore": 0.456
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 91,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.14,
+          "avgLeverageScore": -0.271,
+          "avgParticipationScore": 0.046
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 88,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.386,
+          "avgLeverageScore": -0.17,
+          "avgParticipationScore": 0.289
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 85,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.668,
+          "avgLeverageScore": 0.097,
+          "avgParticipationScore": 0.456
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 84,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.435,
+          "avgLeverageScore": 0.377,
+          "avgParticipationScore": 0.302
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 76,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.151,
+          "avgLeverageScore": 0.164,
+          "avgParticipationScore": 0.009
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 80,
+          "continued1Rate": 0.975,
+          "continued2Rate": 0.975,
+          "continued3Rate": 0.975,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.418,
+          "avgLeverageScore": -0.138,
+          "avgParticipationScore": -0.102
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 2326,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.137,
+      "avgLeverageScore": -0.02,
+      "avgParticipationScore": 0.243,
+      "avgVolScore": 0.147,
+      "opportunitiesPerDatasetYear": 10.3,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.224,
+          "avgLeverageScore": -0.181,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.287,
+          "avgLeverageScore": 0.312,
+          "avgParticipationScore": 0.186
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.1,
+          "avgLeverageScore": -0.326,
+          "avgParticipationScore": 0.148
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.224,
+          "avgLeverageScore": -0.181,
+          "avgParticipationScore": 0.132
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.287,
+          "avgLeverageScore": 0.312,
+          "avgParticipationScore": 0.186
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.1,
+          "avgLeverageScore": -0.326,
+          "avgParticipationScore": 0.148
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 396,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.627,
+          "avgLeverageScore": 0.162,
+          "avgParticipationScore": 0.499
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 330,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.353,
+          "avgLeverageScore": -0.128,
+          "avgParticipationScore": 0.406
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 291,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.085,
+          "avgLeverageScore": 0.063,
+          "avgParticipationScore": 0.107
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 1015,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.184,
+      "avgLeverageScore": 0.017,
+      "avgParticipationScore": 0.311,
+      "avgVolScore": 0.182,
+      "opportunitiesPerDatasetYear": 4.49,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 199,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.802,
+          "avgLeverageScore": 0.123,
+          "avgParticipationScore": 0.831
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 184,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.43,
+          "avgParticipationScore": 0.168
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 169,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.438,
+          "avgLeverageScore": 0.676,
+          "avgParticipationScore": 0.427
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 199,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.802,
+          "avgLeverageScore": 0.123,
+          "avgParticipationScore": 0.831
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 184,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.134,
+          "avgLeverageScore": -0.43,
+          "avgParticipationScore": 0.168
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 169,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.438,
+          "avgLeverageScore": 0.676,
+          "avgParticipationScore": 0.427
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.125,
+          "avgLeverageScore": 0.057,
+          "avgParticipationScore": 0.089
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.208,
+          "avgLeverageScore": -0.104,
+          "avgParticipationScore": -0.056
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 139,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.227,
+          "avgLeverageScore": -0.252,
+          "avgParticipationScore": 0.302
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 3,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-3-7.8-40",
+      "totalEvents": 569,
+      "continued1Rate": 1,
+      "continued2Rate": 0.9965,
+      "continued3Rate": 0.9965,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.194,
+      "avgLeverageScore": 0.019,
+      "avgParticipationScore": 0.209,
+      "avgVolScore": 0.209,
+      "opportunitiesPerDatasetYear": 2.52,
+      "topTransitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 108,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.418,
+          "avgLeverageScore": 0.443,
+          "avgParticipationScore": 0.414
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 104,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.794,
+          "avgLeverageScore": 0.268,
+          "avgParticipationScore": 0.483
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 95,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.026,
+          "avgLeverageScore": -0.372,
+          "avgParticipationScore": 0.037
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 108,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.418,
+          "avgLeverageScore": 0.443,
+          "avgParticipationScore": 0.414
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 104,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.794,
+          "avgLeverageScore": 0.268,
+          "avgParticipationScore": 0.483
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 95,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.026,
+          "avgLeverageScore": -0.372,
+          "avgParticipationScore": 0.037
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.341,
+          "avgLeverageScore": -0.256,
+          "avgParticipationScore": 0.356
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 89,
+          "continued1Rate": 1,
+          "continued2Rate": 0.9775,
+          "continued3Rate": 0.9775,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.381,
+          "avgLeverageScore": -0.192,
+          "avgParticipationScore": -0.143
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 79,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.164,
+          "avgLeverageScore": 0.144,
+          "avgParticipationScore": -0.002
+        }
+      ]
+    },
+    {
+      "timeframe": "day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 2326,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.134,
+      "avgLeverageScore": -0.037,
+      "avgParticipationScore": 0.311,
+      "avgVolScore": 0.156,
+      "opportunitiesPerDatasetYear": 10.3,
+      "topTransitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.199,
+          "avgLeverageScore": -0.224,
+          "avgParticipationScore": 0.239
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.29,
+          "avgLeverageScore": 0.404,
+          "avgParticipationScore": 0.211
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.106,
+          "avgLeverageScore": -0.393,
+          "avgParticipationScore": 0.213
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 460,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.199,
+          "avgLeverageScore": -0.224,
+          "avgParticipationScore": 0.239
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 428,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.29,
+          "avgLeverageScore": 0.404,
+          "avgParticipationScore": 0.211
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 421,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.106,
+          "avgLeverageScore": -0.393,
+          "avgParticipationScore": 0.213
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 396,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.614,
+          "avgLeverageScore": 0.157,
+          "avgParticipationScore": 0.537
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 330,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.285,
+          "avgLeverageScore": -0.229,
+          "avgParticipationScore": 0.582
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 291,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.043,
+          "avgLeverageScore": 0.079,
+          "avgParticipationScore": 0.096
+        }
+      ]
+    },
+    {
+      "timeframe": "3day",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 1015,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 1,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.221,
+      "avgLeverageScore": 0.067,
+      "avgParticipationScore": 0.323,
+      "avgVolScore": 0.184,
+      "opportunitiesPerDatasetYear": 4.49,
+      "topTransitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 199,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.787,
+          "avgLeverageScore": 0.188,
+          "avgParticipationScore": 0.897
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 184,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.117,
+          "avgLeverageScore": -0.493,
+          "avgParticipationScore": 0.295
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 169,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.551,
+          "avgLeverageScore": 0.834,
+          "avgParticipationScore": 0.309
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 199,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.787,
+          "avgLeverageScore": 0.188,
+          "avgParticipationScore": 0.897
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 184,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.117,
+          "avgLeverageScore": -0.493,
+          "avgParticipationScore": 0.295
+        },
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 169,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.551,
+          "avgLeverageScore": 0.834,
+          "avgParticipationScore": 0.309
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 163,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.015,
+          "avgLeverageScore": 0.159,
+          "avgParticipationScore": 0.049
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 161,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.219,
+          "avgLeverageScore": -0.142,
+          "avgParticipationScore": -0.08
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 139,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.247,
+          "avgLeverageScore": -0.16,
+          "avgParticipationScore": 0.348
+        }
+      ]
+    },
+    {
+      "timeframe": "week",
+      "tuning": {
+        "minSegmentWeeks": 6,
+        "latestSegmentMinWeeks": 2,
+        "splitPenalty": 7.8,
+        "maxSegmentWeeks": 40
+      },
+      "tuningKey": "6-2-7.8-40",
+      "totalEvents": 569,
+      "continued1Rate": 1,
+      "continued2Rate": 1,
+      "continued3Rate": 0.9965,
+      "revertedToPreviousRate": 0,
+      "avgTrendScore": 0.143,
+      "avgLeverageScore": -0.029,
+      "avgParticipationScore": 0.312,
+      "avgVolScore": 0.225,
+      "opportunitiesPerDatasetYear": 2.52,
+      "topTransitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 108,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.381,
+          "avgLeverageScore": 0.678,
+          "avgParticipationScore": 0.411
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 104,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.691,
+          "avgLeverageScore": -0.018,
+          "avgParticipationScore": 0.69
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 95,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.048,
+          "avgLeverageScore": -0.392,
+          "avgParticipationScore": 0.192
+        }
+      ],
+      "transitions": [
+        {
+          "transition": "Sideways->Bull",
+          "transitionLabel": "震荡灰 -> 牛",
+          "count": 108,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.381,
+          "avgLeverageScore": 0.678,
+          "avgParticipationScore": 0.411
+        },
+        {
+          "transition": "Bull->Sideways",
+          "transitionLabel": "牛 -> 震荡灰",
+          "count": 104,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.691,
+          "avgLeverageScore": -0.018,
+          "avgParticipationScore": 0.69
+        },
+        {
+          "transition": "Sideways->Bear",
+          "transitionLabel": "震荡灰 -> 熊",
+          "count": 95,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.048,
+          "avgLeverageScore": -0.392,
+          "avgParticipationScore": 0.192
+        },
+        {
+          "transition": "Bull->Bear",
+          "transitionLabel": "牛 -> 熊",
+          "count": 94,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": 0.18,
+          "avgLeverageScore": -0.371,
+          "avgParticipationScore": 0.555
+        },
+        {
+          "transition": "Bear->Sideways",
+          "transitionLabel": "熊 -> 震荡灰",
+          "count": 89,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 0.9775,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.305,
+          "avgLeverageScore": -0.178,
+          "avgParticipationScore": -0.057
+        },
+        {
+          "transition": "Bear->Bull",
+          "transitionLabel": "熊 -> 牛",
+          "count": 79,
+          "continued1Rate": 1,
+          "continued2Rate": 1,
+          "continued3Rate": 1,
+          "revertedToPreviousRate": 0,
+          "avgTrendScore": -0.21,
+          "avgLeverageScore": -0.001,
+          "avgParticipationScore": -0.048
+        }
+      ]
+    }
+  ]
+}

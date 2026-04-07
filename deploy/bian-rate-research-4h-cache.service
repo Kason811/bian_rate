@@ -1,0 +1,15 @@
+[Unit]
+Description=bian_rate 4h research kline cache refresh
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ben
+WorkingDirectory=/home/ben/server/vibecode/bian_rate
+EnvironmentFile=/home/ben/server/vibecode/bian_rate/deploy/bian-rate.env
+ExecStart=/home/ben/server/vibecode/bian_rate/scripts/run-research-4h-cache.sh
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true

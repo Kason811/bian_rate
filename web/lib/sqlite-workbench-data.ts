@@ -1070,7 +1070,10 @@ function buildResearchAuditCell(params: {
   const volumeCount = dailyVolumeCount;
   const latestFunding = timeframe === "week" ? weeklyFundingLatest : dailyFundingLatest;
   const latestVolume = dailyVolumeLatest;
-  const latest = [latestCandle, latestFunding, latestVolume].filter((value) => value && value !== "-").sort().at(-1) ?? "-";
+  const latest =
+    timeframe === "4h" || timeframe === "8h"
+      ? latestCandle || "-"
+      : [latestCandle, latestFunding, latestVolume].filter((value) => value && value !== "-").sort().at(-1) ?? "-";
   const notes: string[] = [];
 
   if (!candleCount) notes.push("缺K线");

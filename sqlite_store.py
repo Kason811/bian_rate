@@ -499,6 +499,36 @@ def persist_monthly_funding_metrics(
     return len(rows)
 
 
+def load_daily_funding_metrics(
+    conn: sqlite3.Connection,
+    symbol: str,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> pd.DataFrame:
+    conditions = ["symbol = ?"]
+    params: List[object] = [symbol]
+    if start_date is not None:
+        conditions.append("metric_date >= ?")
+        params.append(start_date)
+    if end_date is not None:
+        conditions.append("metric_date <= ?")
+        params.append(end_date)
+
+    query = f"""
+        SELECT metric_date AS date, daily_funding_rate, funding_event_count
+        FROM daily_funding_metrics
+        WHERE {' AND '.join(conditions)}
+        ORDER BY metric_date
+    """
+    frame = pd.read_sql_query(query, conn, params=params)
+    if frame.empty:
+        return pd.DataFrame(columns=["date", "daily_funding_rate", "funding_event_count"])
+    frame["date"] = pd.to_datetime(frame["date"])
+    frame["daily_funding_rate"] = pd.to_numeric(frame["daily_funding_rate"], errors="coerce").fillna(0.0)
+    frame["funding_event_count"] = pd.to_numeric(frame["funding_event_count"], errors="coerce").fillna(0).astype(int)
+    return frame[["date", "daily_funding_rate", "funding_event_count"]]
+
+
 def persist_weekly_funding_metrics(
     conn: sqlite3.Connection,
     symbol: str,

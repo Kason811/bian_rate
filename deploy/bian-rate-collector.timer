@@ -2,9 +2,8 @@
 Description=Run bian_rate funding collector on schedule
 
 [Timer]
-OnCalendar=*-*-* 00,08,16:15:00
+OnCalendar=*-*-* 08:06:00
 Persistent=true
-RandomizedDelaySec=120
 Unit=bian-rate-collector.service
 
 [Install]
