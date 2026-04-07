@@ -4,12 +4,12 @@ from __future__ import annotations
 import json
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
 import pandas as pd
-from binance.client import Client
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -43,9 +43,8 @@ API_LIMIT = 1000
 MAX_RETRIES = 6
 LOOKBACK_YEARS = 3
 KLINE_LIMIT = 1500
-FUNDING_WINDOW_DAYS = 180
+FUNDING_WINDOW_DAYS = 330
 OUTPUT_DIR = ROOT / "web" / "lib" / "research-klines" / "usdtm" / "week"
-CLIENT = Client()
 
 
 def api_get(path: str, params: dict[str, object]) -> object:
@@ -62,6 +61,13 @@ def api_get(path: str, params: dict[str, object]) -> object:
       )
       with urllib.request.urlopen(request, timeout=30) as response:
         return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+      if exc.code == 403 and attempt < MAX_RETRIES:
+        time.sleep(max(15.0, REQUEST_SLEEP_SECONDS * (8 ** attempt)))
+        continue
+      if attempt == MAX_RETRIES:
+        raise
+      time.sleep(REQUEST_SLEEP_SECONDS * (2 ** attempt))
     except Exception:
       if attempt == MAX_RETRIES:
         raise
@@ -112,14 +118,35 @@ def load_usdtm_targets() -> list[dict[str, object]]:
   return sorted(targets, key=lambda item: str(item["base_asset"]))
 
 
-def fetch_full_funding_history(symbol: str) -> pd.DataFrame:
+def fetch_symbol_onboard_dates(symbols: list[str]) -> dict[str, int]:
+  payload = api_get("/fapi/v1/exchangeInfo", {})
+  if not isinstance(payload, dict):
+    raise RuntimeError("exchangeInfo payload invalid")
+  wanted = set(symbols)
+  result: dict[str, int] = {}
+  for row in payload.get("symbols", []):
+    symbol = row.get("symbol")
+    if symbol in wanted:
+      onboard_date = int(row.get("onboardDate", 0) or 0)
+      if onboard_date > 0:
+        result[str(symbol)] = onboard_date
+  missing = sorted(wanted - set(result))
+  if missing:
+    raise RuntimeError(f"onboard date missing for: {', '.join(missing)}")
+  return result
+
+
+def fetch_full_funding_history(symbol: str, start_ms: int) -> pd.DataFrame:
   rows: list[dict[str, object]] = []
-  cursor = 0
+  cursor = start_ms
   now_ms = int(time.time() * 1000)
   window_ms = FUNDING_WINDOW_DAYS * 86_400_000 - 1
   while cursor < now_ms:
     end_time = min(cursor + window_ms, now_ms)
-    batch = CLIENT.futures_funding_rate(symbol=symbol, startTime=cursor, endTime=end_time, limit=API_LIMIT)
+    batch = api_get(
+      "/fapi/v1/fundingRate",
+      {"symbol": symbol, "startTime": cursor, "endTime": end_time, "limit": API_LIMIT},
+    )
     if not isinstance(batch, list):
       raise RuntimeError(f"funding payload invalid for {symbol}")
     if batch:
@@ -142,9 +169,9 @@ def fetch_full_funding_history(symbol: str) -> pd.DataFrame:
   return frame.sort_values("fundingTime").reset_index(drop=True)
 
 
-def fetch_full_daily_volume(symbol: str) -> pd.DataFrame:
+def fetch_full_daily_volume(symbol: str, start_ms: int) -> pd.DataFrame:
   rows: list[dict[str, float | pd.Timestamp]] = []
-  cursor = 0
+  cursor = start_ms
   now_ms = int(time.time() * 1000)
   while cursor < now_ms:
     batch = api_get("/fapi/v1/klines", {"symbol": symbol, "interval": "1d", "startTime": cursor, "limit": KLINE_LIMIT})
@@ -169,9 +196,9 @@ def fetch_full_daily_volume(symbol: str) -> pd.DataFrame:
   return pd.DataFrame(rows).sort_values("date").drop_duplicates(subset="date", keep="last").reset_index(drop=True)
 
 
-def fetch_full_weekly_klines(symbol: str) -> list[list[object]]:
+def fetch_full_weekly_klines(symbol: str, start_ms: int) -> list[list[object]]:
   rows: list[list[object]] = []
-  cursor = 0
+  cursor = start_ms
   now_ms = int(time.time() * 1000)
   while True:
     batch = api_get("/fapi/v1/klines", {"symbol": symbol, "interval": "1w", "startTime": cursor, "limit": KLINE_LIMIT})
@@ -248,6 +275,7 @@ def main() -> None:
   targets = load_usdtm_targets()
   if not targets:
     raise RuntimeError("no matched USDT-M perpetual symbols found")
+  onboard_dates = fetch_symbol_onboard_dates([str(target["symbol"]) for target in targets])
 
   run_id: int | None = None
   with sqlite_connection() as conn:
@@ -258,12 +286,13 @@ def main() -> None:
       for target in targets:
         symbol = str(target["symbol"])
         base_asset = str(target["base_asset"])
-        funding_df = fetch_full_funding_history(symbol)
+        start_ms = onboard_dates[symbol]
+        funding_df = fetch_full_funding_history(symbol, start_ms)
         daily_funding = compute_daily_funding(funding_df, group_timezone=GROUP_TIMEZONE)
         weekly_funding = build_weekly_symbol_metrics(daily_funding)
         monthly_funding = build_monthly_symbol_metrics(daily_funding)
-        volume_df = fetch_full_daily_volume(symbol)
-        weekly_klines = fetch_full_weekly_klines(symbol)
+        volume_df = fetch_full_daily_volume(symbol, start_ms)
+        weekly_klines = fetch_full_weekly_klines(symbol, start_ms)
         if volume_df.empty or not weekly_klines:
           raise RuntimeError(f"{symbol} missing volume or weekly klines")
 
@@ -275,7 +304,8 @@ def main() -> None:
         persist_funding_quality_audit(conn, run_id, build_funding_quality_audit(symbol, funding_df, daily_funding, int(funding_df.attrs.get("raw_row_count", len(funding_df)))))
         persist_volume_quality_audit(conn, run_id, build_usdtm_volume_quality_audit(symbol, volume_df))
         output_path = write_weekly_kline_cache(base_asset, weekly_klines)
-        print(f"{base_asset}: funding_days={len(daily_funding)} volume_days={len(volume_df)} weekly_klines={len(weekly_klines)} -> {output_path}")
+        conn.commit()
+        print(f"{base_asset}: funding_days={len(daily_funding)} volume_days={len(volume_df)} weekly_klines={len(weekly_klines)} -> {output_path}", flush=True)
         time.sleep(REQUEST_SLEEP_SECONDS)
 
       finalize_collector_run(conn, run_id=run_id, status="completed", skipped_symbol_count=0, notes=f"USDT-M research backfill for {len(targets)} matched symbols")

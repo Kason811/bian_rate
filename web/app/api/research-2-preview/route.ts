@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getBtcWeeklyResearch2Data } from "@/lib/sqlite-workbench-data";
+import { getResearch2Defaults } from "@/lib/research2-defaults";
 import type { ResearchMarketType, ResearchTimeframe } from "@/lib/workbench-data";
 
 function parseIntParam(value: string | null, fallback: number) {
@@ -23,32 +24,33 @@ function parseSymbolParam(value: string | null, fallback: string) {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const serverDefaults = getResearch2Defaults();
   const data = await getBtcWeeklyResearch2Data({
     marketType: parseEnumParam<ResearchMarketType>(searchParams.get("market"), "coinm", ["coinm", "usdtm"]),
     symbol: parseSymbolParam(searchParams.get("symbol"), "BTC"),
     timeframe: parseEnumParam<ResearchTimeframe>(searchParams.get("timeframe"), "week", ["week", "3day", "day"]),
     tuning: {
-      minSegmentWeeks: parseIntParam(searchParams.get("minWeeks"), 5),
-      latestSegmentMinWeeks: parseIntParam(searchParams.get("latestMinWeeks"), 5),
+      minSegmentWeeks: parseIntParam(searchParams.get("minWeeks"), serverDefaults.tuning.minWeeks),
+      latestSegmentMinWeeks: parseIntParam(searchParams.get("latestMinWeeks"), serverDefaults.tuning.latestMinWeeks),
       splitPenalty: parseFloatParam(searchParams.get("splitPenalty"), 7.8),
-      maxSegmentWeeks: parseIntParam(searchParams.get("maxWeeks"), 28),
+      maxSegmentWeeks: parseIntParam(searchParams.get("maxWeeks"), serverDefaults.tuning.maxWeeks),
     },
     indicatorSettings: {
-      emaPeriod: parseIntParam(searchParams.get("emaPeriod"), 21),
-      smaPeriod: parseIntParam(searchParams.get("smaPeriod"), 200),
-      adxPeriod: parseIntParam(searchParams.get("adxPeriod"), 14),
-      adxTrendLevel: parseIntParam(searchParams.get("adxTrendLevel"), 25),
-      rsiPeriod: parseIntParam(searchParams.get("rsiPeriod"), 14),
-      rsiUpper: parseIntParam(searchParams.get("rsiUpper"), 80),
-      rsiLower: parseIntParam(searchParams.get("rsiLower"), 20),
-      bbPeriod: parseIntParam(searchParams.get("bbPeriod"), 20),
-      bbStdDev: parseFloatParam(searchParams.get("bbStdDev"), 2),
-      returnZPeriod: parseIntParam(searchParams.get("returnZPeriod"), 52),
-      returnUpper: parseFloatParam(searchParams.get("returnUpper"), 2),
-      returnLower: parseFloatParam(searchParams.get("returnLower"), -2),
-      bbwPercentileWindow: parseIntParam(searchParams.get("bbwWindow"), 104),
-      bbwHigh: parseIntParam(searchParams.get("bbwHigh"), 70),
-      bbwLow: parseIntParam(searchParams.get("bbwLow"), 30),
+      emaPeriod: parseIntParam(searchParams.get("emaPeriod"), serverDefaults.indicator.emaPeriod),
+      smaPeriod: parseIntParam(searchParams.get("smaPeriod"), serverDefaults.indicator.smaPeriod),
+      adxPeriod: parseIntParam(searchParams.get("adxPeriod"), serverDefaults.indicator.adxPeriod),
+      adxTrendLevel: parseIntParam(searchParams.get("adxTrendLevel"), serverDefaults.indicator.adxTrendLevel),
+      rsiPeriod: parseIntParam(searchParams.get("rsiPeriod"), serverDefaults.indicator.rsiPeriod),
+      rsiUpper: parseIntParam(searchParams.get("rsiUpper"), serverDefaults.indicator.rsiUpper),
+      rsiLower: parseIntParam(searchParams.get("rsiLower"), serverDefaults.indicator.rsiLower),
+      bbPeriod: parseIntParam(searchParams.get("bbPeriod"), serverDefaults.indicator.bbPeriod),
+      bbStdDev: parseFloatParam(searchParams.get("bbStdDev"), serverDefaults.indicator.bbStdDev),
+      returnZPeriod: parseIntParam(searchParams.get("returnZPeriod"), serverDefaults.indicator.returnZPeriod),
+      returnUpper: parseFloatParam(searchParams.get("returnUpper"), serverDefaults.indicator.returnUpper),
+      returnLower: parseFloatParam(searchParams.get("returnLower"), serverDefaults.indicator.returnLower),
+      bbwPercentileWindow: parseIntParam(searchParams.get("bbwWindow"), serverDefaults.indicator.bbwWindow),
+      bbwHigh: parseIntParam(searchParams.get("bbwHigh"), serverDefaults.indicator.bbwHigh),
+      bbwLow: parseIntParam(searchParams.get("bbwLow"), serverDefaults.indicator.bbwLow),
     },
     range: {
       startWeek: searchParams.get("startWeek") ?? undefined,

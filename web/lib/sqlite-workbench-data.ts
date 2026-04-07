@@ -1100,6 +1100,10 @@ type SevenRegimeSegmentDraft = {
   endIndex: number;
   start: string;
   end: string;
+  startCloseDate: string;
+  endCloseDate: string;
+  startClosePrice: number;
+  endClosePrice: number;
   weeks: number;
   cumulativeReturnPct: number;
   maxAdvancePct: number;
@@ -1268,10 +1272,12 @@ function splitResearch2Segments(
 
 function buildResearch2SegmentDraft(points: SegmentFeaturePoint[], startIndex: number, endIndex: number): SevenRegimeSegmentDraft {
   const segmentPoints = points.slice(startIndex, endIndex + 1);
+  const firstOpen = segmentPoints[0].openPrice;
   const firstClose = segmentPoints[0].closePrice;
   const lastClose = segmentPoints.at(-1)?.closePrice ?? firstClose;
   const highestPrice = Math.max(...segmentPoints.map((point) => point.highPrice));
-  const pricePath = segmentPoints.map((point) => ((point.closePrice / firstClose) - 1) * 100);
+  const maxAdvancePath = segmentPoints.map((point) => ((point.highPrice / firstOpen) - 1) * 100);
+  const maxDrawdownPath = segmentPoints.map((point) => ((point.lowPrice / firstOpen) - 1) * 100);
   const weeklyReturns = segmentPoints.map((point) => point.weeklyReturnPct);
   const positiveReturnSharePct = segmentPoints.length ? (segmentPoints.filter((point) => point.weeklyReturnPct > 0).length / segmentPoints.length) * 100 : 0;
   const secondHalf = segmentPoints.slice(Math.floor(segmentPoints.length / 2));
@@ -1282,8 +1288,8 @@ function buildResearch2SegmentDraft(points: SegmentFeaturePoint[], startIndex: n
   const emaValues = segmentPoints.map((point) => point.ema21);
   const smaValues = segmentPoints.map((point) => point.sma200);
   const trendScore = avgValues(segmentPoints.map((point) => point.trendScore));
-  const breakoutScore = (Number((((highestPrice / firstClose) - 1) * 100).toFixed(3)) * 0.6) + (secondHalfReturnPct * 0.4);
-  const riskScore = (Math.abs(Math.min(...pricePath)) * 0.65) + (Math.abs(Number((((lastClose / highestPrice) - 1) * 100).toFixed(3))) * 0.35);
+  const breakoutScore = (Number((((highestPrice / firstOpen) - 1) * 100).toFixed(3)) * 0.6) + (secondHalfReturnPct * 0.4);
+  const riskScore = (Math.abs(Math.min(...maxDrawdownPath)) * 0.65) + (Math.abs(Number((((lastClose / highestPrice) - 1) * 100).toFixed(3))) * 0.35);
   let runningPeak = segmentPoints[0].closePrice;
   let runningPeakIndex = 0;
   let peakToTroughDrawdownPct = 0;
@@ -1306,10 +1312,14 @@ function buildResearch2SegmentDraft(points: SegmentFeaturePoint[], startIndex: n
     endIndex,
     start: segmentPoints[0].weekStart,
     end: segmentPoints.at(-1)?.weekEnd ?? segmentPoints[0].weekEnd,
+    startCloseDate: segmentPoints[0].weekStart,
+    endCloseDate: segmentPoints.at(-1)?.weekEnd ?? segmentPoints[0].weekEnd,
+    startClosePrice: Number(firstOpen.toFixed(2)),
+    endClosePrice: Number(lastClose.toFixed(2)),
     weeks: segmentPoints.length,
-    cumulativeReturnPct: Number((((lastClose / firstClose) - 1) * 100).toFixed(2)),
-    maxAdvancePct: Number(Math.max(...pricePath).toFixed(2)),
-    maxDrawdownPct: Number(Math.min(...pricePath).toFixed(2)),
+    cumulativeReturnPct: Number((((lastClose / firstOpen) - 1) * 100).toFixed(2)),
+    maxAdvancePct: Number(Math.max(...maxAdvancePath).toFixed(2)),
+    maxDrawdownPct: Number(Math.min(...maxDrawdownPath).toFixed(2)),
     peakToEndDrawdownPct: Number((((lastClose / highestPrice) - 1) * 100).toFixed(2)),
     avgFundingRatePct: Number(avgValues(segmentPoints.map((point) => point.fundingRatePct)).toFixed(3)),
     avgVolumeM: Number(avgValues(segmentPoints.map((point) => point.avgVolumeM)).toFixed(1)),
@@ -1753,6 +1763,10 @@ function buildBtcSevenRegimeResearch(
     tone: SEVEN_REGIME_TONE[segment.label],
     start: segment.start,
     end: segment.end,
+    startCloseDate: segment.startCloseDate,
+    endCloseDate: segment.endCloseDate,
+    startClosePrice: segment.startClosePrice,
+    endClosePrice: segment.endClosePrice,
     weeks: segment.weeks,
     cumulativeReturnPct: segment.cumulativeReturnPct,
     maxAdvancePct: segment.maxAdvancePct,

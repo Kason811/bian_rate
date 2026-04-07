@@ -282,15 +282,18 @@ def upsert_symbol_records(
     now_iso = utc_now_iso()
     rows = []
     symbols = []
+    market_types = []
     for record in records:
         symbol = str(record["symbol"])
         symbols.append(symbol)
+        market_type = str(record["market_type"])
+        market_types.append(market_type)
         rows.append(
             (
                 str(record["symbol"]),
                 str(record["base_asset"]),
                 str(record["quote_asset"]),
-                str(record["market_type"]),
+                market_type,
                 float(record.get("contract_size", 1.0)),
                 record.get("category"),
                 int(record.get("is_active", 1)),
@@ -316,10 +319,16 @@ def upsert_symbol_records(
     )
 
     if deactivate_missing and symbols:
-        placeholders = ",".join("?" for _ in symbols)
+        symbol_placeholders = ",".join("?" for _ in symbols)
+        market_type_placeholders = ",".join("?" for _ in market_types)
         conn.execute(
-            f"UPDATE symbols SET is_active = 0, updated_at = ? WHERE symbol NOT IN ({placeholders})",
-            [now_iso, *symbols],
+            f"""
+            UPDATE symbols
+            SET is_active = 0, updated_at = ?
+            WHERE market_type IN ({market_type_placeholders})
+              AND symbol NOT IN ({symbol_placeholders})
+            """,
+            [now_iso, *market_types, *symbols],
         )
 
 

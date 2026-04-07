@@ -186,6 +186,10 @@ export type BtcWeeklyResearch2Segment = {
   tone: string;
   start: string;
   end: string;
+  startCloseDate: string;
+  endCloseDate: string;
+  startClosePrice: number;
+  endClosePrice: number;
   weeks: number;
   cumulativeReturnPct: number;
   maxAdvancePct: number;

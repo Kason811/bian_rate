@@ -211,6 +211,18 @@ function fmtPriceAxisTick(value: number) {
   return value.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 5 });
 }
 
+function renderPriceRange(startDate: string, startPrice: number, endDate: string, endPrice: number) {
+  return (
+    <>
+      <span className="text-slate-700">{startDate}</span>{" "}
+      <span className="font-medium text-rose-700">{fmtPrice(startPrice)}</span>{" "}
+      <span className="text-slate-400">-&gt;</span>{" "}
+      <span className="text-slate-700">{endDate}</span>{" "}
+      <span className="font-medium text-rose-700">{fmtPrice(endPrice)}</span>
+    </>
+  );
+}
+
 function fmtCount(value: number) {
   return value.toLocaleString("en-US");
 }
@@ -2938,6 +2950,25 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
     for (const [key, value] of searchParams.entries()) {
       requestUrl.searchParams.set(key, value);
     }
+    requestUrl.searchParams.set("minWeeks", String(baseResearch2Data.thresholds.minSegmentWeeks));
+    requestUrl.searchParams.set("latestMinWeeks", String(baseResearch2Data.thresholds.latestSegmentMinWeeks));
+    requestUrl.searchParams.set("splitPenalty", String(baseResearch2Data.thresholds.splitPenalty));
+    requestUrl.searchParams.set("maxWeeks", String(baseResearch2Data.thresholds.maxSegmentWeeks));
+    requestUrl.searchParams.set("emaPeriod", String(baseResearch2Data.indicatorSettings.emaPeriod));
+    requestUrl.searchParams.set("smaPeriod", String(baseResearch2Data.indicatorSettings.smaPeriod));
+    requestUrl.searchParams.set("adxPeriod", String(baseResearch2Data.indicatorSettings.adxPeriod));
+    requestUrl.searchParams.set("adxTrendLevel", String(baseResearch2Data.indicatorSettings.adxTrendLevel));
+    requestUrl.searchParams.set("rsiPeriod", String(baseResearch2Data.indicatorSettings.rsiPeriod));
+    requestUrl.searchParams.set("rsiUpper", String(baseResearch2Data.indicatorSettings.rsiUpper));
+    requestUrl.searchParams.set("rsiLower", String(baseResearch2Data.indicatorSettings.rsiLower));
+    requestUrl.searchParams.set("bbPeriod", String(baseResearch2Data.indicatorSettings.bbPeriod));
+    requestUrl.searchParams.set("bbStdDev", String(baseResearch2Data.indicatorSettings.bbStdDev));
+    requestUrl.searchParams.set("returnZPeriod", String(baseResearch2Data.indicatorSettings.returnZPeriod));
+    requestUrl.searchParams.set("returnUpper", String(baseResearch2Data.indicatorSettings.returnUpper));
+    requestUrl.searchParams.set("returnLower", String(baseResearch2Data.indicatorSettings.returnLower));
+    requestUrl.searchParams.set("bbwWindow", String(baseResearch2Data.indicatorSettings.bbwPercentileWindow));
+    requestUrl.searchParams.set("bbwHigh", String(baseResearch2Data.indicatorSettings.bbwHigh));
+    requestUrl.searchParams.set("bbwLow", String(baseResearch2Data.indicatorSettings.bbwLow));
     requestUrl.searchParams.set("startWeek", selectedStartWeek);
     requestUrl.searchParams.set("endWeek", selectedEndWeek);
     setPreviewLoading(true);
@@ -2957,7 +2988,33 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         }
       });
     return () => controller.abort();
-  }, [realtimeRebuild, searchParamString, searchParams, selectedEndWeek, selectedStartWeek, selectedPoints.length]);
+  }, [
+    baseResearch2Data.indicatorSettings.adxPeriod,
+    baseResearch2Data.indicatorSettings.adxTrendLevel,
+    baseResearch2Data.indicatorSettings.bbPeriod,
+    baseResearch2Data.indicatorSettings.bbStdDev,
+    baseResearch2Data.indicatorSettings.bbwHigh,
+    baseResearch2Data.indicatorSettings.bbwLow,
+    baseResearch2Data.indicatorSettings.bbwPercentileWindow,
+    baseResearch2Data.indicatorSettings.emaPeriod,
+    baseResearch2Data.indicatorSettings.returnLower,
+    baseResearch2Data.indicatorSettings.returnUpper,
+    baseResearch2Data.indicatorSettings.returnZPeriod,
+    baseResearch2Data.indicatorSettings.rsiLower,
+    baseResearch2Data.indicatorSettings.rsiPeriod,
+    baseResearch2Data.indicatorSettings.rsiUpper,
+    baseResearch2Data.indicatorSettings.smaPeriod,
+    baseResearch2Data.thresholds.latestSegmentMinWeeks,
+    baseResearch2Data.thresholds.maxSegmentWeeks,
+    baseResearch2Data.thresholds.minSegmentWeeks,
+    baseResearch2Data.thresholds.splitPenalty,
+    realtimeRebuild,
+    searchParamString,
+    searchParams,
+    selectedEndWeek,
+    selectedStartWeek,
+    selectedPoints.length,
+  ]);
 
   const displayData: BtcWeeklyResearch2Data = realtimeRebuild ? (previewData ?? research2Data ?? emptyResearch2Data) : (research2Data ?? emptyResearch2Data);
   const visiblePoints = displayData.points;
@@ -3288,7 +3345,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
 
       <Card
         title={`${getResearchMarketLabel(research2Data.marketType)} ${research2Data.symbol} ${getResearchTimeframeLabel(research2Data.timeframe)}七态自动分区图`}
-        hint="上下两处时间截断控制会同步，默认先展示全时间段。"
+        hint="上下两处时间截断控制会同步，默认先展示全时间段。区间涨跌按首周开盘价到末周收盘价计算，避免切段后一周被统计真空。"
       >
         <div className="mb-4 flex flex-wrap gap-2">
           {orderedSummaries.map((summary) => (
@@ -3334,9 +3391,16 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                     <div>区间内最大上冲: <span className={`font-medium ${rateText(activeSegment?.maxAdvancePct ?? 0)}`}>{fmtPct(activeSegment?.maxAdvancePct ?? 0)}</span></div>
                     <div>区间内最大回撤: <span className={`font-medium ${rateText(activeSegment?.maxDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.maxDrawdownPct ?? 0)}</span></div>
                   </div>
-                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-2">
-                    <div>峰值到段末回撤: <span className={`font-medium ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</span></div>
-                    <div>趋势分: <span className="font-medium text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</span></div>
+                  <div className="grid gap-x-4 gap-y-2 md:grid-cols-4">
+                    <div className="rounded-[12px] border border-transparent px-0 py-0">
+                      峰值到段末回撤: <span className={`font-medium ${rateText(activeSegment?.peakToEndDrawdownPct ?? 0)}`}>{fmtPct(activeSegment?.peakToEndDrawdownPct ?? 0)}</span>
+                    </div>
+                    <div className="rounded-[12px] border border-transparent px-0 py-0">
+                      趋势分: <span className="font-medium text-slate-900">{(activeSegment?.trendScore ?? 0).toFixed(2)}</span>
+                    </div>
+                    <div className="min-w-0 rounded-[12px] border border-transparent px-0 py-0 md:col-span-2">
+                      区间统计口径: <span className="font-medium">{activeSegment ? renderPriceRange(activeSegment.startCloseDate, activeSegment.startClosePrice, activeSegment.endCloseDate, activeSegment.endClosePrice) : "-"}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3605,7 +3669,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
                         {segment.label}
                       </span>
                     </td>
-                    <td className="py-3 text-slate-500">{formatClosedDateSpan(segment.start, segment.end)}</td>
+                    <td className="py-3 text-slate-500">{renderPriceRange(segment.startCloseDate, segment.startClosePrice, segment.endCloseDate, segment.endClosePrice)}</td>
                     <td className="py-3 text-right text-slate-600">{segment.weeks}</td>
                     <td className={`py-3 text-right ${rateText(segment.cumulativeReturnPct)}`}>{fmtPct(segment.cumulativeReturnPct)}</td>
                     <td className={`py-3 text-right ${rateText(segment.avgWeeklyReturnPct)}`}>{fmtPct(segment.avgWeeklyReturnPct)}</td>
