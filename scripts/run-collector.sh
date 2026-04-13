@@ -87,6 +87,15 @@ python binance_coin_funding_rate_collector.py \
   --lookback-days "${LOOKBACK_DAYS_VALUE}" \
   --volume-lookback-days "${VOLUME_LOOKBACK_DAYS_VALUE}"
 
+python scripts/collect_usdtm_daily_metrics.py \
+  --timezone "${TIMEZONE_VALUE}" \
+  --lookback-days "${LOOKBACK_DAYS_VALUE}" \
+  --volume-lookback-days "${VOLUME_LOOKBACK_DAYS_VALUE}"
+
+python scripts/backfill_research_day_klines.py
+python scripts/backfill_research_3day_klines.py
+python scripts/backfill_research_week_klines.py
+
 python scripts/audit_recent_daily_integrity.py \
   --timezone "${TIMEZONE_VALUE}" \
   --window-days "${AUDIT_WINDOW_DAYS_VALUE}" \

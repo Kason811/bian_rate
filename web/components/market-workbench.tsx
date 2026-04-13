@@ -311,18 +311,35 @@ const researchTimeframeOptions: Array<{ key: BtcWeeklyResearch2Data["timeframe"]
 
 function parseDateText(dateText: string) {
   if (dateText.includes("T")) {
-    return new Date(`${dateText}:00`);
+    return new Date(`${dateText}:00Z`);
   }
   return new Date(`${dateText}T00:00:00`);
 }
 
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function formatChinaDateTime(date: Date) {
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
 function formatResearchDateText(dateText: string) {
-  return dateText.includes("T") ? dateText.replace("T", " ") : dateText;
+  if (!dateText.includes("T")) return dateText;
+  return formatChinaDateTime(parseDateText(dateText));
+}
+
+function formatResearchPointTimeLabel(timeframe: BtcWeeklyResearch2Data["timeframe"], startText: string, endText?: string) {
+  if ((timeframe === "4h" || timeframe === "8h") && endText) {
+    return `${formatResearchDateText(startText)} ~ ${formatResearchDateText(endText)}`;
+  }
+  return formatResearchDateText(startText);
 }
 
 function formatResearchAxisTick(value: string) {
   if (value.includes("T")) {
-    return value.slice(5, 16).replace("T", " ");
+    const date = parseDateText(value);
+    return `${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())} ${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
   }
   return value.slice(2, 10);
 }
@@ -3488,8 +3505,8 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
         <Kpi label="K线总数" value={`${klineCount}`} hint="当前市场、币种、周期下已接入研究页的总 K 线数量。" />
         <Kpi label="自动区间数" value={`${displayData.segments.length}`} hint="当前先用连续特征做结构分段，再做段级命名，每段天然至少 5 周。" />
         <Kpi label="平均区间长度" value={`${averageSegmentWeeks} ${getResearchPeriodUnitLabel(displayData.timeframe)}`} hint="这里越大，说明切换越稳；越小，说明对当前周期状态变化更敏感。" />
-        <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成区间 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}，家族 ${displayLatestPoint.family}` : "暂无已完成区间。"} />
-        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ?? "-"} hint={displayLatestPoint ? `当前研究分段最新完成区间 ${displayLatestPoint.weekStart} ~ ${displayLatestPoint.weekEnd}` : "暂无最新观测数据。"} />
+        <Kpi label="当前状态" value={displayLatestPoint?.confirmedRegime ?? "-"} hint={displayLatestPoint ? `最近已完成区间 ${formatResearchPointTimeLabel(displayData.timeframe, displayLatestPoint.weekStart, displayLatestPoint.weekEnd)}，家族 ${displayLatestPoint.family}` : "暂无已完成区间。"} />
+        <Kpi label="最新数据日期" value={research2Data.latestObservedDate ? formatResearchDateText(research2Data.latestObservedDate) : "-"} hint={displayLatestPoint ? `当前研究分段最新完成区间 ${formatResearchPointTimeLabel(displayData.timeframe, displayLatestPoint.weekStart, displayLatestPoint.weekEnd)}` : "暂无最新观测数据。"} />
         <Kpi label="数据源" value={`${getResearchMarketLabel(research2Data.marketType)} ${research2Data.symbol} ${getResearchTimeframeLabel(research2Data.timeframe)}`} hint={research2Data.sourceLabel} />
       </div>
 
@@ -3519,7 +3536,7 @@ function Research2View({ research2Data }: { research2Data?: BtcWeeklyResearch2Da
           {hoverPoint ? (
             <div className="space-y-3">
               <div className="grid gap-2 text-sm text-slate-600 md:grid-cols-6 xl:grid-cols-12">
-                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{formatResearchDateText(hoverPoint.weekStart)}</span></div>
+                <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-2 xl:col-span-2 whitespace-nowrap">时间: <span className="font-medium text-slate-900">{formatResearchPointTimeLabel(displayData.timeframe, hoverPoint.weekStart, hoverPoint.weekEnd)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchReturnLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.weeklyReturnPct)}`}>{fmtPct(hoverPoint.weeklyReturnPct)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">价格: <span className="font-medium text-slate-900">{fmtPrice(hoverPoint.closePrice)}</span></div>
                 <div className="rounded-[14px] border border-slate-200 bg-white px-3 py-2 md:col-span-1 xl:col-span-2 whitespace-nowrap">{getResearchFundingLabel(displayData.timeframe)}: <span className={`font-medium ${rateText(hoverPoint.fundingRatePct)}`}>{fmtPct(hoverPoint.fundingRatePct)}</span></div>

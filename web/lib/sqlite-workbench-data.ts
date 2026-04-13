@@ -2638,7 +2638,10 @@ export async function getBtcWeeklyResearch2Data(
     }
     const latestFundingDate = (db.prepare("SELECT MAX(metric_date) AS latest_date FROM daily_funding_metrics WHERE symbol = ?").get(contractSymbol) as { latest_date: string | null }).latest_date;
     const latestVolumeDate = dailyVolumes.at(-1)?.metric_date ?? null;
-    const latestObservedDate = [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
+    const latestObservedDate =
+      timeframe === "4h" || timeframe === "8h"
+        ? candles.at(-1)?.weekEnd ?? "-"
+        : [latestFundingDate, latestVolumeDate].filter((value): value is string => Boolean(value)).sort().at(-1) ?? "-";
     const builtResearch = timeframe === "week"
       ? buildBtcSevenRegimeResearch(candles, weeklyFunding, dailyVolumes, { tuning, indicatorSettings })
       : buildResearch2FromDailyMetrics(candles, dailyFunding, dailyVolumes, { timeframe, tuning, indicatorSettings });

@@ -68,6 +68,7 @@ bian_rate/
 - `/research-2` 当前分段参数与指标参数支持服务端默认值持久化，所有浏览器共享同一套默认配置
 - `/research-2` 当前极端多头标签已统一改名为 `大牛`
 - `/research-2` 顶部卡片当前会区分“当前状态”和“最新数据日期”，避免把 `weekStart` 误读成最新数据截止日
+- `/research-2` 的 `4小时 / 8小时` 时间当前统一按中国时间显示；高频时间展示以“已完成区间”口径为准，不再把桶起始时间误读为最新完成时间
 - `/research-2` 当前已清理早期残留的说明字段和调试字段，hover 信息块、区间统计、七态均值画像都已按当前展示需求收紧
 - `/research-2` 上下各有一套同步的时间截断控制，时间窗支持拖拽和 `- / +` 步进
 - `/research-2` 默认展示窗当前按周期区分：`周线=全量`、`3日线=约3年`、`日线=约1年`、`8小时=约270根`、`4小时=约360根`；手动拖动后仍可查看更长历史
@@ -95,6 +96,7 @@ bian_rate/
 - `4h / 8h` 的价格已经是高频真实 K 线
 - 但 `4h / 8h` 的成交量与费率仍有一部分沿用日频口径
 - 其中最先要补的是 `4h / 8h` 的真实成交量
+- `USDT-M` 的日费率与日成交量现已接入每日增量采集，`七态研究` 的 `U本位` 数据不会再停在旧日期
 
 ## 环境要求
 
@@ -243,12 +245,16 @@ http://127.0.0.1:43126/research-2
 - 白名单文件热更新对网页访问控制生效；研究页参数默认值修改后，对所有浏览器生效
 - `3日线 / 日线` 的 funding 与成交量当前由 SQLite 日数据按周期聚合，OHLC 使用本地缓存
 - `4小时 / 8小时` 当前不单独抓 funding 与成交量，仍由 SQLite 日数据按日内 K 数均分聚合；`8小时` OHLC 由本地 `4h` 缓存派生，不单独抓 `8h`
+- `USDT-M` 的日费率与日成交量现由 `scripts/collect_usdtm_daily_metrics.py` 在每日 `collector` 中增量刷新
+- `4小时 / 8小时` 的页面时间显示当前统一为中国时间，并按“已完成区间”口径展示
 
 七态研究相关脚本：
 
 - `python scripts/backfill_research_3day_klines.py`
 - `python scripts/backfill_research_day_klines.py`
 - `python scripts/backfill_research_4h_klines.py`
+- `python scripts/backfill_research_week_klines.py`
+- `python scripts/collect_usdtm_daily_metrics.py`
 
 工作约定：
 
@@ -452,6 +458,7 @@ journalctl -u bian-rate-web.service -f
 - 当前默认假设你的机器时区就是 `Asia/Shanghai`
 - 如果服务器时区不是 `Asia/Shanghai`，要么改系统时区，要么改 timer
 - `4h` 研究缓存定时刷新；`8h` 由本地 `4h` 缓存派生，不单独抓
+- 每日 `collector` 现在会依次刷新 `COIN-M` 日费率/成交量、`USDT-M` 日费率/成交量，以及 `day / 3day / week` research-klines 缓存
 - 采集脚本带文件锁，若上一次还没跑完，本次会自动跳过，不会重入
 - `funding` 默认回补最近 `14` 天
 - `volume` 默认回补最近 `45` 天
