@@ -1,8 +1,19 @@
-# Fragment only: merge into the existing Mihomo config; do not replace it.
-# The named outbound must already exist. No node credentials belong here.
+# Fragment only: merge both arrays into the existing config; do not replace it.
+# These two outbounds and provider mysub must already exist. No credentials here.
+proxy-groups:
+  - name: 币安采集
+    type: select
+    proxies:
+      - MY_马来西亚_直出
+      - 🇲🇾 马来西亚 02 家宽
+    use:
+      - mysub
+    filter: '(?i)马来西亚|malaysia'
+    interval: 0
+
 listeners:
   - name: bian-rate-malaysia
     type: mixed
     listen: 127.0.0.1
     port: 7891
-    proxy: MY_马来西亚_直出
+    proxy: 币安采集
