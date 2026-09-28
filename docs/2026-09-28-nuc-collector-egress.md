@@ -2,6 +2,8 @@
 
 运维方案日期：2026-09-28（Asia/Shanghai）。适用 NUC 当前 Mihomo v1.19.20，以及 `bian-rate-collector.service`、`bian-rate-research-4h-cache.service`。
 
+最近恢复验收：2026-09-28 11:09。日频于 10:56:02、4h 于 11:08:48 成功结束，两个 service 退出码均为 0，真实状态文件均为 success。当前在采 COIN-M 20 个 + 同名单 USDT-M 20 个，最近 30 个完整日 funding/volume 无缺失，最近 30 天 4h/8h 无缺桶且 8h 均由完整两个 4h 桶组成；最新 4h 为中国时间 2026-09-28 04:00 开始、07:59:59 收线。原 42 项审计仍有 WIF/WLD 两项既有 warning，详见下方验收边界。日常 funding/volume 参数恢复为 14/45 天，未再次重启整机或等待后续自然定时触发。此段是历史验收，不代替当前任务状态。
+
 ## 故障与方案
 
 默认 `节点选择` 为 `LAX_洛杉矶_直出`。日频在 Python Binance Client 初始化 ping 时被地区限制拒绝；4h 在 COIN-M exchangeInfo 请求处出现 HTTP 451，部分旧记录还有 TLS EOF。2026-09-28 对比测试：默认 7890 出口访问 api/dapi/fapi 三个域名均为 451；指定 `MY_马来西亚_直出` 的相同接口及资金费率、4h K 线接口均为 200。
