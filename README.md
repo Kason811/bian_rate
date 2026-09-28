@@ -440,6 +440,8 @@ journalctl -u bian-rate-web.service -f
 
 ## 定时任务
 
+NUC 的日频采集和 4h 缓存任务使用独立本机代理 `127.0.0.1:7891`，固定走 `MY_马来西亚_直出`；Web 与其他服务继续使用原有网络规则。安装、补采、验收与回退见 [NUC 专用采集出口说明](docs/2026-09-28-nuc-collector-egress.md)。专用代理环境必须只加载到这两个 service，不能加入 Web 共用的 `deploy/bian-rate.env`。
+
 仓库里已补 `systemd timer`：
 
 - `deploy/bian-rate-collector.service`
@@ -548,6 +550,7 @@ python3 scripts/remediate_recent_daily_integrity.py \
 - 访问地址、监听地址、健康检查地址
 - 日志路径或状态文件路径
 - 定时频率、提醒阈值、漏跑阈值
+- 采集出口、专用代理端口、服务依赖和故障恢复结论
 - 白名单文件或认证策略
 
 ## IP 白名单
